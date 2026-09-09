@@ -91,7 +91,7 @@ export function detectarNaSequencia(
 
     if (v === runValor) {
       runTam += 1;
-      if (armado) armado.quebraRodadas += 0;
+      if (armado) armado.quebraRodadas += 1;
       continue;
     }
 
