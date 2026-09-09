@@ -1,29 +1,49 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { AppShell } from "@/components/roleta/AppShell";
+import { EntradaNumeros } from "@/components/roleta/EntradaNumeros";
+import { TabelaCatalogacao } from "@/components/roleta/TabelaCatalogacao";
+import { PainelSinais } from "@/components/roleta/PainelSinais";
+import { PopupSinal } from "@/components/roleta/PopupSinal";
+import { useSinais } from "@/lib/roleta/useSinais";
+import { useEstado } from "@/lib/roleta/store";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
-  component: Index,
+  head: () => ({
+    meta: [
+      { title: "Catalogação — Análise de Padrões de Roleta" },
+      {
+        name: "description",
+        content:
+          "Cadastre resultados de roleta, classifique automaticamente por terminal, cavalo, dúzia, coluna e seção, e detecte padrões de repetição, quebra e retorno.",
+      },
+      { property: "og:title", content: "Catalogação — Análise de Padrões de Roleta" },
+      {
+        property: "og:description",
+        content: "Classificação automática e detecção de padrões em tempo real.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+  component: Catalogacao,
 });
 
-function Index() {
+function Catalogacao() {
+  const estado = useEstado();
+  const { sinais, naoVistos } = useSinais();
+  const popup = estado.config.alertasAtivos ? (naoVistos[naoVistos.length - 1] ?? null) : null;
+
   return (
-    <main
-      className="flex min-h-screen flex-col items-center justify-center gap-6"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-      <Link
-        to="/novo-projeto"
-        className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-      >
-        Ir para Novo projeto
-      </Link>
-    </main>
+    <AppShell>
+      <h1 className="mb-3 text-lg font-black tracking-widest">CATALOGAÇÃO</h1>
+      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+        <div className="space-y-4">
+          <EntradaNumeros total={estado.spins.length} />
+          <TabelaCatalogacao spins={estado.spins} sinais={sinais} />
+        </div>
+        <PainelSinais sinais={sinais} />
+      </div>
+      {popup && <PopupSinal sinal={popup} />}
+    </AppShell>
   );
 }
