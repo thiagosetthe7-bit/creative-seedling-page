@@ -36,9 +36,9 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-30 border-b border-border bg-surface-strong">
+      <header className="sticky top-0 z-30 border-b-2 border-[#FFD966] bg-[#111111]">
         <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-3 px-4 py-2">
-          <span className="mr-2 text-sm font-black tracking-widest text-brand">
+          <span className="mr-2 text-sm font-black tracking-widest text-[#FFD966]">
             FERRAMENTA · ROLETA
           </span>
           <nav className="flex flex-wrap gap-1">
@@ -46,8 +46,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Link
                 key={l.to}
                 to={l.to}
-                className="rounded px-3 py-1.5 text-xs font-bold tracking-wide text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                activeProps={{ className: "bg-brand text-brand-foreground hover:bg-brand" }}
+                className="rounded-sm border border-transparent px-3 py-1.5 text-[11px] font-bold tracking-wide text-white/70 transition-colors hover:border-[#FFD966]/40 hover:text-white"
+                activeProps={{ className: "bg-[#FFD966] text-black hover:text-black" }}
                 activeOptions={{ exact: l.to === "/" }}
               >
                 {l.label}
@@ -56,7 +56,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </nav>
           <button
             onClick={alternar}
-            className="ml-auto rounded border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-accent"
+            className="ml-auto rounded-sm border border-white/25 px-3 py-1.5 text-[11px] font-semibold text-white/70 hover:bg-white/10"
           >
             {escuro ? "MODO CLARO" : "MODO ESCURO"}
           </button>
