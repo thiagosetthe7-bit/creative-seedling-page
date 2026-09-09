@@ -10,11 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as NovoProjetoRouteImport } from './routes/novo-projeto'
+import { Route as SinaisRouteImport } from './routes/sinais'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NovoProjetoRoute = NovoProjetoRouteImport.update({
@@ -22,31 +29,44 @@ const NovoProjetoRoute = NovoProjetoRouteImport.update({
   path: '/novo-projeto',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SinaisRoute = SinaisRouteImport.update({
+  id: '/sinais',
+  path: '/sinais',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
   '/novo-projeto': typeof NovoProjetoRoute
+  '/sinais': typeof SinaisRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
   '/novo-projeto': typeof NovoProjetoRoute
+  '/sinais': typeof SinaisRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
   '/novo-projeto': typeof NovoProjetoRoute
+  '/sinais': typeof SinaisRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/novo-projeto'
+  fullPaths: '/' | '/dashboard' | '/novo-projeto' | '/sinais'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/novo-projeto'
-  id: '__root__' | '/' | '/novo-projeto'
+  to: '/' | '/dashboard' | '/novo-projeto' | '/sinais'
+  id: '__root__' | '/' | '/dashboard' | '/novo-projeto' | '/sinais'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DashboardRoute: typeof DashboardRoute
   NovoProjetoRoute: typeof NovoProjetoRoute
+  SinaisRoute: typeof SinaisRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -58,6 +78,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/novo-projeto': {
       id: '/novo-projeto'
       path: '/novo-projeto'
@@ -65,12 +92,21 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NovoProjetoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sinais': {
+      id: '/sinais'
+      path: '/sinais'
+      fullPath: '/sinais'
+      preLoaderRoute: typeof SinaisRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DashboardRoute: DashboardRoute,
   NovoProjetoRoute: NovoProjetoRoute,
+  SinaisRoute: SinaisRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
