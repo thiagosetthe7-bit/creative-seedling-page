@@ -4,11 +4,11 @@ import { acoes } from "@/lib/roleta/store";
 
 const NUMEROS = Array.from({ length: 37 }, (_, i) => i);
 
-function classeCor(n: number) {
+function estiloCor(n: number) {
   const c = corDoNumero(n);
-  if (c === "verde") return "bg-felt text-white";
-  if (c === "vermelho") return "bg-roleta-vermelho text-white";
-  return "bg-roleta-preto text-white";
+  if (c === "verde") return { backgroundColor: "#0E8A45", color: "#FFFFFF" };
+  if (c === "vermelho") return { backgroundColor: "#E03131", color: "#FFFFFF" };
+  return { backgroundColor: "#111111", color: "#FFFFFF" };
 }
 
 export function EntradaNumeros({ total }: { total: number }) {
