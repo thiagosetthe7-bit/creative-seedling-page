@@ -38,7 +38,8 @@ export function EntradaNumeros({ total }: { total: number }) {
           <button
             key={n}
             onClick={() => acoes.adicionarNumero(n)}
-            className={`h-10 rounded text-sm font-bold transition-transform hover:scale-105 active:scale-95 ${classeCor(n)}`}
+            style={estiloCor(n)}
+            className="h-10 rounded-sm border border-[#3f3f3f] text-sm font-bold transition-transform hover:scale-105 active:scale-95"
           >
             {n}
           </button>
