@@ -10,8 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as NovoProjetoRouteImport } from './routes/novo-projeto'
+import { Route as SimuladorRouteImport } from './routes/simulador'
 import { Route as SinaisRouteImport } from './routes/sinais'
 
 const IndexRoute = IndexRouteImport.update({
@@ -19,14 +20,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const NovoProjetoRoute = NovoProjetoRouteImport.update({
-  id: '/novo-projeto',
-  path: '/novo-projeto',
+const SimuladorRoute = SimuladorRouteImport.update({
+  id: '/simulador',
+  path: '/simulador',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SinaisRoute = SinaisRouteImport.update({
@@ -37,35 +43,45 @@ const SinaisRoute = SinaisRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
-  '/novo-projeto': typeof NovoProjetoRoute
+  '/simulador': typeof SimuladorRoute
   '/sinais': typeof SinaisRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
-  '/novo-projeto': typeof NovoProjetoRoute
+  '/simulador': typeof SimuladorRoute
   '/sinais': typeof SinaisRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
-  '/novo-projeto': typeof NovoProjetoRoute
+  '/simulador': typeof SimuladorRoute
   '/sinais': typeof SinaisRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/novo-projeto' | '/sinais'
+  fullPaths: '/' | '/configuracoes' | '/dashboard' | '/simulador' | '/sinais'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/novo-projeto' | '/sinais'
-  id: '__root__' | '/' | '/dashboard' | '/novo-projeto' | '/sinais'
+  to: '/' | '/configuracoes' | '/dashboard' | '/simulador' | '/sinais'
+  id:
+    | '__root__'
+    | '/'
+    | '/configuracoes'
+    | '/dashboard'
+    | '/simulador'
+    | '/sinais'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ConfiguracoesRoute: typeof ConfiguracoesRoute
   DashboardRoute: typeof DashboardRoute
-  NovoProjetoRoute: typeof NovoProjetoRoute
+  SimuladorRoute: typeof SimuladorRoute
   SinaisRoute: typeof SinaisRoute
 }
 
@@ -78,6 +94,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/configuracoes': {
+      id: '/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof ConfiguracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
@@ -85,11 +108,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/novo-projeto': {
-      id: '/novo-projeto'
-      path: '/novo-projeto'
-      fullPath: '/novo-projeto'
-      preLoaderRoute: typeof NovoProjetoRouteImport
+    '/simulador': {
+      id: '/simulador'
+      path: '/simulador'
+      fullPath: '/simulador'
+      preLoaderRoute: typeof SimuladorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sinais': {
@@ -104,8 +127,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ConfiguracoesRoute: ConfiguracoesRoute,
   DashboardRoute: DashboardRoute,
-  NovoProjetoRoute: NovoProjetoRoute,
+  SimuladorRoute: SimuladorRoute,
   SinaisRoute: SinaisRoute,
 }
 export const routeTree = rootRouteImport
