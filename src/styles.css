@@ -148,3 +148,5 @@
     color: var(--color-foreground);
   }
 }
+
+.dark { --brand: oklch(0.55 0.14 150); --brand-foreground: oklch(0.13 0.02 150); --surface: oklch(0.24 0.03 260); }
