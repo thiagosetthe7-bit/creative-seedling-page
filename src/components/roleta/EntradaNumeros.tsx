@@ -13,7 +13,7 @@ function estiloCor(n: number) {
 
 export function EntradaNumeros({ total }: { total: number }) {
   const [texto, setTexto] = useState("");
-  const { bips } = useEstado();
+  const { pendentes } = useEstado();
 
   const enviarTexto = () => {
     const nums = texto
@@ -36,7 +36,7 @@ export function EntradaNumeros({ total }: { total: number }) {
 
       <div className="grid grid-cols-[repeat(auto-fill,minmax(56px,1fr))] gap-1">
         {NUMEROS.map((n) => {
-          const marcado = bips[n];
+          const marcado = pendentes[n];
           return (
             <div key={n} className="flex flex-col gap-[2px]">
               <button
@@ -48,8 +48,8 @@ export function EntradaNumeros({ total }: { total: number }) {
               </button>
               <div className="flex gap-[2px]">
                 <button
-                  onClick={() => acoes.marcarBip(n, marcado === "timer" ? null : "timer")}
-                  title="BT - BIP NO TIMER"
+                  onClick={() => acoes.marcarPendente(n, marcado === "timer" ? null : "timer")}
+                  title="BT - BIP NO TIMER (vale para a próxima catalogação deste número)"
                   className={`flex-1 rounded-sm border border-[#3f3f3f] px-0 py-[2px] text-[8px] font-black tracking-wide transition-transform active:scale-95 ${
                     marcado === "timer"
                       ? "bg-[#FFD966] text-black"
@@ -59,8 +59,8 @@ export function EntradaNumeros({ total }: { total: number }) {
                   BT
                 </button>
                 <button
-                  onClick={() => acoes.marcarBip(n, marcado === "rolando" ? null : "rolando")}
-                  title="BR - BIP ROLANDO"
+                  onClick={() => acoes.marcarPendente(n, marcado === "rolando" ? null : "rolando")}
+                  title="BR - BIP ROLANDO (vale para a próxima catalogação deste número)"
                   className={`flex-1 rounded-sm border border-[#3f3f3f] px-0 py-[2px] text-[8px] font-black tracking-wide transition-transform active:scale-95 ${
                     marcado === "rolando"
                       ? "bg-[#2196F3] text-white"

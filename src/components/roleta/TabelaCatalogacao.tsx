@@ -85,7 +85,7 @@ export function TabelaCatalogacao({ spins, sinais }: { spins: Spin[]; sinais: Si
                     {spin.numero}
                   </td>
                   {(["timer", "rolando"] as const).map((tipo) => {
-                    const ativo = bips[spin.numero] === tipo;
+                    const ativo = bips[spin.id] === tipo;
                     return (
                       <td
                         key={tipo}
@@ -94,7 +94,7 @@ export function TabelaCatalogacao({ spins, sinais }: { spins: Spin[]; sinais: Si
                       >
                         <button
                           onClick={() =>
-                            acoes.marcarBip(spin.numero, ativo ? null : tipo)
+                            acoes.marcarBip(spin.id, ativo ? null : tipo)
                           }
                           title={
                             tipo === "timer"
