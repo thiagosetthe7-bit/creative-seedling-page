@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BipsRouteImport } from './routes/bips'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as SimuladorRouteImport } from './routes/simulador'
@@ -18,6 +19,11 @@ import { Route as SinaisRouteImport } from './routes/sinais'
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BipsRoute = BipsRouteImport.update({
+  id: '/bips',
+  path: '/bips',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConfiguracoesRoute = ConfiguracoesRouteImport.update({
@@ -43,6 +49,7 @@ const SinaisRoute = SinaisRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/bips': typeof BipsRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
   '/simulador': typeof SimuladorRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/bips': typeof BipsRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
   '/simulador': typeof SimuladorRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/bips': typeof BipsRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
   '/simulador': typeof SimuladorRoute
@@ -65,12 +74,14 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/configuracoes' | '/dashboard' | '/simulador' | '/sinais'
+  fullPaths:
+    '/' | '/bips' | '/configuracoes' | '/dashboard' | '/simulador' | '/sinais'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/configuracoes' | '/dashboard' | '/simulador' | '/sinais'
+  to: '/' | '/bips' | '/configuracoes' | '/dashboard' | '/simulador' | '/sinais'
   id:
     | '__root__'
     | '/'
+    | '/bips'
     | '/configuracoes'
     | '/dashboard'
     | '/simulador'
@@ -79,6 +90,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BipsRoute: typeof BipsRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   DashboardRoute: typeof DashboardRoute
   SimuladorRoute: typeof SimuladorRoute
@@ -92,6 +104,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bips': {
+      id: '/bips'
+      path: '/bips'
+      fullPath: '/bips'
+      preLoaderRoute: typeof BipsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/configuracoes': {
@@ -127,6 +146,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BipsRoute: BipsRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
   DashboardRoute: DashboardRoute,
   SimuladorRoute: SimuladorRoute,
