@@ -84,6 +84,32 @@ export function TabelaCatalogacao({ spins, sinais }: { spins: Spin[]; sinais: Si
                   >
                     {spin.numero}
                   </td>
+                  {(["timer", "rolando"] as const).map((tipo) => {
+                    const ativo = bips[spin.numero] === tipo;
+                    return (
+                      <td
+                        key={tipo}
+                        className="border border-[#3f3f3f] p-0 text-center"
+                        style={estiloBipCell(ativo, tipo)}
+                      >
+                        <button
+                          onClick={() =>
+                            acoes.marcarBip(spin.numero, ativo ? null : tipo)
+                          }
+                          title={
+                            tipo === "timer"
+                              ? `BT - BIP NO TIMER (nº ${spin.numero})`
+                              : `BR - BIP ROLANDO (nº ${spin.numero})`
+                          }
+                          className={`h-full w-full px-1 py-[3px] text-[9px] font-black tracking-wide transition-transform active:scale-95 ${
+                            ativo ? "opacity-100" : "opacity-60 hover:opacity-100"
+                          }`}
+                        >
+                          {ativo ? (tipo === "timer" ? "BT" : "BR") : "—"}
+                        </button>
+                      </td>
+                    );
+                  })}
                   {CATEGORIAS.map((c) => {
                     const valor = spin.classificacao[c.id];
                     const e = estiloCelula(c.id, valor);
