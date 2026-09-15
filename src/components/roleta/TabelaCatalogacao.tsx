@@ -63,7 +63,7 @@ export function TabelaCatalogacao({ spins, sinais }: { spins: Spin[]; sinais: Si
             {linhas.length === 0 && (
               <tr>
                 <td
-                  colSpan={CATEGORIAS.length + 2}
+                  colSpan={CATEGORIAS.length + 4}
                   className="border border-[#3f3f3f] px-3 py-8 text-center text-[#666]"
                 >
                   Nenhum resultado cadastrado ainda.
