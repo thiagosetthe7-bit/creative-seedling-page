@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { corDoNumero } from "@/lib/roleta/classificacao";
-import { acoes } from "@/lib/roleta/store";
+import { acoes, useEstado } from "@/lib/roleta/store";
 
 const NUMEROS = Array.from({ length: 37 }, (_, i) => i);
 
@@ -13,6 +13,7 @@ function estiloCor(n: number) {
 
 export function EntradaNumeros({ total }: { total: number }) {
   const [texto, setTexto] = useState("");
+  const { bips } = useEstado();
 
   const enviarTexto = () => {
     const nums = texto
@@ -33,17 +34,45 @@ export function EntradaNumeros({ total }: { total: number }) {
         <span className="text-xs text-muted-foreground">{total} rodadas</span>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(42px,1fr))] gap-1">
-        {NUMEROS.map((n) => (
-          <button
-            key={n}
-            onClick={() => acoes.adicionarNumero(n)}
-            style={estiloCor(n)}
-            className="h-10 rounded-sm border border-[#3f3f3f] text-sm font-bold transition-transform hover:scale-105 active:scale-95"
-          >
-            {n}
-          </button>
-        ))}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(56px,1fr))] gap-1">
+        {NUMEROS.map((n) => {
+          const marcado = bips[n];
+          return (
+            <div key={n} className="flex flex-col gap-[2px]">
+              <button
+                onClick={() => acoes.adicionarNumero(n)}
+                style={estiloCor(n)}
+                className="h-9 rounded-sm border border-[#3f3f3f] text-sm font-bold transition-transform hover:scale-105 active:scale-95"
+              >
+                {n}
+              </button>
+              <div className="flex gap-[2px]">
+                <button
+                  onClick={() => acoes.marcarBip(n, marcado === "timer" ? null : "timer")}
+                  title="BT - BIP NO TIMER"
+                  className={`flex-1 rounded-sm border border-[#3f3f3f] px-0 py-[2px] text-[8px] font-black tracking-wide transition-transform active:scale-95 ${
+                    marcado === "timer"
+                      ? "bg-[#FFD966] text-black"
+                      : "bg-[#FFF7DC] text-[#7a6a1f] hover:bg-[#FCE9A8]"
+                  }`}
+                >
+                  BT
+                </button>
+                <button
+                  onClick={() => acoes.marcarBip(n, marcado === "rolando" ? null : "rolando")}
+                  title="BR - BIP ROLANDO"
+                  className={`flex-1 rounded-sm border border-[#3f3f3f] px-0 py-[2px] text-[8px] font-black tracking-wide transition-transform active:scale-95 ${
+                    marcado === "rolando"
+                      ? "bg-[#2196F3] text-white"
+                      : "bg-[#E3F0FD] text-[#1a5a96] hover:bg-[#BFDDF9]"
+                  }`}
+                >
+                  BR
+                </button>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
