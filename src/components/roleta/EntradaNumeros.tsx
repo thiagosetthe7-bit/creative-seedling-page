@@ -13,7 +13,7 @@ function estiloCor(n: number) {
 
 export function EntradaNumeros({ total }: { total: number }) {
   const [texto, setTexto] = useState("");
-  const { bips } = useEstado();
+  const { pendentes } = useEstado();
 
   const enviarTexto = () => {
     const nums = texto

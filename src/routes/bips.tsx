@@ -37,12 +37,12 @@ export const Route = createFileRoute("/bips")({
 });
 
 function Bips() {
-  const { bips } = useEstado();
+  const { pendentes } = useEstado();
 
   const ciclar = (n: number) => {
-    const atual = bips[n];
+    const atual = pendentes[n];
     const proximo = atual === undefined ? "timer" : atual === "timer" ? "rolando" : null;
-    acoes.marcarBip(n, proximo);
+    acoes.marcarPendente(n, proximo);
   };
 
   return (
