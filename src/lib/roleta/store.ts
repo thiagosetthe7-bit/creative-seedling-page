@@ -119,4 +119,15 @@ export const acoes = {
   atualizarBanca(patch: Partial<EstadoApp["banca"]>) {
     definir((e) => ({ ...e, banca: { ...e.banca, ...patch } }));
   },
+  marcarBip(numero: number, tipo: "timer" | "rolando" | null) {
+    definir((e) => {
+      const bips = { ...e.bips };
+      if (tipo === null) delete bips[numero];
+      else bips[numero] = tipo;
+      return { ...e, bips };
+    });
+  },
+  limparBips() {
+    definir((e) => ({ ...e, bips: {} }));
+  },
 };
