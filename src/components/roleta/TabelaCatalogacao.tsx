@@ -37,6 +37,18 @@ export function TabelaCatalogacao({ spins, sinais }: { spins: Spin[]; sinais: Si
             <tr className="bg-[#111111] text-[#FFD966]">
               <th className="border border-[#3f3f3f] px-1 py-1.5 text-center font-bold">#</th>
               <th className="border border-[#3f3f3f] px-1 py-1.5 text-center font-bold">Nº</th>
+              <th
+                className="border border-[#3f3f3f] bg-[#5c4d10] px-1 py-1.5 text-center font-bold"
+                title="BT - BIP NO TIMER"
+              >
+                BT
+              </th>
+              <th
+                className="border border-[#3f3f3f] bg-[#0f4c81] px-1 py-1.5 text-center font-bold"
+                title="BR - BIP ROLANDO"
+              >
+                BR
+              </th>
               {CATEGORIAS.map((c) => (
                 <th
                   key={c.id}
