@@ -19,6 +19,8 @@ export interface EstadoApp {
   /** sinais já exibidos em pop-up (evita reabrir) */
   vistos: string[];
   banca: { inicial: number; unidade: number };
+  /** marcações manuais por número: "timer" (BIP NO TIMER) ou "rolando" (BIP ROLANDO) */
+  bips: Record<number, "timer" | "rolando">;
 }
 
 const CHAVE = "roleta-catalogacao-v1";
@@ -34,6 +36,7 @@ const inicial: EstadoApp = {
   cancelados: [],
   vistos: [],
   banca: { inicial: 1000, unidade: 10 },
+  bips: {},
 };
 
 let estado: EstadoApp = inicial;
