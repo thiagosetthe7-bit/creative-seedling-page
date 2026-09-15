@@ -3,6 +3,8 @@ import type { CategoriaId } from "./classificacao";
 import { CATEGORIAS } from "./classificacao";
 import { criarSpin, type Spin } from "./engine";
 
+export type TipoBip = "timer" | "rolando";
+
 export interface Configuracoes {
   minimo: number;
   categoriasAtivas: CategoriaId[];
@@ -19,8 +21,16 @@ export interface EstadoApp {
   /** sinais já exibidos em pop-up (evita reabrir) */
   vistos: string[];
   banca: { inicial: number; unidade: number };
-  /** marcações manuais por número: "timer" (BIP NO TIMER) ou "rolando" (BIP ROLANDO) */
-  bips: Record<number, "timer" | "rolando">;
+  /**
+   * Marcações de bip por RODADA (chave = spin.id).
+   * Cada registro catalogado tem seu próprio BT/BR, mesmo que o número se repita.
+   */
+  bips: Record<string, TipoBip>;
+  /**
+   * Marcações pendentes por NÚMERO na grade de entrada:
+   * aplicam-se à PRÓXIMA rodada catalogada com aquele número e então são consumidas.
+   */
+  pendentes: Record<number, TipoBip>;
 }
 
 const CHAVE = "roleta-catalogacao-v1";
@@ -37,18 +47,42 @@ const inicial: EstadoApp = {
   vistos: [],
   banca: { inicial: 1000, unidade: 10 },
   bips: {},
+  pendentes: {},
 };
 
 let estado: EstadoApp = inicial;
 let carregado = false;
 const ouvintes = new Set<() => void>();
 
+function migrar(bruto: EstadoApp): EstadoApp {
+  // Formato antigo: bips indexado por NÚMERO (marcas compartilhadas entre rodadas).
+  // Converte para o formato novo aplicando cada marca à rodada mais recente
+  // daquele número; marcas sem rodada correspondente viram pendências.
+  const antigo = bruto.bips as unknown;
+  if (!antigo || typeof antigo !== "object") return bruto;
+  const chaves = Object.keys(antigo as Record<string, unknown>);
+  const pareceNovo = chaves.every((k) => Number.isNaN(Number(k)));
+  if (pareceNovo) return bruto;
+
+  const bips: Record<string, TipoBip> = {};
+  const pendentes: Record<number, TipoBip> = {};
+  for (const k of chaves) {
+    const tipo = (antigo as Record<string, TipoBip>)[k];
+    if (tipo !== "timer" && tipo !== "rolando") continue;
+    const numero = Number(k);
+    const alvo = [...bruto.spins].reverse().find((s) => s.numero === numero);
+    if (alvo) bips[alvo.id] = tipo;
+    else pendentes[numero] = tipo;
+  }
+  return { ...bruto, bips, pendentes };
+}
+
 function carregar(): EstadoApp {
   if (carregado || typeof window === "undefined") return estado;
   carregado = true;
   try {
     const bruto = window.localStorage.getItem(CHAVE);
-    if (bruto) estado = { ...inicial, ...(JSON.parse(bruto) as EstadoApp) };
+    if (bruto) estado = migrar({ ...inicial, ...(JSON.parse(bruto) as EstadoApp) });
   } catch {
     /* ignora dados corrompidos */
   }
@@ -81,21 +115,52 @@ export function useEstado(): EstadoApp {
   );
 }
 
+/** Cria um spin aplicando (e consumindo) a marcação pendente do número, se houver. */
+function criarSpinComBip(numero: number, pendentes: Record<number, TipoBip>) {
+  const spin = criarSpin(numero);
+  const tipo = pendentes[numero];
+  return { spin, tipo };
+}
+
 export const acoes = {
   adicionarNumero(numero: number) {
-    definir((e) => ({ ...e, spins: [...e.spins, criarSpin(numero)] }));
+    definir((e) => {
+      const { spin, tipo } = criarSpinComBip(numero, e.pendentes);
+      const bips = { ...e.bips };
+      if (tipo) bips[spin.id] = tipo;
+      const pendentes = { ...e.pendentes };
+      if (tipo) delete pendentes[numero];
+      return { ...e, spins: [...e.spins, spin], bips, pendentes };
+    });
   },
   adicionarVarios(numeros: number[]) {
-    definir((e) => ({
-      ...e,
-      spins: [...e.spins, ...numeros.map((n) => criarSpin(n))],
-    }));
+    definir((e) => {
+      const bips = { ...e.bips };
+      const pendentes = { ...e.pendentes };
+      const novos = numeros.map((n) => {
+        const { spin, tipo } = criarSpinComBip(n, pendentes);
+        if (tipo) {
+          bips[spin.id] = tipo;
+          delete pendentes[n];
+        }
+        return spin;
+      });
+      return { ...e, spins: [...e.spins, ...novos], bips, pendentes };
+    });
   },
   desfazer() {
     definir((e) => ({ ...e, spins: e.spins.slice(0, -1) }));
   },
   limpar() {
-    definir((e) => ({ ...e, spins: [], confirmados: [], cancelados: [], vistos: [] }));
+    definir((e) => ({
+      ...e,
+      spins: [],
+      confirmados: [],
+      cancelados: [],
+      vistos: [],
+      bips: {},
+      pendentes: {},
+    }));
   },
   marcarVisto(id: string) {
     definir((e) => (e.vistos.includes(id) ? e : { ...e, vistos: [...e.vistos, id] }));
@@ -119,15 +184,25 @@ export const acoes = {
   atualizarBanca(patch: Partial<EstadoApp["banca"]>) {
     definir((e) => ({ ...e, banca: { ...e.banca, ...patch } }));
   },
-  marcarBip(numero: number, tipo: "timer" | "rolando" | null) {
+  /** Marca/desmarca o bip de uma rodada específica (individual por registro). */
+  marcarBip(spinId: string, tipo: TipoBip | null) {
     definir((e) => {
       const bips = { ...e.bips };
-      if (tipo === null) delete bips[numero];
-      else bips[numero] = tipo;
+      if (tipo === null) delete bips[spinId];
+      else bips[spinId] = tipo;
       return { ...e, bips };
     });
   },
   limparBips() {
-    definir((e) => ({ ...e, bips: {} }));
+    definir((e) => ({ ...e, bips: {}, pendentes: {} }));
+  },
+  /** Marca/desmarca a pendência de um número na grade (vale para a próxima catalogação). */
+  marcarPendente(numero: number, tipo: TipoBip | null) {
+    definir((e) => {
+      const pendentes = { ...e.pendentes };
+      if (tipo === null) delete pendentes[numero];
+      else pendentes[numero] = tipo;
+      return { ...e, pendentes };
+    });
   },
 };
