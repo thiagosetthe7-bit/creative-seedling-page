@@ -51,7 +51,9 @@ function Bips() {
       <section className="rounded-lg border border-border bg-card p-3">
         <p className="mb-3 text-xs text-muted-foreground">
           Clique em um número para alternar: <strong style={{ color: "#C9A227" }}>BIP NO TIMER</strong>{" "}
-          → <strong style={{ color: "#2196F3" }}>BIP ROLANDO</strong> → sem marcação.
+          → <strong style={{ color: "#2196F3" }}>BIP ROLANDO</strong> → sem marcação. A marcação vale
+          para a <strong>próxima catalogação</strong> daquele número; cada rodada registrada guarda
+          seu próprio bip.
         </p>
 
         <div className="mb-3 flex flex-wrap gap-2 text-[11px] font-bold">
@@ -77,7 +79,7 @@ function Bips() {
 
         <div className="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-1">
           {NUMEROS.map((n) => {
-            const marcado = bips[n];
+            const marcado = pendentes[n];
             return (
               <button
                 key={n}
