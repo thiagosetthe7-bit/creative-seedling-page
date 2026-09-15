@@ -10,7 +10,15 @@ function estiloNumero(n: number) {
   return { backgroundColor: "#111111", color: "#FFFFFF" };
 }
 
+function estiloBipCell(ativo: boolean, tipo: "timer" | "rolando") {
+  if (ativo && tipo === "timer") return { backgroundColor: "#FFD966", color: "#111111" };
+  if (ativo && tipo === "rolando") return { backgroundColor: "#2196F3", color: "#FFFFFF" };
+  if (tipo === "timer") return { backgroundColor: "#FFF7DC", color: "#B29A45" };
+  return { backgroundColor: "#E3F0FD", color: "#6FA8D6" };
+}
+
 export function TabelaCatalogacao({ spins, sinais }: { spins: Spin[]; sinais: Sinal[] }) {
+  const { bips } = useEstado();
   const porRodada = new Map<number, Sinal[]>();
   for (const s of sinais) {
     porRodada.set(s.rodada, [...(porRodada.get(s.rodada) ?? []), s]);
