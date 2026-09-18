@@ -454,10 +454,17 @@ export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
           ? `Altura ${hitAltura ? "confirmada" : "não confirmada"}, mas cobertura ${hitCoverage ? "confirmada" : "fora"}.`
           : `Fora da altura e de todas as coberturas ${sinal.alvo}.`;
     } else if (sinal.categoria === "secao") {
-      result = atual.numero !== 0 && c.secao !== sinal.auditExcludedSession ? "GREEN" : "RED";
-      reason = result === "GREEN"
-        ? `Sessão ${c.secao} não pertence à região excluída ${sinal.auditExcludedSession}.`
-        : `Resultado caiu na sessão excluída ${sinal.auditExcludedSession}.`;
+      const hitExcluded = atual.numero !== 0 && c.secao === sinal.auditExcludedSession;
+      result = hitExcluded ? "RED" : "GREEN";
+      reason = hitExcluded
+        ? `Resultado caiu na sessão excluída ${sinal.auditExcludedSession}; isso não invalida a cobertura principal de Altura + Coluna/Dúzia.`
+        : `Sessão ${c.secao} não pertence à região excluída ${sinal.auditExcludedSession}.`;
+      // O filtro de sessão é passivo: sua falha isolada nunca derruba um acerto da cobertura principal.
+      if (hitExcluded) {
+        const principal = sinais.filter((x) => x.spinId === sinal.spinId && (x.categoria === "ab" || x.categoria === "duzia"))
+          .map((x) => x.auditResult);
+        if (principal.includes("GREEN")) result = "PARTIAL";
+      }
     } else if (sinal.categoria === "pi") {
       result = atual.numero !== 0 && c.pi === sinal.alvo ? "GREEN" : "RED";
       reason = `Paridade atual: ${atual.numero === 0 ? "ZERO" : c.pi}.`;
