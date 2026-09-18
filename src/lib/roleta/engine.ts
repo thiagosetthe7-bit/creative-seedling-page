@@ -57,6 +57,11 @@ export interface Sinal {
   title: string;
   message: string;
   priority: PrioridadeAlerta;
+  mainAction: string;
+  coverageText: string | null;
+  excludeText: string | null;
+  footerNote: string | null;
+  sequenceContext: string | null;
   bip: TipoBip;
   rodadaAnterior: number | null;
   numeroAnterior: number | null;
@@ -202,6 +207,11 @@ function sinalBase(
     title,
     message,
     priority,
+    mainAction: alvo,
+    coverageText: null,
+    excludeText: null,
+    footerNote: null,
+    sequenceContext: null,
     bip,
     rodadaAnterior: anterior.rodada,
     numeroAnterior: anterior.numero,
@@ -266,6 +276,18 @@ function coberturaObrigatoria(coluna: string, duzia: string) {
   return [c, d];
 }
 
+function tipoBipLabel(bip: TipoBip) { return bip === "timer" ? "BT" : "BR"; }
+function sequenciaBips(spins: Spin[], bips: MapaBips, index: number) {
+  return spins.slice(Math.max(0, index - 3), index + 1).map((s) => bips[s.id]).filter(Boolean).map((b) => tipoBipLabel(b as TipoBip));
+}
+function contextoSequencial(seq: string[], bip: TipoBip, anterior: Spin) {
+  const joined = seq.join("+");
+  if (seq.slice(-3).every((x) => x === "BT") && seq.slice(-3).length === 3) return { title: "⚠️ SEQUÊNCIA ANÔMALA", action: "AGUARDAR BR VÁLIDO", confidence: 0, context: joined };
+  if (joined.endsWith("BT+BR+BR+BT") || joined.endsWith("BR+BR+BT")) return { title: "INVERTE ALTURA", action: "ENTRAR EM " + alturaOposta(anterior.classificacao.ab), confidence: 88, context: "BR+BR→BT" };
+  if (joined.endsWith("BT+BR+BT")) return { title: "REPETE FAIXA", action: "ENTRAR EM " + anterior.classificacao.ab, confidence: 75, context: "BT+BR+BT" };
+  if (bip === "timer") return { title: "INVERTE ALTURA", action: "ENTRAR EM " + alturaOposta(anterior.classificacao.ab), confidence: 85, context: "BT isolado" };
+  return { title: "REPETE ALTURA", action: "ENTRAR EM " + anterior.classificacao.ab, confidence: 90, context: "BR" };
+}
 export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
   const spins = spinsEntrada.map(comRodadas);
   const sinais: Sinal[] = [];
@@ -276,6 +298,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     const proximo = spins[i + 1] ?? null;
     const bip = bips[atual.id];
     if (!bip) continue;
+    const seq = sequenciaBips(spins, bips, i);
 
     const categoriaBase = CATEGORIAS[0]?.id ?? ("cor" as CategoriaId);
     const categoriaLabel = CATEGORIAS[0]?.label ?? "BIP";
@@ -316,6 +339,14 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
         `Apostar na MESMA ALTURA: ${anterior.classificacao.ab}. Cobertura obrigatória: ${cobertura[0]} + ${cobertura[1]}. Não usar coluna/dúzia única. Confiança: ${conf}%.${ajuste}`,
         "HIGH", conf,
       ));
+      const seqCtx = contextoSequencial(seq, bip, anterior);
+      const primary = sinais[sinais.length - 1]!;
+      primary.title = seqCtx.title; primary.mainAction = seqCtx.action;
+      primary.confidence = seqCtx.confidence || conf; primary.sequenceContext = seqCtx.context;
+      primary.footerNote = seqCtx.confidence ? seqCtx.context + " | " + seqCtx.confidence + "%" : seqCtx.context;
+      primary.coverageText = "Cobrir: " + cobertura[0] + " + " + cobertura[1];
+      primary.excludeText = "Exclui: " + sessaoExcluida(anterior.classificacao.secao);
+      primary.message = seqCtx.action;
     } else {
       // NÍVEL 1B: BT — quebra de cor = altura oposta; mesma cor = contrarian.
       const esperado = mesmaCor ? anterior.classificacao.ab : alturaOposta(anterior.classificacao.ab);
@@ -330,15 +361,23 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
           : `BT quebra COR → Apostar ALTURA OPOSTA (${esperado}) à rodada anterior. Confiança: 85%.`,
         "HIGH", conf,
       ));
+      const seqCtx = contextoSequencial(seq, bip, anterior);
+      const primary = sinais[sinais.length - 1]!;
+      primary.title = seqCtx.title; primary.mainAction = seqCtx.action;
+      primary.confidence = seqCtx.confidence || conf; primary.sequenceContext = seqCtx.context;
+      primary.footerNote = seqCtx.confidence ? seqCtx.context + " | " + seqCtx.confidence + "%" : seqCtx.context;
+      primary.coverageText = bip === "rolando" ? "Cobrir: " + coberturaObrigatoria(atual.classificacao.coluna, atual.classificacao.duzia).join(" + ") : null;
+      primary.excludeText = "Exclui: " + sessaoExcluida(anterior.classificacao.secao);
+      primary.message = seqCtx.action;
     }
 
     // NÍVEL 1C: sessão universal, confiança fixa de 96%.
     sinais.push(sinalBase(
       `bip#${atual.id}:session`, "secao", "SESSÃO", anterior.classificacao.secao,
       atual, anterior, proximo, bip, "WARNING", PALETA_BIP.sessao,
-      "SESSÃO: MUDANÇA OBRIGATÓRIA",
-      `Excluir região ${sessaoExcluida(anterior.classificacao.secao)} da aposta. Confiança: 96%.`,
-      "HIGH", 96,
+      "SESSÃO: EXCLUSÃO PASSIVA",
+      `Sessão ${sessaoExcluida(anterior.classificacao.secao)} eliminada.`,
+      "LOW", 96,
     ));
 
     // Cobertura visual obrigatória também fica registrada no sinal BR para auditoria.
@@ -349,7 +388,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
         `${cobertura[0]} + ${cobertura[1]}`, atual, anterior, proximo, bip,
         "ENTRY_SIGNAL", PALETA_BIP.cobertura, "COBERTURA: COLUNA/DÚZIA",
         `Cobrir ${cobertura[0]} E ${cobertura[1]} dentro da faixa de altura ${anterior.classificacao.ab}. É PROIBIDO apostar em coluna/dúzia única.`,
-        "MEDIUM", 85,
+        "LOW", 85,
       );
       s.auditExpectedHeight = anterior.classificacao.ab;
       s.auditExpectedCoverage = cobertura;
@@ -359,11 +398,11 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     // NÍVEL 2: validadores secundários entram na mensagem, sem popup independente.
     const paridadeIgualBR = bip === "rolando" && atual.classificacao.pi === anterior.classificacao.pi;
     const paridadeDiferenteBT = bip === "timer" && atual.classificacao.pi !== anterior.classificacao.pi && !mesmaCor;
-    const ajusteParidade = paridadeIgualBR || paridadeDiferenteBT ? " +2% Assertividade (paridade validada)." : "";
-    const vizinho = bip === "timer" ? "Preferência visual: 9 VIZINHOS 0." : "Preferência visual: 9 VIZINHOS 10.";
-    const primarios = sinais.filter((s) => s.spinId === atual.id && s.priority !== "LOW" && s.type !== "PAUSE");
+    const ajusteParidade = paridadeIgualBR || paridadeDiferenteBT ? 2 : 0;
+    const primarios = sinais.filter((s) => s.spinId === atual.id && s.priority === "HIGH" && s.type !== "PAUSE");
     for (const s of primarios) {
-      if (ajusteParidade || vizinho) s.message += `${ajusteParidade} ${vizinho}`.trim();
+      s.confidence = Math.min(99, s.confidence + ajusteParidade);
+      s.footerNote = (s.sequenceContext ?? "CICLO") + " | " + s.confidence + "%";
     }
   }
 
