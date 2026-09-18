@@ -70,6 +70,15 @@ export interface Sinal {
   auditClasse: string | null;
   auditExpectedHeight: string | null;
   auditExpectedCoverage: string[];
+  auditTargetRow: number;
+  auditResultPayload: {
+    target_signal_id: string;
+    previous_bip_row_index: number;
+    current_number: number | null;
+    verdict: ResultadoAuditoria;
+    reason: string;
+    ui_update: { row_color: string; badge_text: string; panel_status: string };
+  };
   auditExcludedSession: string | null;
 }
 
@@ -207,6 +216,15 @@ function sinalBase(
     auditExpectedHeight: categoria === "ab" || categoria === "duzia" ? atual.classificacao.ab : null,
     auditExpectedCoverage: [],
     auditExcludedSession: categoria === "secao" ? anterior.classificacao.secao : null,
+    auditTargetRow: atual.rodada,
+    auditResultPayload: {
+      target_signal_id: id,
+      previous_bip_row_index: atual.rodada,
+      current_number: null,
+      verdict: "NEUTRAL",
+      reason: "Aguardando o giro atual.",
+      ui_update: { row_color: "#6c757d", badge_text: "⚪ NEUTRO", panel_status: "PENDING" },
+    },
   };
 }
 
@@ -227,24 +245,22 @@ function sessaoExcluida(secao: string) {
   return secao || "SESSÃO ANTERIOR";
 }
 
-function confidenceBR(repetiuAltura: boolean) {
-  return repetiuAltura ? 96 : 88;
+function confidenceBR(separadoMudanca: boolean, juntoMesma: boolean, solto: boolean) {
+  if (solto) return 60;
+  if (separadoMudanca) return 90;
+  if (juntoMesma) return 75;
+  return 85;
 }
 
 function confidenceBT(mesmaCor: boolean) {
-  return mesmaCor ? 94 : 90;
+  return mesmaCor ? 75 : 85;
 }
 
-/**
- * Gerador oficial do BIP ANALYZER.
- *
- * Ordem absoluta:
- * BLOQUEIO > ALTURA > SESSÃO > COLUNA/DÚZIA > VALIDAÇÃO
- *
- * Zero na rodada anterior ou BT consecutivo bloqueia o processamento e produz
- * somente o alerta cinza.
- */
-export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
+function alturaOposta(ab: string) {
+  return ab === "ALTO" ? "BAIXO" : ab === "BAIXO" ? "ALTO" : ab;
+}
+
+function coberturaObrigexport function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
   const spins = spinsEntrada.map(comRodadas);
   const sinais: Sinal[] = [];
 
@@ -258,182 +274,99 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     const categoriaBase = CATEGORIAS[0]?.id ?? ("cor" as CategoriaId);
     const categoriaLabel = CATEGORIAS[0]?.label ?? "BIP";
 
-    // 1. BLOQUEIO — nada mais pode ser emitido nesta rodada.
+    // NÍVEL 0: bloqueios. Qualquer bloqueio suprime todos os demais sinais.
     const zeroAnterior = anterior.numero === 0;
+    const zeroAtual = atual.numero === 0;
     const doubleBT = bip === "timer" && bips[anterior.id] === "timer";
-    if (zeroAnterior || doubleBT) {
-      const motivo = zeroAnterior
-        ? "ZERO detectado"
-        : "DOUBLE BT detectado";
-      sinais.push(
-        sinalBase(
-          `bip#${atual.id}:pause`,
-          categoriaBase,
-          categoriaLabel,
-          "PAUSA",
-          atual,
-          anterior,
-          proximo,
-          bip,
-          "PAUSE",
-          PALETA_BIP.bloqueio,
-          "⛔ PAUSA OPERACIONAL",
-          `${motivo}. Aguardar próximo número colorido.`,
-          "CRITICAL",
-          100,
-        ),
-      );
+    if (zeroAnterior || zeroAtual || doubleBT) {
+      const motivo = zeroAnterior || zeroAtual ? "ZERO detectado" : "DOUBLE BT detectado";
+      sinais.push(sinalBase(
+        `bip#${atual.id}:pause`, categoriaBase, categoriaLabel, "PAUSA", atual, anterior,
+        proximo, bip, "PAUSE", PALETA_BIP.bloqueio, "⛔ PAUSA OPERACIONAL",
+        `${motivo}. Aguardar próximo número colorido.`, "CRITICAL", 100,
+      ));
       continue;
     }
 
     const mesmaAltura = atual.classificacao.ab === anterior.classificacao.ab;
     const mesmaCor = atual.classificacao.cor === anterior.classificacao.cor;
+    const separadaMudanca = atual.classificacao.tipo === "SEPARADO" &&
+      atual.classificacao.secao !== anterior.classificacao.secao;
+    const juntoMesma = atual.classificacao.tipo === "JUNTO" &&
+      atual.classificacao.secao === anterior.classificacao.secao;
+    const brSolto = bip === "rolando" && bips[anterior.id] !== "timer" && anterior.numero !== 0;
 
-    // 2. ALTURA — verde para repetição, vermelho para inversão.
+    // NÍVEL 1A: BR — sempre exige cobertura de 2 colunas + 2 dúzias.
     if (bip === "rolando") {
-      if (mesmaAltura) {
-        sinais.push(
-          sinalBase(
-            `bip#${atual.id}:height-repeat`,
-            "ab",
-            "ALTURA",
-            atual.classificacao.ab,
-            atual,
-            anterior,
-            proximo,
-            bip,
-            "ENTRY_SIGNAL",
-            PALETA_BIP.repeticao,
-            "ALTURA: REPETE",
-            `Entrar em ${atual.classificacao.ab}. Confiança: ${confidenceBR(true)}%.`,
-            "HIGH",
-            confidenceBR(true),
-          ),
-        );
-      } else {
-        sinais.push(
-          sinalBase(
-            `bip#${atual.id}:height-invert`,
-            "ab",
-            "ALTURA",
-            atual.classificacao.ab,
-            atual,
-            anterior,
-            proximo,
-            bip,
-            "ENTRY_SIGNAL",
-            PALETA_BIP.quebra,
-            "ALTURA: INVERTE",
-            `Entrar em ${atual.classificacao.ab}. Confiança: ${confidenceBR(false)}%.`,
-            "HIGH",
-            confidenceBR(false),
-          ),
-        );
-      }
+      const conf = confidenceBR(separadaMudanca, juntoMesma, brSolto);
+      const cobertura = coberturaObrigatoria(atual.classificacao.coluna, atual.classificacao.duzia);
+      const ajuste = separadaMudanca
+        ? " BR SEPARADO + mudança de sessão."
+        : juntoMesma ? " BR JUNTO + mesma sessão: reduzir mão." : "";
+      sinais.push(sinalBase(
+        `bip#${atual.id}:height-repeat`, "ab", "ALTURA", anterior.classificacao.ab,
+        atual, anterior, proximo, bip, "ENTRY_SIGNAL", PALETA_BIP.repeticao,
+        brSolto ? "ALTURA: REPETE — RISCO ELEVADO" : "ALTURA: REPETE",
+        `Apostar na MESMA ALTURA: ${anterior.classificacao.ab}. Cobertura obrigatória: ${cobertura[0]} + ${cobertura[1]}. Não usar coluna/dúzia única. Confiança: ${conf}%.${ajuste}`,
+        "HIGH", conf,
+      ));
     } else {
-      const titulo = mesmaCor ? "ALTURA: REPETE (CONTRARIAN)" : "ALTURA: INVERTE";
-      const mensagem = mesmaCor
-        ? "BT repete COR → Apostar REPETIÇÃO DE ALTURA. NÃO entrar na quebra."
-        : `BT quebra COR → Apostar INVERSÃO DE ALTURA. Confiança: ${confidenceBT(false)}%.`;
-      sinais.push(
-        sinalBase(
-          `bip#${atual.id}:height-${mesmaCor ? "repeat" : "invert"}`,
-          "ab",
-          "ALTURA",
-          atual.classificacao.ab,
-          atual,
-          anterior,
-          proximo,
-          bip,
-          "ENTRY_SIGNAL",
-          mesmaCor ? PALETA_BIP.repeticao : PALETA_BIP.quebra,
-          titulo,
-          mensagem,
-          "HIGH",
-          confidenceBT(mesmaCor),
-        ),
-      );
+      // NÍVEL 1B: BT — quebra de cor = altura oposta; mesma cor = contrarian.
+      const esperado = mesmaCor ? anterior.classificacao.ab : alturaOposta(anterior.classificacao.ab);
+      const conf = confidenceBT(mesmaCor);
+      sinais.push(sinalBase(
+        `bip#${atual.id}:height-${mesmaCor ? "repeat" : "invert"}`, "ab", "ALTURA", esperado,
+        atual, anterior, proximo, bip, "ENTRY_SIGNAL",
+        mesmaCor ? PALETA_BIP.cobertura : PALETA_BIP.quebra,
+        mesmaCor ? "ALTURA: REPETE (CONTRARIAN)" : "ALTURA: INVERTE",
+        mesmaCor
+          ? `BT repete COR → Apostar MESMA ALTURA (${esperado}). NÃO entrar na quebra. Confiança: 75%.`
+          : `BT quebra COR → Apostar ALTURA OPOSTA (${esperado}) à rodada anterior. Confiança: 85%.`,
+        "HIGH", conf,
+      ));
     }
 
-    // 3. SESSÃO — sempre acompanha um BIP válido.
-    sinais.push(
-      sinalBase(
-        `bip#${atual.id}:session`,
-        "secao",
-        "SESSÃO",
-        atual.classificacao.secao,
-        atual,
-        anterior,
-        proximo,
-        bip,
-        "WARNING",
-        PALETA_BIP.sessao,
-        "SESSÃO: MUDANÇA OBRIGATÓRIA",
-        `Excluir região ${sessaoExcluida(anterior.classificacao.secao)} da aposta.`,
-        "HIGH",
-        88,
-      ),
-    );
+    // NÍVEL 1C: sessão universal, confiança fixa de 96%.
+    sinais.push(sinalBase(
+      `bip#${atual.id}:session`, "secao", "SESSÃO", anterior.classificacao.secao,
+      atual, anterior, proximo, bip, "WARNING", PALETA_BIP.sessao,
+      "SESSÃO: MUDANÇA OBRIGATÓRIA",
+      `Excluir região ${sessaoExcluida(anterior.classificacao.secao)} da aposta. Confiança: 96%.`,
+      "HIGH", 96,
+    ));
 
-    // 4. COBERTURA — BR + repetição de altura.
-    if (bip === "rolando" && mesmaAltura) {
-      const c = cobertura(atual.classificacao.coluna, "C");
-      const d = cobertura(atual.classificacao.duzia, "D");
-      sinais.push(
-        sinalBase(
-          `bip#${atual.id}:coverage`,
-          "duzia",
-          "COLUNA/DÚZIA",
-          `${c} + ${d}`,
-          atual,
-          anterior,
-          proximo,
-          bip,
-          "ENTRY_SIGNAL",
-          PALETA_BIP.cobertura,
-          "COBERTURA: COLUNA/DÚZIA",
-          `Cobrir ${c} E ${d} dentro da faixa de altura. NÃO apostar em coluna única.`,
-          "MEDIUM",
-          85,
-        ),
+    // Cobertura visual obrigatória também fica registrada no sinal BR para auditoria.
+    if (bip === "rolando") {
+      const cobertura = coberturaObrigatoria(atual.classificacao.coluna, atual.classificacao.duzia);
+      const s = sinalBase(
+        `bip#${atual.id}:coverage`, "duzia", "COLUNA/DÚZIA",
+        `${cobertura[0]} + ${cobertura[1]}`, atual, anterior, proximo, bip,
+        "ENTRY_SIGNAL", PALETA_BIP.cobertura, "COBERTURA: COLUNA/DÚZIA",
+        `Cobrir ${cobertura[0]} E ${cobertura[1]} dentro da faixa de altura ${anterior.classificacao.ab}. É PROIBIDO apostar em coluna/dúzia única.`,
+        "MEDIUM", 85,
       );
+      s.auditExpectedHeight = anterior.classificacao.ab;
+      s.auditExpectedCoverage = cobertura;
+      sinais.push(s);
     }
 
-    // 5. VALIDAÇÃO — baixa prioridade e visual secundário.
-    const paridadeIgual = atual.classificacao.pi === anterior.classificacao.pi;
-    const tipoSeparado = atual.classificacao.tipo === "SEPARADO";
-    if (paridadeIgual || tipoSeparado) {
-      const paridade = paridadeIgual ? "IGUAL" : "DIFERENTE";
-      const conf = paridadeIgual ? 97 : 91;
-      sinais.push(
-        sinalBase(
-          `bip#${atual.id}:validation`,
-          "pi",
-          "VALIDADOR",
-          atual.classificacao.pi,
-          atual,
-          anterior,
-          proximo,
-          bip,
-          "VALIDATION",
-          PALETA_BIP.validacao,
-          "✅ VALIDADOR ATIVO",
-          `Paridade ${paridade} confirmada. Assertividade aumentada para ${conf}%.`,
-          "LOW",
-          conf,
-        ),
-      );
+    // NÍVEL 2: validadores secundários entram na mensagem, sem popup independente.
+    const paridadeIgualBR = bip === "rolando" && atual.classificacao.pi === anterior.classificacao.pi;
+    const paridadeDiferenteBT = bip === "timer" && atual.classificacao.pi !== anterior.classificacao.pi && !mesmaCor;
+    const ajusteParidade = paridadeIgualBR || paridadeDiferenteBT ? " +2% Assertividade (paridade validada)." : "";
+    const vizinho = bip === "timer" ? "Preferência visual: 9 VIZINHOS 0." : "Preferência visual: 9 VIZINHOS 10.";
+    const primarios = sinais.filter((s) => s.spinId === atual.id && s.priority !== "LOW" && s.type !== "PAUSE");
+    for (const s of primarios) {
+      if (ajusteParidade || vizinho) s.message += `${ajusteParidade} ${vizinho}`.trim();
     }
   }
 
   return sinais.sort(
-    (a, b) =>
-      a.rodada - b.rodada ||
+    (a, b) => a.rodada - b.rodada ||
       prioridadeNumero(a.priority) - prioridadeNumero(b.priority) ||
       a.id.localeCompare(b.id),
   );
 }
-
 
 function alturaValida(numero: number, esperado: string | null) {
   if (numero === 0 || !esperado || esperado === "ZERO") return false;
@@ -463,60 +396,92 @@ function classeNumero(numero: number) {
  */
 export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
   const spins = spinsEntrada.map(comRodadas);
-  const porId = new Map(spins.map((s) => [s.id, s]));
 
   return sinais.map((sinal) => {
-    const origem = porId.get(sinal.spinId);
-    if (!origem) return sinal;
-
     const origemIndex = spins.findIndex((s) => s.id === sinal.spinId);
-    const atual = origemIndex >= 0 ? spins[origemIndex + 1] ?? null : null;
-    const segundoGiro = origemIndex >= 0 ? spins[origemIndex + 2] ?? null : null;
+    if (origemIndex < 0) return sinal;
+    const atual = spins[origemIndex + 1] ?? null;
+    const segundoGiro = spins[origemIndex + 2] ?? null;
 
     if (!atual) {
-      return { ...sinal, status: "PENDENTE", auditResult: "NEUTRAL", auditColor: "#6c757d" };
+      return {
+        ...sinal,
+        auditResult: "NEUTRAL",
+        auditColor: "#6c757d",
+        auditMessage: null,
+        auditTimestamp: null,
+        auditSpinId: null,
+        auditNumero: null,
+        auditClasse: null,
+        auditResultPayload: {
+          target_signal_id: sinal.id,
+          previous_bip_row_index: sinal.rodada,
+          current_number: null,
+          verdict: "NEUTRAL",
+          reason: "Sinal pendente: aguardando o Giro Atual.",
+          ui_update: { row_color: "#6c757d", badge_text: "⚪ PENDENTE", panel_status: "PENDING" },
+        },
+      };
     }
 
-    const agora = atual.timestamp;
     let result: ResultadoAuditoria = "RED";
-    let message = "";
+    let reason = "";
+    const c = classificar(atual.numero);
 
     if (sinal.type === "PAUSE") {
       result = atual.numero === 0 ? "RED" : "GREEN";
-      message = atual.numero === 0
-        ? "Padrão de bloqueio falhou: ZERO repetido."
-        : "Pausa respeitada / próximo giro colorido.";
+      reason = result === "GREEN"
+        ? "Pausa respeitada; próximo número foi colorido."
+        : "Padrão de bloqueio falhou: ZERO repetido.";
     } else if (sinal.categoria === "ab") {
       result = alturaValida(atual.numero, sinal.alvo) ? "GREEN" : "RED";
-      message = `Resultado: ${atual.numero} (${atual.numero === 0 ? "ZERO" : classificar(atual.numero).ab})`;
+      reason = result === "GREEN"
+        ? `Altura ${c.ab} confirmada.`
+        : `Altura esperada ${sinal.alvo}, saiu ${atual.numero === 0 ? "ZERO" : c.ab}.`;
     } else if (sinal.categoria === "duzia") {
       const hitAltura = alturaValida(atual.numero, sinal.auditExpectedHeight);
-      const hitCobertura = coberturaValida(atual.numero, sinal.alvo);
-      result = hitAltura && hitCobertura ? "GREEN" : hitAltura !== hitCobertura ? "PARTIAL" : "RED";
-      message = `Resultado: ${atual.numero} (${classeNumero(atual.numero)})`;
+      const hitCoverage = coberturaValida(atual.numero, sinal.alvo);
+      result = hitAltura && hitCoverage ? "GREEN" : hitAltura !== hitCoverage ? "PARTIAL" : "RED";
+      reason = result === "GREEN"
+        ? `Altura ${c.ab} e cobertura ${sinal.alvo} confirmadas.`
+        : result === "PARTIAL"
+          ? `Altura ${hitAltura ? "confirmada" : "não confirmada"}, mas cobertura ${hitCoverage ? "confirmada" : "fora"}.`
+          : `Fora da altura e de todas as coberturas ${sinal.alvo}.`;
     } else if (sinal.categoria === "secao") {
-      const excluida = sinal.auditExcludedSession ?? "";
-      const secao = classificar(atual.numero).secao;
-      result = atual.numero !== 0 && secao !== excluida ? "GREEN" : "RED";
-      message = `Resultado: ${atual.numero} (${secao})`;
+      result = atual.numero !== 0 && c.secao !== sinal.auditExcludedSession ? "GREEN" : "RED";
+      reason = result === "GREEN"
+        ? `Sessão ${c.secao} não pertence à região excluída ${sinal.auditExcludedSession}.`
+        : `Resultado caiu na sessão excluída ${sinal.auditExcludedSession}.`;
     } else if (sinal.categoria === "pi") {
-      result = atual.numero === 0 ? "RED" : classificar(atual.numero).pi === sinal.alvo ? "GREEN" : "RED";
-      message = `Resultado: ${atual.numero} (${atual.numero === 0 ? "ZERO" : classificar(atual.numero).pi})`;
-    } else {
-      result = atual.numero === 0 ? "RED" : classificar(atual.numero)[sinal.categoria] === sinal.alvo ? "GREEN" : "RED";
-      message = `Resultado: ${atual.numero} (${classeNumero(atual.numero)})`;
+      result = atual.numero !== 0 && c.pi === sinal.alvo ? "GREEN" : "RED";
+      reason = `Paridade atual: ${atual.numero === 0 ? "ZERO" : c.pi}.`;
     }
+
+    // Sinal expira após dois giros se, por alguma razão, ainda estiver pendente.
+    const expira = segundoGiro !== null && sinal.auditSpinId === null && result === "NEUTRAL";
+    if (expira) result = "NEUTRAL";
+
+    const color = result === "GREEN" ? "#28a745" : result === "RED" ? "#dc3545" : result === "PARTIAL" ? "#ffc107" : "#6c757d";
+    const badge = result === "GREEN" ? "✅ GREEN" : result === "RED" ? "❌ RED" : result === "PARTIAL" ? "🟡 PARCIAL" : "⚪ NEUTRO";
 
     return {
       ...sinal,
-      status: result === "GREEN" || result === "PARTIAL" || result === "RED" ? result === "GREEN" || result === "PARTIAL" ? "WIN" : "RED" : "PENDENTE",
+      status: result === "GREEN" || result === "PARTIAL" ? "WIN" : result === "RED" ? "RED" : "CANCELADO",
       auditResult: result,
-      auditColor: result === "GREEN" ? "#28a745" : result === "RED" ? "#dc3545" : result === "PARTIAL" ? "#ffc107" : "#6c757d",
-      auditMessage: message,
-      auditTimestamp: agora,
+      auditColor: color,
+      auditMessage: `Resultado: ${atual.numero} (${atual.numero === 0 ? "ZERO" : `${c.ab}, ${c.coluna}, ${c.duzia}`})`,
+      auditTimestamp: atual.timestamp,
       auditSpinId: atual.id,
       auditNumero: atual.numero,
-      auditClasse: atual.numero === 0 ? "ZERO" : classeNumero(atual.numero),
+      auditClasse: atual.numero === 0 ? "ZERO" : `${c.ab}, ${c.coluna}, ${c.duzia}`,
+      auditResultPayload: {
+        target_signal_id: sinal.id,
+        previous_bip_row_index: sinal.rodada,
+        current_number: atual.numero,
+        verdict: result,
+        reason,
+        ui_update: { row_color: color, badge_text: badge, panel_status: result === "GREEN" || result === "PARTIAL" ? "WIN" : result },
+      },
     };
   });
 }

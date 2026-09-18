@@ -76,9 +76,9 @@ export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
               >
                 {STATUS_LABEL[s.auditResult]}
               </span>
-              {s.auditMessage && (
+              {s.auditResult !== "NEUTRAL" && (
                 <span className="text-[10px] font-semibold" style={{ color: STATUS_CORES[s.auditResult] }}>
-                  {s.auditMessage}
+                  {s.auditMessage ?? "Aguardando o Giro Atual"}
                 </span>
               )}
             </div>

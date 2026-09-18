@@ -73,9 +73,13 @@ export function TabelaCatalogacao({ spins, sinais }: { spins: Spin[]; sinais: Si
             {linhas.map(({ spin, rodada }) => {
               const sinaisLinha = porRodada.get(rodada) ?? [];
               const catsComSinal = new Set(sinaisLinha.map((s) => s.categoria));
+              const auditoria = sinaisLinha.find((s) => s.auditResult !== "NEUTRAL");
+              const rowColor = auditoria?.auditColor;
+              const rowBadge = auditoria?.auditResult === "GREEN" ? "✓ GREEN" : auditoria?.auditResult === "RED" ? "✗ RED" : auditoria?.auditResult === "PARTIAL" ? "PARCIAL" : auditoria ? "NEUTRO" : "";
               return (
-                <tr key={spin.id}>
+                <tr key={spin.id} style={rowColor ? { boxShadow: `inset 5px 0 0 ${rowColor}` } : undefined}>
                   <td className="border border-[#3f3f3f] bg-[#f2f2f2] px-1 py-[3px] text-center text-[10px] text-[#666]">
+                    {rowBadge && <div className="font-black" style={{ color: rowColor }}>{rowBadge}</div>}
                     {rodada}
                   </td>
                   <td
@@ -121,9 +125,12 @@ export function TabelaCatalogacao({ spins, sinais }: { spins: Spin[]; sinais: Si
                           marcado ? "border-2 border-[#FF3B30]" : "border-[#3f3f3f]"
                         }`}
                         style={{ backgroundColor: e.bg, color: e.fg }}
-                        title={marcado ? "Sinal detectado nesta categoria" : undefined}
+                        title={marcado ? `Sinal detectado • ${auditoria?.auditMessage ?? "aguardando auditoria"}` : undefined}
                       >
                         {valor}
+                        {marcado && auditoria && <span className="ml-1 text-[9px] font-black" style={{ color: auditoria.auditColor }}>
+                          {auditoria.auditResult === "GREEN" ? "✓" : auditoria.auditResult === "RED" ? "✗" : auditoria.auditResult === "PARTIAL" ? "≈" : "•"}
+                        </span>}
                       </td>
                     );
                   })}
