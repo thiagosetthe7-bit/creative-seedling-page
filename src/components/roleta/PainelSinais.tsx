@@ -38,8 +38,10 @@ export function StatusTag({ status }: { status: string }) {
 export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
   const ultimos = [...sinais].reverse().slice(0, 16);
   const greens = sinais.filter((s) => s.auditResult === "GREEN").length;
-  const resolvidos = sinais.filter((s) => s.auditResult !== "NEUTRAL").length;
-  const assertividade = sinais.length ? (greens / sinais.length) * 100 : 0;
+  const partials = sinais.filter((s) => s.auditResult === "PARTIAL").length;
+  const reds = sinais.filter((s) => s.auditResult === "RED").length;
+  const resolvidos = greens + partials + reds;
+  const assertividade = resolvidos ? ((greens + partials * 0.5) / resolvidos) * 100 : 0;
 
   return (
     <section className="rounded-lg border border-border bg-card">
@@ -51,7 +53,7 @@ export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
           </span>
         </div>
         <div className="mt-1 text-[9px] text-muted-foreground">
-          {greens} GREEN / {resolvidos} resolvidos / {sinais.length} sinais
+          {greens} GREEN / {partials} PARCIAIS / {reds} RED / {resolvidos} resolvidos
         </div>
       </div>
       <ul className="max-h-[520px] divide-y divide-border overflow-auto">

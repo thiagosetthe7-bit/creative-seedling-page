@@ -20,7 +20,7 @@ export interface Spin {
   classificacao: Classificacao;
 }
 
-export type StatusSinal = "PENDENTE" | "WIN" | "RED" | "CANCELADO";
+export type StatusSinal = "PENDENTE" | "WIN" | "RED" | "PARTIAL" | "CANCELADO";
 export type TipoAlerta = "ENTRY_SIGNAL" | "WARNING" | "PAUSE" | "VALIDATION";
 export type PrioridadeAlerta = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 export type ResultadoAuditoria = "GREEN" | "RED" | "NEUTRAL" | "PARTIAL";
@@ -260,7 +260,13 @@ function alturaOposta(ab: string) {
   return ab === "ALTO" ? "BAIXO" : ab === "BAIXO" ? "ALTO" : ab;
 }
 
-function coberturaObrigexport function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
+function coberturaObrigatoria(coluna: string, duzia: string) {
+  const c = coluna === "C1" ? "C1+C2" : coluna === "C3" ? "C2+C3" : "C1+C2";
+  const d = duzia === "D1" ? "D1+D2" : duzia === "D3" ? "D2+D3" : "D2+D3";
+  return [c, d];
+}
+
+export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
   const spins = spinsEntrada.map(comRodadas);
   const sinais: Sinal[] = [];
 
@@ -466,7 +472,7 @@ export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
 
     return {
       ...sinal,
-      status: result === "GREEN" || result === "PARTIAL" ? "WIN" : result === "RED" ? "RED" : "CANCELADO",
+      status: result === "GREEN" ? "WIN" : result === "PARTIAL" ? "PARTIAL" : result === "RED" ? "RED" : "CANCELADO",
       auditResult: result,
       auditColor: color,
       auditMessage: `Resultado: ${atual.numero} (${atual.numero === 0 ? "ZERO" : `${c.ab}, ${c.coluna}, ${c.duzia}`})`,
@@ -495,6 +501,8 @@ export interface Estatisticas {
   total: number;
   win: number;
   red: number;
+  partial: number;
+  score: number;
   pendentes: number;
   cancelados: number;
   taxaWin: number;
@@ -507,6 +515,7 @@ export interface Estatisticas {
 export function calcularEstatisticas(sinais: Sinal[]): Estatisticas {
   let win = 0;
   let red = 0;
+  let partial = 0;
   let pendentes = 0;
   let cancelados = 0;
   let seqWin = 0;
@@ -520,6 +529,10 @@ export function calcularEstatisticas(sinais: Sinal[]): Estatisticas {
       seqWin++;
       seqRed = 0;
       maiorSeqWin = Math.max(maiorSeqWin, seqWin);
+    } else if (s.status === "PARTIAL") {
+      partial++;
+      seqWin = 0;
+      seqRed = 0;
     } else if (s.status === "RED") {
       red++;
       seqRed++;
@@ -532,14 +545,17 @@ export function calcularEstatisticas(sinais: Sinal[]): Estatisticas {
     }
   }
 
-  const resolvidos = win + red;
+  const resolvidos = win + red + partial;
+  const score = win + partial * 0.5;
   return {
     total: sinais.length,
     win,
     red,
+    partial,
+    score,
     pendentes,
     cancelados,
-    taxaWin: resolvidos ? (win / resolvidos) * 100 : 0,
+    taxaWin: resolvidos ? (score / resolvidos) * 100 : 0,
     taxaRed: resolvidos ? (red / resolvidos) * 100 : 0,
     maiorSeqWin,
     maiorSeqRed,
