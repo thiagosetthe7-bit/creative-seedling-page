@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { analisarBips, calcularEstatisticas, type Sinal } from "./engine";
+import { analisarBips, auditarSinais, calcularEstatisticas, type Sinal } from "./engine";
 import { useEstado } from "./store";
 
 export function useSinais() {
@@ -8,8 +8,9 @@ export function useSinais() {
   return useMemo(() => {
     const brutos = analisarBips(estado.spins, estado.bips);
 
-    const sinais: Sinal[] = brutos.map((s) =>
-      estado.cancelados.includes(s.id) ? { ...s, status: "CANCELADO" } : s,
+    const auditados = auditarSinais(brutos, estado.spins);
+    const sinais: Sinal[] = auditados.map((s) =>
+      estado.cancelados.includes(s.id) ? { ...s, status: "CANCELADO", auditResult: "NEUTRAL", auditColor: "#6c757d" } : s,
     );
 
     return {

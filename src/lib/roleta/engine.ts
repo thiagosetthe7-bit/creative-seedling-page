@@ -23,6 +23,7 @@ export interface Spin {
 export type StatusSinal = "PENDENTE" | "WIN" | "RED" | "CANCELADO";
 export type TipoAlerta = "ENTRY_SIGNAL" | "WARNING" | "PAUSE" | "VALIDATION";
 export type PrioridadeAlerta = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+export type ResultadoAuditoria = "GREEN" | "RED" | "NEUTRAL" | "PARTIAL";
 
 export const PALETA_BIP = {
   repeticao: "#28a745",
@@ -60,6 +61,16 @@ export interface Sinal {
   rodadaAnterior: number | null;
   numeroAnterior: number | null;
   confidence: number;
+  auditResult: ResultadoAuditoria;
+  auditColor: string;
+  auditMessage: string | null;
+  auditTimestamp: number | null;
+  auditSpinId: string | null;
+  auditNumero: number | null;
+  auditClasse: string | null;
+  auditExpectedHeight: string | null;
+  auditExpectedCoverage: string[];
+  auditExcludedSession: string | null;
 }
 
 export interface OpcoesDeteccao {
@@ -186,6 +197,16 @@ function sinalBase(
     rodadaAnterior: anterior.rodada,
     numeroAnterior: anterior.numero,
     confidence,
+    auditResult: "NEUTRAL",
+    auditColor: "#6c757d",
+    auditMessage: null,
+    auditTimestamp: null,
+    auditSpinId: null,
+    auditNumero: null,
+    auditClasse: null,
+    auditExpectedHeight: categoria === "ab" || categoria === "duzia" ? atual.classificacao.ab : null,
+    auditExpectedCoverage: [],
+    auditExcludedSession: categoria === "secao" ? anterior.classificacao.secao : null,
   };
 }
 
@@ -411,6 +432,93 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       prioridadeNumero(a.priority) - prioridadeNumero(b.priority) ||
       a.id.localeCompare(b.id),
   );
+}
+
+
+function alturaValida(numero: number, esperado: string | null) {
+  if (numero === 0 || !esperado || esperado === "ZERO") return false;
+  return classificar(numero).ab === esperado;
+}
+
+function coberturaValida(numero: number, alvo: string) {
+  if (numero === 0) return false;
+  const c = classificar(numero).coluna;
+  const d = classificar(numero).duzia;
+  const tokens = alvo.match(/C[123]|D[123]/g) ?? [];
+  return tokens.some((t) => t[0] === "C" ? t === c : t === d);
+}
+
+function classeNumero(numero: number) {
+  if (numero === 0) return "ZERO";
+  const c = classificar(numero);
+  return `${c.ab}, ${c.coluna}, ${c.duzia}`;
+}
+
+/**
+ * Auditoria automática do giro seguinte.
+ *
+ * Cada sinal nasce no giro do BIP e é resolvido assim que o próximo número
+ * é catalogado. Um sinal ainda sem giro seguinte permanece PENDENTE; depois
+ * de dois giros sem resolução possível, torna-se NEUTRAL.
+ */
+export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
+  const spins = spinsEntrada.map(comRodadas);
+  const porId = new Map(spins.map((s) => [s.id, s]));
+
+  return sinais.map((sinal) => {
+    const origem = porId.get(sinal.spinId);
+    if (!origem) return sinal;
+
+    const origemIndex = spins.findIndex((s) => s.id === sinal.spinId);
+    const atual = origemIndex >= 0 ? spins[origemIndex + 1] ?? null : null;
+    const segundoGiro = origemIndex >= 0 ? spins[origemIndex + 2] ?? null : null;
+
+    if (!atual) {
+      return { ...sinal, status: "PENDENTE", auditResult: "NEUTRAL", auditColor: "#6c757d" };
+    }
+
+    const agora = atual.timestamp;
+    let result: ResultadoAuditoria = "RED";
+    let message = "";
+
+    if (sinal.type === "PAUSE") {
+      result = atual.numero === 0 ? "RED" : "GREEN";
+      message = atual.numero === 0
+        ? "Padrão de bloqueio falhou: ZERO repetido."
+        : "Pausa respeitada / próximo giro colorido.";
+    } else if (sinal.categoria === "ab") {
+      result = alturaValida(atual.numero, sinal.alvo) ? "GREEN" : "RED";
+      message = `Resultado: ${atual.numero} (${atual.numero === 0 ? "ZERO" : classificar(atual.numero).ab})`;
+    } else if (sinal.categoria === "duzia") {
+      const hitAltura = alturaValida(atual.numero, sinal.auditExpectedHeight);
+      const hitCobertura = coberturaValida(atual.numero, sinal.alvo);
+      result = hitAltura && hitCobertura ? "GREEN" : hitAltura !== hitCobertura ? "PARTIAL" : "RED";
+      message = `Resultado: ${atual.numero} (${classeNumero(atual.numero)})`;
+    } else if (sinal.categoria === "secao") {
+      const excluida = sinal.auditExcludedSession ?? "";
+      const secao = classificar(atual.numero).secao;
+      result = atual.numero !== 0 && secao !== excluida ? "GREEN" : "RED";
+      message = `Resultado: ${atual.numero} (${secao})`;
+    } else if (sinal.categoria === "pi") {
+      result = atual.numero === 0 ? "RED" : classificar(atual.numero).pi === sinal.alvo ? "GREEN" : "RED";
+      message = `Resultado: ${atual.numero} (${atual.numero === 0 ? "ZERO" : classificar(atual.numero).pi})`;
+    } else {
+      result = atual.numero === 0 ? "RED" : classificar(atual.numero)[sinal.categoria] === sinal.alvo ? "GREEN" : "RED";
+      message = `Resultado: ${atual.numero} (${classeNumero(atual.numero)})`;
+    }
+
+    return {
+      ...sinal,
+      status: result === "GREEN" || result === "PARTIAL" || result === "RED" ? result === "GREEN" || result === "PARTIAL" ? "WIN" : "RED" : "PENDENTE",
+      auditResult: result,
+      auditColor: result === "GREEN" ? "#28a745" : result === "RED" ? "#dc3545" : result === "PARTIAL" ? "#ffc107" : "#6c757d",
+      auditMessage: message,
+      auditTimestamp: agora,
+      auditSpinId: atual.id,
+      auditNumero: atual.numero,
+      auditClasse: atual.numero === 0 ? "ZERO" : classeNumero(atual.numero),
+    };
+  });
 }
 
 /** Compatibilidade: a estratégia nova não usa mais detecção por sequência. */
