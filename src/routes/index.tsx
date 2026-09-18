@@ -10,16 +10,16 @@ import { useEstado } from "@/lib/roleta/store";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Catalogação — Análise de Padrões de Roleta" },
+      { title: "BIP ANALYZER — Gerador de Sinais Visuais" },
       {
         name: "description",
         content:
-          "Cadastre resultados de roleta, classifique automaticamente por terminal, cavalo, dúzia, coluna e seção, e detecte padrões de repetição, quebra e retorno.",
+          "Motor BIP para leitura da rodada anterior, BIP atual e próximo giro, com popups operacionais e bloqueio prioritário.",
       },
-      { property: "og:title", content: "Catalogação — Análise de Padrões de Roleta" },
+      { property: "og:title", content: "BIP ANALYZER — Gerador de Sinais Visuais" },
       {
         property: "og:description",
-        content: "Classificação automática e detecção de padrões em tempo real.",
+        content: "Bloqueio > Altura > Sessão > Coluna/Dúzia > Validação.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -31,18 +31,36 @@ export const Route = createFileRoute("/")({
 function Catalogacao() {
   const estado = useEstado();
   const { sinais, naoVistos } = useSinais();
-  const popup = estado.config.alertasAtivos ? (naoVistos[naoVistos.length - 1] ?? null) : null;
+
+  const popup = estado.config.alertasAtivos
+    ? [...naoVistos].sort((a, b) => {
+        const peso = (p: string) => p === "CRITICAL" ? 0 : p === "HIGH" ? 1 : p === "MEDIUM" ? 2 : 3;
+        return peso(a.priority) - peso(b.priority) || b.rodada - a.rodada;
+      })[0] ?? null
+    : null;
 
   return (
     <AppShell>
-      <h1 className="mb-3 text-lg font-black tracking-widest">CATALOGAÇÃO</h1>
-      <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h1 className="text-lg font-black tracking-widest">BIP ANALYZER</h1>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Rodada anterior → BIP atual → próximo giro. Bloqueios têm prioridade absoluta.
+          </p>
+        </div>
+        <div className="rounded border border-border bg-muted/40 px-3 py-1.5 text-[10px] font-black tracking-wide">
+          BLOQUEIO &gt; ALTURA &gt; SESSÃO &gt; COLUNA/DÚZIA &gt; VALIDAÇÃO
+        </div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <div className="space-y-4">
           <EntradaNumeros total={estado.spins.length} />
           <TabelaCatalogacao spins={estado.spins} sinais={sinais} />
         </div>
         <PainelSinais sinais={sinais} />
       </div>
+
       {popup && <PopupSinal sinal={popup} />}
     </AppShell>
   );

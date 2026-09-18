@@ -1,16 +1,17 @@
 /**
- * Motor de detecção de padrões.
+ * BIP ANALYZER — motor determinístico de sinais visuais.
  *
- * Regra (não simplificada):
- *  1. Um elemento da categoria aparece N vezes ou mais consecutivas (N = mínimo, padrão 4).
- *  2. Ocorre uma quebra (outro elemento da mesma categoria), que pode durar 1+ rodadas.
- *  3. Quando o elemento original retorna, o sinal é gerado IMEDIATAMENTE nessa rodada.
+ * Referência temporal:
+ * - Rodada anterior = número imediatamente anterior ao BIP atual.
+ * - BIP atual = marcação BT (timer) ou BR (rolando) da rodada atual.
+ * - Próximo giro = rodada seguinte ao BIP atual, quando já catalogada.
  *
- * A detecção é determinística: os sinais são sempre recalculados a partir do
- * histórico completo, o que impede alertas duplicados para a mesma ocorrência.
+ * A estratégia oficial é analisada por analisarBips(). detectarNaSequencia()
+ * permanece exportada para compatibilidade com o histórico de testes do projeto.
  */
 
 import { CATEGORIAS, classificar, type CategoriaId, type Classificacao } from "./classificacao";
+import type { TipoBip } from "./store";
 
 export interface Spin {
   id: string;
@@ -20,26 +21,54 @@ export interface Spin {
 }
 
 export type StatusSinal = "PENDENTE" | "WIN" | "RED" | "CANCELADO";
+export type TipoAlerta = "ENTRY_SIGNAL" | "WARNING" | "PAUSE" | "VALIDATION";
+export type PrioridadeAlerta = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+
+export const PALETA_BIP = {
+  repeticao: "#28a745",
+  quebra: "#dc3545",
+  sessao: "#6f42c1",
+  cobertura: "#fd7e14",
+  bloqueio: "#343a40",
+  validacao: "#007bff",
+} as const;
 
 export interface Sinal {
-  /** ID determinístico: categoria + índice da rodada de retorno */
   id: string;
   categoria: CategoriaId;
   categoriaLabel: string;
-  /** elemento recomendado */
   alvo: string;
   sequenciaInicial: number;
   quebra: string;
   quebraRodadas: number;
   retorno: string;
-  rodada: number; // 1-based
+  rodada: number;
   spinId: string;
   numero: number;
   timestamp: number;
-  /** valor da categoria na rodada seguinte (usado para validação) */
   resultadoSeguinte: string | null;
   numeroSeguinte: number | null;
   status: StatusSinal;
+
+  action: "SHOW_POPUP";
+  type: TipoAlerta;
+  colorCode: string;
+  title: string;
+  message: string;
+  priority: PrioridadeAlerta;
+  bip: TipoBip;
+  rodadaAnterior: number | null;
+  numeroAnterior: number | null;
+  confidence: number;
+}
+
+export interface OpcoesDeteccao {
+  minimo: number;
+  categorias?: CategoriaId[];
+}
+
+export interface MapaBips {
+  [spinId: string]: TipoBip;
 }
 
 export function criarSpin(numero: number, timestamp = Date.now()): Spin {
@@ -51,12 +80,7 @@ export function criarSpin(numero: number, timestamp = Date.now()): Spin {
   };
 }
 
-export interface OpcoesDeteccao {
-  minimo: number;
-  categorias?: CategoriaId[];
-}
-
-/** Detecta sinais de UMA categoria sobre uma sequência de valores. */
+/** Compatibilidade com o motor anterior. */
 export function detectarNaSequencia(
   valores: string[],
   minimo: number,
@@ -78,16 +102,11 @@ export function detectarNaSequencia(
 
   let runValor: string | null = null;
   let runTam = 0;
-  let armado: { alvo: string; sequencia: number; quebra: string; quebraRodadas: number } | null =
-    null;
+  let armado: { alvo: string; sequencia: number; quebra: string; quebraRodadas: number } | null = null;
 
   for (let i = 0; i < valores.length; i++) {
     const v = valores[i]!;
-
-    if (neutros.includes(v)) {
-      // Valor neutro (zero): não conta como elemento nem quebra a análise.
-      continue;
-    }
+    if (neutros.includes(v)) continue;
 
     if (v === runValor) {
       runTam += 1;
@@ -95,7 +114,6 @@ export function detectarNaSequencia(
       continue;
     }
 
-    // Mudou de elemento
     if (armado && armado.alvo === v) {
       saida.push({
         indice: i,
@@ -111,11 +129,9 @@ export function detectarNaSequencia(
     }
 
     if (armado) armado.quebraRodadas += 1;
-
     if (runValor !== null && runTam >= minimo) {
       armado = { alvo: runValor, sequencia: runTam, quebra: v, quebraRodadas: 1 };
     }
-
     runValor = v;
     runTam = 1;
   }
@@ -123,44 +139,283 @@ export function detectarNaSequencia(
   return saida;
 }
 
-/** Detecta todos os sinais de todas as categorias sobre o histórico. */
-export function detectarSinais(spins: Spin[], opcoes: OpcoesDeteccao): Sinal[] {
-  const ativas = opcoes.categorias;
+function prioridadeNumero(p: PrioridadeAlerta) {
+  return p === "CRITICAL" ? 0 : p === "HIGH" ? 1 : p === "MEDIUM" ? 2 : 3;
+}
+
+function sinalBase(
+  id: string,
+  categoria: CategoriaId,
+  categoriaLabel: string,
+  alvo: string,
+  atual: Spin,
+  anterior: Spin,
+  proximo: Spin | null,
+  bip: TipoBip,
+  type: TipoAlerta,
+  colorCode: string,
+  title: string,
+  message: string,
+  priority: PrioridadeAlerta,
+  confidence: number,
+): Sinal {
+  const resultadoSeguinte = proximo?.classificacao[categoria] ?? null;
+  return {
+    id,
+    categoria,
+    categoriaLabel,
+    alvo,
+    sequenciaInicial: 0,
+    quebra: "",
+    quebraRodadas: 0,
+    retorno: alvo,
+    rodada: atual.rodada,
+    spinId: atual.id,
+    numero: atual.numero,
+    timestamp: atual.timestamp,
+    resultadoSeguinte,
+    numeroSeguinte: proximo?.numero ?? null,
+    status: "PENDENTE",
+    action: "SHOW_POPUP",
+    type,
+    colorCode,
+    title,
+    message,
+    priority,
+    bip,
+    rodadaAnterior: anterior.rodada,
+    numeroAnterior: anterior.numero,
+    confidence,
+  };
+}
+
+function comRodadas(spin: Spin, index: number) {
+  return { ...spin, rodada: index + 1 };
+}
+
+function cobertura(valor: string, prefixo: "C" | "D") {
+  const numero = Number(valor.replace(prefixo, ""));
+  if (!Number.isFinite(numero)) return prefixo === "C" ? "C1+C2" : "D2+D3";
+  if (prefixo === "C") {
+    return numero === 1 ? "C1+C2" : numero === 2 ? "C1+C2" : "C2+C3";
+  }
+  return numero === 1 ? "D1+D2" : numero === 2 ? "D2+D3" : "D2+D3";
+}
+
+function sessaoExcluida(secao: string) {
+  return secao || "SESSÃO ANTERIOR";
+}
+
+function confidenceBR(repetiuAltura: boolean) {
+  return repetiuAltura ? 96 : 88;
+}
+
+function confidenceBT(mesmaCor: boolean) {
+  return mesmaCor ? 94 : 90;
+}
+
+/**
+ * Gerador oficial do BIP ANALYZER.
+ *
+ * Ordem absoluta:
+ * BLOQUEIO > ALTURA > SESSÃO > COLUNA/DÚZIA > VALIDAÇÃO
+ *
+ * Zero na rodada anterior ou BT consecutivo bloqueia o processamento e produz
+ * somente o alerta cinza.
+ */
+export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
+  const spins = spinsEntrada.map(comRodadas);
   const sinais: Sinal[] = [];
 
-  for (const cat of CATEGORIAS) {
-    if (ativas && !ativas.includes(cat.id)) continue;
-    const valores = spins.map((s) => s.classificacao[cat.id]);
-    const encontrados = detectarNaSequencia(valores, opcoes.minimo, cat.neutros ?? []);
+  for (let i = 1; i < spins.length; i++) {
+    const atual = spins[i]!;
+    const anterior = spins[i - 1]!;
+    const proximo = spins[i + 1] ?? null;
+    const bip = bips[atual.id];
+    if (!bip) continue;
 
-    for (const e of encontrados) {
-      const spin = spins[e.indice]!;
-      const proximo = spins[e.indice + 1] ?? null;
-      const resultadoSeguinte = proximo ? proximo.classificacao[cat.id] : null;
-      const status: StatusSinal =
-        resultadoSeguinte === null ? "PENDENTE" : resultadoSeguinte === e.alvo ? "WIN" : "RED";
+    const categoriaBase = CATEGORIAS[0]?.id ?? ("cor" as CategoriaId);
+    const categoriaLabel = CATEGORIAS[0]?.label ?? "BIP";
 
-      sinais.push({
-        id: `${cat.id}#${e.indice}`,
-        categoria: cat.id,
-        categoriaLabel: cat.label,
-        alvo: e.alvo,
-        sequenciaInicial: e.sequenciaInicial,
-        quebra: e.quebra,
-        quebraRodadas: e.quebraRodadas,
-        retorno: e.alvo,
-        rodada: e.indice + 1,
-        spinId: spin.id,
-        numero: spin.numero,
-        timestamp: spin.timestamp,
-        resultadoSeguinte,
-        numeroSeguinte: proximo ? proximo.numero : null,
-        status,
-      });
+    // 1. BLOQUEIO — nada mais pode ser emitido nesta rodada.
+    const zeroAnterior = anterior.numero === 0;
+    const doubleBT = bip === "timer" && bips[anterior.id] === "timer";
+    if (zeroAnterior || doubleBT) {
+      const motivo = zeroAnterior
+        ? "ZERO detectado"
+        : "DOUBLE BT detectado";
+      sinais.push(
+        sinalBase(
+          `bip#${atual.id}:pause`,
+          categoriaBase,
+          categoriaLabel,
+          "PAUSA",
+          atual,
+          anterior,
+          proximo,
+          bip,
+          "PAUSE",
+          PALETA_BIP.bloqueio,
+          "⛔ PAUSA OPERACIONAL",
+          `${motivo}. Aguardar próximo número colorido.`,
+          "CRITICAL",
+          100,
+        ),
+      );
+      continue;
+    }
+
+    const mesmaAltura = atual.classificacao.ab === anterior.classificacao.ab;
+    const mesmaCor = atual.classificacao.cor === anterior.classificacao.cor;
+
+    // 2. ALTURA — verde para repetição, vermelho para inversão.
+    if (bip === "rolando") {
+      if (mesmaAltura) {
+        sinais.push(
+          sinalBase(
+            `bip#${atual.id}:height-repeat`,
+            "ab",
+            "ALTURA",
+            atual.classificacao.ab,
+            atual,
+            anterior,
+            proximo,
+            bip,
+            "ENTRY_SIGNAL",
+            PALETA_BIP.repeticao,
+            "ALTURA: REPETE",
+            `Entrar em ${atual.classificacao.ab}. Confiança: ${confidenceBR(true)}%.`,
+            "HIGH",
+            confidenceBR(true),
+          ),
+        );
+      } else {
+        sinais.push(
+          sinalBase(
+            `bip#${atual.id}:height-invert`,
+            "ab",
+            "ALTURA",
+            atual.classificacao.ab,
+            atual,
+            anterior,
+            proximo,
+            bip,
+            "ENTRY_SIGNAL",
+            PALETA_BIP.quebra,
+            "ALTURA: INVERTE",
+            `Entrar em ${atual.classificacao.ab}. Confiança: ${confidenceBR(false)}%.`,
+            "HIGH",
+            confidenceBR(false),
+          ),
+        );
+      }
+    } else {
+      const titulo = mesmaCor ? "ALTURA: REPETE (CONTRARIAN)" : "ALTURA: INVERTE";
+      const mensagem = mesmaCor
+        ? "BT repete COR → Apostar REPETIÇÃO DE ALTURA. NÃO entrar na quebra."
+        : `BT quebra COR → Apostar INVERSÃO DE ALTURA. Confiança: ${confidenceBT(false)}%.`;
+      sinais.push(
+        sinalBase(
+          `bip#${atual.id}:height-${mesmaCor ? "repeat" : "invert"}`,
+          "ab",
+          "ALTURA",
+          atual.classificacao.ab,
+          atual,
+          anterior,
+          proximo,
+          bip,
+          "ENTRY_SIGNAL",
+          mesmaCor ? PALETA_BIP.repeticao : PALETA_BIP.quebra,
+          titulo,
+          mensagem,
+          "HIGH",
+          confidenceBT(mesmaCor),
+        ),
+      );
+    }
+
+    // 3. SESSÃO — sempre acompanha um BIP válido.
+    sinais.push(
+      sinalBase(
+        `bip#${atual.id}:session`,
+        "secao",
+        "SESSÃO",
+        atual.classificacao.secao,
+        atual,
+        anterior,
+        proximo,
+        bip,
+        "WARNING",
+        PALETA_BIP.sessao,
+        "SESSÃO: MUDANÇA OBRIGATÓRIA",
+        `Excluir região ${sessaoExcluida(anterior.classificacao.secao)} da aposta.`,
+        "HIGH",
+        88,
+      ),
+    );
+
+    // 4. COBERTURA — BR + repetição de altura.
+    if (bip === "rolando" && mesmaAltura) {
+      const c = cobertura(atual.classificacao.coluna, "C");
+      const d = cobertura(atual.classificacao.duzia, "D");
+      sinais.push(
+        sinalBase(
+          `bip#${atual.id}:coverage`,
+          "duzia",
+          "COLUNA/DÚZIA",
+          `${c} + ${d}`,
+          atual,
+          anterior,
+          proximo,
+          bip,
+          "ENTRY_SIGNAL",
+          PALETA_BIP.cobertura,
+          "COBERTURA: COLUNA/DÚZIA",
+          `Cobrir ${c} E ${d} dentro da faixa de altura. NÃO apostar em coluna única.`,
+          "MEDIUM",
+          85,
+        ),
+      );
+    }
+
+    // 5. VALIDAÇÃO — baixa prioridade e visual secundário.
+    const paridadeIgual = atual.classificacao.pi === anterior.classificacao.pi;
+    const tipoSeparado = atual.classificacao.tipo === "SEPARADO";
+    if (paridadeIgual || tipoSeparado) {
+      const paridade = paridadeIgual ? "IGUAL" : "DIFERENTE";
+      const conf = paridadeIgual ? 97 : 91;
+      sinais.push(
+        sinalBase(
+          `bip#${atual.id}:validation`,
+          "pi",
+          "VALIDADOR",
+          atual.classificacao.pi,
+          atual,
+          anterior,
+          proximo,
+          bip,
+          "VALIDATION",
+          PALETA_BIP.validacao,
+          "✅ VALIDADOR ATIVO",
+          `Paridade ${paridade} confirmada. Assertividade aumentada para ${conf}%.`,
+          "LOW",
+          conf,
+        ),
+      );
     }
   }
 
-  return sinais.sort((a, b) => a.rodada - b.rodada || a.categoria.localeCompare(b.categoria));
+  return sinais.sort(
+    (a, b) =>
+      a.rodada - b.rodada ||
+      prioridadeNumero(a.priority) - prioridadeNumero(b.priority) ||
+      a.id.localeCompare(b.id),
+  );
+}
+
+/** Compatibilidade: a estratégia nova não usa mais detecção por sequência. */
+export function detectarSinais(spins: Spin[], _opcoes: OpcoesDeteccao): Sinal[] {
+  return analisarBips(spins, {});
 }
 
 export interface Estatisticas {

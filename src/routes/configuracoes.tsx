@@ -6,14 +6,14 @@ import { useEstado, acoes } from "@/lib/roleta/store";
 export const Route = createFileRoute("/configuracoes")({
   head: () => ({
     meta: [
-      { title: "Configurações — Análise de Padrões de Roleta" },
+      { title: "Configurações — BIP ANALYZER" },
       {
         name: "description",
         content:
-          "Ajuste o mínimo de repetições, escolha as categorias monitoradas, ative alertas e defina banca e unidade.",
+          "Configurações operacionais do BIP ANALYZER, incluindo alertas e parâmetros de banca.",
       },
-      { property: "og:title", content: "Configurações — Análise de Padrões de Roleta" },
-      { property: "og:description", content: "Parâmetros da estratégia e da banca." },
+      { property: "og:title", content: "Configurações — BIP ANALYZER" },
+      { property: "og:description", content: "Parâmetros operacionais do BIP ANALYZER." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -31,26 +31,15 @@ function Configuracoes() {
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-lg border border-border bg-card p-4">
           <h2 className="mb-3 text-xs font-black tracking-widest text-muted-foreground">
-            ESTRATÉGIA
+            MOTOR BIP
           </h2>
-
-          <label className="block text-sm font-semibold">
-            Mínimo de repetições para armar o padrão
-            <input
-              type="number"
-              min={2}
-              max={10}
-              value={config.minimo}
-              onChange={(e) =>
-                acoes.atualizarConfig({ minimo: Math.max(2, Number(e.target.value) || 4) })
-              }
-              className="mt-1 w-24 rounded border border-border bg-background px-2 py-1"
-            />
-          </label>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Padrão 4. O sinal só é gerado após a sequência, a quebra (uma ou mais rodadas) e o
-            retorno ao valor repetido.
-          </p>
+          <div className="rounded border border-border bg-muted/30 p-3 text-xs leading-relaxed">
+            <p className="font-bold">Ordem operacional:</p>
+            <p>BLOQUEIO &gt; ALTURA &gt; SESSÃO &gt; COLUNA/DÚZIA &gt; VALIDAÇÃO</p>
+            <p className="mt-2">Zero anterior e Double BT geram somente PAUSA OPERACIONAL.</p>
+            <p>BR com repetição de altura gera cobertura de coluna/dúzia.</p>
+            <p>BT com cor repetida usa ALTURA: REPETE (CONTRARIAN).</p>
+          </div>
 
           <label className="mt-4 flex items-center gap-2 text-sm font-semibold">
             <input
@@ -60,6 +49,10 @@ function Configuracoes() {
             />
             Alertas em pop-up ativados
           </label>
+
+          <p className="mt-3 text-xs text-muted-foreground">
+            Os percentuais exibidos são confiança operacional do padrão, não probabilidade estatística.
+          </p>
         </section>
 
         <section className="rounded-lg border border-border bg-card p-4">
@@ -90,7 +83,7 @@ function Configuracoes() {
 
         <section className="rounded-lg border border-border bg-card p-4 lg:col-span-2">
           <h2 className="mb-3 text-xs font-black tracking-widest text-muted-foreground">
-            CATEGORIAS MONITORADAS
+            CATEGORIAS LEGADAS
           </h2>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
             {CATEGORIAS.map((c) => {
