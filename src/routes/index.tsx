@@ -30,7 +30,7 @@ export const Route = createFileRoute("/")({
 
 function Catalogacao() {
   const estado = useEstado();
-  const { sinais, naoVistos, estatisticas } = useSinais();
+  const { sinais, naoVistos } = useSinais();
 
   const popup = estado.config.alertasAtivos
     ? [...naoVistos].sort((a, b) => {
@@ -50,9 +50,6 @@ function Catalogacao() {
         </div>
         <div className="rounded border border-border bg-muted/40 px-3 py-1.5 text-[10px] font-black tracking-wide">
           BLOQUEIO &gt; ALTURA &gt; SESSÃO &gt; COLUNA/DÚZIA &gt; VALIDAÇÃO
-        </div>
-        <div className="rounded border border-border bg-card px-3 py-1.5 text-[10px] font-black">
-          GREEN {estatisticas.win} · RED {estatisticas.red} · ASSERTIVIDADE {((estatisticas.win / Math.max(1, estatisticas.total)) * 100).toFixed(1)}%
         </div>
       </div>
 

@@ -9,7 +9,7 @@ export const Route = createFileRoute("/dashboard")({
       { title: "Dashboard — Análise de Padrões de Roleta" },
       {
         name: "description",
-        content: "Indicadores de sinais: WIN, RED, pendentes, taxa de acerto e maiores sequências.",
+        content: "Indicadores operacionais e distribuição de sinais por categoria.",
       },
       { property: "og:title", content: "Dashboard — Análise de Padrões de Roleta" },
       { property: "og:description", content: "Indicadores e distribuição de sinais por categoria." },
@@ -47,12 +47,9 @@ function Dashboard() {
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-7">
         <Card titulo="SINAIS HOJE" valor={String(sinaisHoje)} />
-        <Card titulo="WIN" valor={String(estatisticas.win)} cor="text-emerald-600" />
-        <Card titulo="RED" valor={String(estatisticas.red)} cor="text-red-600" />
         <Card titulo="PENDENTES" valor={String(estatisticas.pendentes)} cor="text-amber-600" />
-        <Card titulo="TAXA DE WIN" valor={`${estatisticas.taxaWin.toFixed(1)}%`} />
-        <Card titulo="MAIOR SEQ. WIN" valor={String(estatisticas.maiorSeqWin)} />
-        <Card titulo="MAIOR SEQ. RED" valor={String(estatisticas.maiorSeqRed)} />
+        <Card titulo="CANCELADOS" valor={String(estatisticas.cancelados)} />
+        <Card titulo="TOTAL DE SINAIS" valor={String(estatisticas.total)} />
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
@@ -85,39 +82,18 @@ function Dashboard() {
 
         <section className="rounded-lg border border-border bg-card p-3">
           <h2 className="mb-3 text-xs font-black tracking-widest text-muted-foreground">
-            WIN x RED
+            DISTRIBUIÇÃO POR CATEGORIA
           </h2>
-          <div className="flex h-6 overflow-hidden rounded">
-            <div
-              className="bg-emerald-500"
-              style={{ width: `${estatisticas.taxaWin}%` }}
-              title={`WIN ${estatisticas.win}`}
-            />
-            <div
-              className="bg-red-500"
-              style={{ width: `${estatisticas.taxaRed}%` }}
-              title={`RED ${estatisticas.red}`}
-            />
-          </div>
-          <h2 className="mb-2 mt-4 text-xs font-black tracking-widest text-muted-foreground">
-            EVOLUÇÃO DOS RESULTADOS
-          </h2>
-          <Evolucao
-            pontos={sinais
-              .filter((s) => s.status === "WIN" || s.status === "RED")
-              .reduce<number[]>((acc, s) => {
-                const anterior = acc.length ? acc[acc.length - 1]! : 0;
-                acc.push(anterior + (s.status === "WIN" ? 1 : -1));
-                return acc;
-              }, [])}
-          />
+          <p className="text-xs text-muted-foreground">
+            Os resultados GREEN/RED são exibidos exclusivamente em SINAIS ATIVOS.
+          </p>
         </section>
       </div>
     </AppShell>
   );
 }
 
-function Evolucao({ pontos }: { pontos: number[] }) {
+function __REMOVER_ESTA_FUNCAO__({ pontos }: { pontos: number[] }) {
   if (pontos.length < 2) {
     return <p className="py-6 text-center text-xs text-muted-foreground">Dados insuficientes.</p>;
   }

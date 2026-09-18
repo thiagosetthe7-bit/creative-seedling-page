@@ -12,7 +12,7 @@ export const Route = createFileRoute("/sinais")({
       { title: "Histórico de Sinais — Roleta" },
       {
         name: "description",
-        content: "Registro completo de todos os sinais detectados, com status WIN, RED, pendente e cancelado.",
+        content: "Registro completo dos sinais detectados e seu contexto operacional.",
       },
       { property: "og:title", content: "Histórico de Sinais — Roleta" },
       {
@@ -102,8 +102,7 @@ function HistoricoSinais() {
                 <td className="px-2 py-1">{s.quebra}</td>
                 <td className="px-2 py-1">{s.retorno}</td>
                 <td className="px-2 py-1">
-                  {s.resultadoSeguinte ?? "—"}
-                  {s.numeroSeguinte !== null && ` (${s.numeroSeguinte})`}
+                  {s.numeroSeguinte !== null ? s.numeroSeguinte : "—"}
                 </td>
                 <td className="px-2 py-1">
                   <StatusTag status={s.status} />
@@ -159,8 +158,8 @@ function HistoricoSinais() {
               <dd className="text-right font-bold">{aberto.retorno}</dd>
               <dt className="text-muted-foreground">Número confirmador</dt>
               <dd className="text-right font-bold">{aberto.numero}</dd>
-              <dt className="text-muted-foreground">Resultado posterior</dt>
-              <dd className="text-right font-bold">{aberto.resultadoSeguinte ?? "pendente"}</dd>
+              <dt className="text-muted-foreground">Número posterior</dt>
+              <dd className="text-right font-bold">{aberto.numeroSeguinte ?? "pendente"}</dd>
             </dl>
             <button
               onClick={() => setAberto(null)}
