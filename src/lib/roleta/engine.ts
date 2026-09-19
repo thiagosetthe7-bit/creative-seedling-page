@@ -298,142 +298,18 @@ function sessaoPreferencial(bip: TipoBip, ctx: ReturnType<typeof contextoSequenc
   return prefs.find((p) => p !== excluded) ?? prefs[0];
 }
 function coberturaUnica(ctx: ReturnType<typeof contextoSequencial>, bip: TipoBip, altura: Altura) {
-  if (ctx.context === "BT isolado" && altura === "ALTO") return "C2 + C3";
-  if (ctx.context === "BT isolado" && altura === "BAIXO") return "D1 + D2";
-  if (ctx.title === "REPETE FAIXA") return "C1 + C3";
+  // COVERAGE_EXCLUSIVE_LOCK: ALTO = somente colunas; BAIXO = somente dúzias.
+  // BR solto é a única exceção de cobertura mínima.
   if (ctx.title === "⚠️ SEQUÊNCIA ANÔMALA") return null;
-  if (ctx.title === "BR SOLTO") return "D2";
-  return altura === "ALTO" ? "C1 + C2" : "D2 + D3";
-}
-export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
-  const spins = spinsEntrada.map(comRodadas);
-  const sinais: Sinal[] = [];
-
-  for (let i = 1; i < spins.length; i++) {
-    const atual = spins[i]!;
-    const anterior = spins[i - 1]!;
-    const proximo = spins[i + 1] ?? null;
-    const bip = bips[atual.id];
-    if (!bip) continue;
-    const seq = sequenciaBips(spins, bips, i);
-
-    const categoriaBase = CATEGORIAS[0]?.id ?? ("cor" as CategoriaId);
-    const categoriaLabel = CATEGORIAS[0]?.label ?? "BIP";
-
-    // NÍVEL 0: bloqueios. Qualquer bloqueio suprime todos os demais sinais.
-    const zeroAnterior = anterior.numero === 0;
-    const zeroAtual = atual.numero === 0;
-    const doubleBT = bip === "timer" && bips[anterior.id] === "timer";
-    if (zeroAnterior || zeroAtual || doubleBT) {
-      const motivo = zeroAnterior || zeroAtual ? "ZERO detectado" : "DOUBLE BT detectado";
-      sinais.push(sinalBase(
-        `bip#${atual.id}:pause`, categoriaBase, categoriaLabel, "PAUSA", atual, anterior,
-        proximo, bip, "PAUSE", PALETA_BIP.bloqueio, "⛔ PAUSA OPERACIONAL",
-        `${motivo}. Aguardar próximo número colorido.`, "CRITICAL", 100,
-      ));
-      continue;
-    }
-
-    const mesmaAltura = atual.classificacao.ab === anterior.classificacao.ab;
-    const mesmaCor = atual.classificacao.cor === anterior.classificacao.cor;
-    const separadaMudanca = atual.classificacao.tipo === "SEPARADO" &&
-      atual.classificacao.secao !== anterior.classificacao.secao;
-    const juntoMesma = atual.classificacao.tipo === "JUNTO" &&
-      atual.classificacao.secao === anterior.classificacao.secao;
-    const brSolto = bip === "rolando" && bips[anterior.id] !== "timer" && anterior.numero !== 0;
-
-    // NÍVEL 1A: BR — sempre exige cobertura de 2 colunas + 2 dúzias.
-    if (bip === "rolando") {
-      const conf = confidenceBR(separadaMudanca, juntoMesma, brSolto);
-      const cobertura = coberturaObrigatoria(atual.classificacao.coluna, atual.classificacao.duzia);
-      const ajuste = separadaMudanca
-        ? " BR SEPARADO + mudança de sessão."
-        : juntoMesma ? " BR JUNTO + mesma sessão: reduzir mão." : "";
-      sinais.push(sinalBase(
-        `bip#${atual.id}:height-repeat`, "ab", "ALTURA", anterior.classificacao.ab,
-        atual, anterior, proximo, bip, "ENTRY_SIGNAL", PALETA_BIP.repeticao,
-        brSolto ? "ALTURA: REPETE — RISCO ELEVADO" : "ALTURA: REPETE",
-        `Apostar na MESMA ALTURA: ${anterior.classificacao.ab}. Cobertura obrigatória: ${cobertura[0]} + ${cobertura[1]}. Não usar coluna/dúzia única. Confiança: ${conf}%.${ajuste}`,
-        "HIGH", conf,
-      ));
-      const seqCtx = contextoSequencial(seq, bip, anterior);
-      const primary = sinais[sinais.length - 1]!;
-      primary.title = seqCtx.title; primary.mainAction = seqCtx.action;
-      primary.confidence = seqCtx.confidence || conf; primary.sequenceContext = seqCtx.context;
-      primary.footerNote = seqCtx.confidence ? seqCtx.context + " | " + seqCtx.confidence + "%" : seqCtx.context;
-      primary.coverageText = coberturaUnica(seqCtx, bip, (seqCtx.action.match(/ALTO|BAIXO/)?.[0] as Altura) ?? anterior.classificacao.ab);
-      primary.sessionPreference = sessaoPreferencial(bip, seqCtx, anterior, seq.length > 3);
-      primary.excludeText = null;
-      primary.message = seqCtx.action;
-      primary.footerNote = seqCtx.confidence ? seqCtx.context + " | " + seqCtx.confidence + "%" : seqCtx.context;
-    } else {
-      // NÍVEL 1B: BT — quebra de cor = altura oposta; mesma cor = contrarian.
-      const esperado = mesmaCor ? anterior.classificacao.ab : alturaOposta(anterior.classificacao.ab);
-      const conf = confidenceBT(mesmaCor);
-      sinais.push(sinalBase(
-        `bip#${atual.id}:height-${mesmaCor ? "repeat" : "invert"}`, "ab", "ALTURA", esperado,
-        atual, anterior, proximo, bip, "ENTRY_SIGNAL",
-        mesmaCor ? PALETA_BIP.cobertura : PALETA_BIP.quebra,
-        mesmaCor ? "ALTURA: REPETE (CONTRARIAN)" : "ALTURA: INVERTE",
-        mesmaCor
-          ? `BT repete COR → Apostar MESMA ALTURA (${esperado}). NÃO entrar na quebra. Confiança: 75%.`
-          : `BT quebra COR → Apostar ALTURA OPOSTA (${esperado}) à rodada anterior. Confiança: 85%.`,
-        "HIGH", conf,
-      ));
-      const seqCtx = contextoSequencial(seq, bip, anterior);
-      const primary = sinais[sinais.length - 1]!;
-      primary.title = seqCtx.title; primary.mainAction = seqCtx.action;
-      primary.confidence = seqCtx.confidence || conf; primary.sequenceContext = seqCtx.context;
-      primary.footerNote = seqCtx.confidence ? seqCtx.context + " | " + seqCtx.confidence + "%" : seqCtx.context;
-      primary.coverageText = coberturaUnica(seqCtx, bip, (seqCtx.action.match(/ALTO|BAIXO/)?.[0] as Altura) ?? anterior.classificacao.ab);
-      primary.sessionPreference = sessaoPreferencial(bip, seqCtx, anterior, seq.length > 3);
-      primary.excludeText = null;
-      primary.message = seqCtx.action;
-      primary.footerNote = seqCtx.confidence ? seqCtx.context + " | " + seqCtx.confidence + "%" : seqCtx.context;
-    }
-
-    // NÍVEL 1C: sessão universal, confiança fixa de 96%.
-    sinais.push(sinalBase(
-      `bip#${atual.id}:session`, "secao", "SESSÃO", anterior.classificacao.secao,
-      atual, anterior, proximo, bip, "WARNING", PALETA_BIP.sessao,
-      "SESSÃO: EXCLUSÃO PASSIVA",
-      `Sessão ${sessaoExcluida(anterior.classificacao.secao)} eliminada.`,
-      "LOW", 96,
-    ));
-
-    // Cobertura visual obrigatória também fica registrada no sinal BR para auditoria.
-    if (bip === "rolando") {
-      const cobertura = coberturaObrigatoria(atual.classificacao.coluna, atual.classificacao.duzia);
-      const s = sinalBase(
-        `bip#${atual.id}:coverage`, "duzia", "COLUNA/DÚZIA",
-        `${cobertura[0]} + ${cobertura[1]}`, atual, anterior, proximo, bip,
-        "ENTRY_SIGNAL", PALETA_BIP.cobertura, "COBERTURA: COLUNA/DÚZIA",
-        `Cobrir ${cobertura[0]} E ${cobertura[1]} dentro da faixa de altura ${anterior.classificacao.ab}. É PROIBIDO apostar em coluna/dúzia única.`,
-        "LOW", 85,
-      );
-      s.auditExpectedHeight = anterior.classificacao.ab;
-      s.auditExpectedCoverage = cobertura;
-      sinais.push(s);
-    }
-
-    // NÍVEL 2: validadores secundários entram na mensagem, sem popup independente.
-    const paridadeIgualBR = bip === "rolando" && atual.classificacao.pi === anterior.classificacao.pi;
-    const paridadeDiferenteBT = bip === "timer" && atual.classificacao.pi !== anterior.classificacao.pi && !mesmaCor;
-    const ajusteParidade = paridadeIgualBR || paridadeDiferenteBT ? 2 : 0;
-    const primarios = sinais.filter((s) => s.spinId === atual.id && s.priority === "HIGH" && s.type !== "PAUSE");
-    for (const s of primarios) {
-      s.confidence = Math.min(99, s.confidence + ajusteParidade);
-      s.footerNote = (s.sequenceContext ?? "CICLO") + " | " + s.confidence + "%";
-    }
+  if (ctx.title === "BR SOLTO") return altura === "ALTO" ? "C2" : "D2";
+  if (altura === "ALTO") {
+    if (ctx.context === "BT isolado") return "C2 + C3";
+    if (ctx.title === "REPETE FAIXA") return "C1 + C3";
+    return "C1 + C2";
   }
-
-  return sinais.sort(
-    (a, b) => a.rodada - b.rodada ||
-      prioridadeNumero(a.priority) - prioridadeNumero(b.priority) ||
-      a.id.localeCompare(b.id),
-  );
+  if (ctx.context === "BT isolado") return "D1 + D2";
+  return "D2 + D3";
 }
-
 function alturaValida(numero: number, esperado: string | null) {
   if (numero === 0 || !esperado || esperado === "ZERO") return false;
   return classificar(numero).ab === esperado;
