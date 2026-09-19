@@ -62,7 +62,22 @@ describe("BIP ANALYZER", () => {
     expect(sinais[0]!.colorCode).toBe("#dc3545");
     expect(sinais[0]!.title).toBe("BT QUEBRA COR · INVERSÃO");
     expect(sinais[0]!.mainAction).toBe("ENTRAR EM ALTO");
-    expect(sinais[0]!.confidence).toBe(79);
+    expect(sinais[0]!.confidence).toBe(81);
+    expect(sinais[0]!.footerNote).toContain("Cor Confirmada");
+  });
+
+  it("BR separado com paridade igual eleva confiança para 86%", () => {
+    const anterior = criarSpin(5, 1000);
+    const atual = criarSpin(7, 2000);
+    const sinais = analisarBips([anterior, atual], { [atual.id]: "rolando" });
+    expect(sinais[0]!.confidence).toBe(86);
+    expect(sinais[0]!.footerNote).toContain("Paridade Confirmada");
+  });
+
+  it("padrão não validado não gera pop-up", () => {
+    const anterior = criarSpin(17, 1000);
+    const atual = criarSpin(18, 2000);
+    expect(analisarBips([anterior, atual], { [atual.id]: "rolando" })).toHaveLength(0);
   });
 
   it("Double BT bloqueia e não emite altura, sessão ou validação", () => {

@@ -1,19 +1,5 @@
 import type { Sinal } from "@/lib/roleta/engine";
 
-const STATUS_CORES: Record<Sinal["auditResult"], string> = {
-  GREEN: "#28a745",
-  RED: "#dc3545",
-  NEUTRAL: "#6c757d",
-  PARTIAL: "#ffc107",
-};
-
-const STATUS_LABEL: Record<Sinal["auditResult"], string> = {
-  GREEN: "GREEN",
-  RED: "RED",
-  NEUTRAL: "NEUTRO",
-  PARTIAL: "PARCIAL",
-};
-
 const PRIORIDADE: Record<Sinal["priority"], string> = {
   CRITICAL: "CRÍTICA",
   HIGH: "ALTA",
@@ -37,24 +23,11 @@ export function StatusTag({ status }: { status: string }) {
 
 export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
   const ultimos = [...sinais].reverse().slice(0, 16);
-  const greens = sinais.filter((s) => s.auditResult === "GREEN").length;
-  const partials = sinais.filter((s) => s.auditResult === "PARTIAL").length;
-  const reds = sinais.filter((s) => s.auditResult === "RED").length;
-  const resolvidos = greens + partials + reds;
-  const assertividade = resolvidos ? ((greens + partials * 0.5) / resolvidos) * 100 : 0;
 
   return (
     <section className="rounded-lg border border-border bg-card">
       <div className="border-b border-border bg-sinal/15 px-3 py-2">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-xs font-black tracking-widest text-sinal">SINAIS ATIVOS</h2>
-          <span className="rounded bg-background/70 px-2 py-0.5 text-[10px] font-black">
-            ASSERTIVIDADE: {assertividade.toFixed(1)}%
-          </span>
-        </div>
-        <div className="mt-1 text-[9px] text-muted-foreground">
-          {greens} GREEN / {partials} PARCIAIS / {reds} RED / {resolvidos} resolvidos
-        </div>
+        <h2 className="text-xs font-black tracking-widest text-sinal">ALERTAS BIP</h2>
       </div>
       <ul className="max-h-[520px] divide-y divide-border overflow-auto">
         {ultimos.length === 0 && (
@@ -71,19 +44,6 @@ export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
               </span>
             </div>
             <div className="mt-1 font-semibold">{s.message}</div>
-            <div className="mt-2 flex items-center justify-between gap-2">
-              <span
-                className="rounded px-2 py-0.5 text-[10px] font-black text-white"
-                style={{ backgroundColor: STATUS_CORES[s.auditResult] }}
-              >
-                {STATUS_LABEL[s.auditResult]}
-              </span>
-              {s.auditResult !== "NEUTRAL" && (
-                <span className="text-[10px] font-semibold" style={{ color: STATUS_CORES[s.auditResult] }}>
-                  {s.auditMessage ?? "Aguardando o Giro Atual"}
-                </span>
-              )}
-            </div>
             <div className="mt-0.5 text-muted-foreground">
               {s.bip === "timer" ? "BT" : "BR"} · rodada anterior {s.rodadaAnterior ?? "—"} (nº {s.numeroAnterior ?? "—"}) · atual {s.rodada} (nº {s.numero})
             </div>

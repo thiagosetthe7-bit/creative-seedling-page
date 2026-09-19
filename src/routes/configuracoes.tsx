@@ -35,10 +35,10 @@ function Configuracoes() {
           </h2>
           <div className="rounded border border-border bg-muted/30 p-3 text-xs leading-relaxed">
             <p className="font-bold">Ordem operacional:</p>
-            <p>BLOQUEIO &gt; ALTURA + COLUNA/DÚZIA &gt; FILTRO DE SESSÃO</p>
+            <p>BLOQUEIO &gt; ALTURA &gt; SESSÃO &gt; COLUNA/DÚZIA &gt; VALIDAÇÃO</p>
             <p className="mt-2">Zero anterior e Double BT geram somente PAUSA OPERACIONAL.</p>
-            <p>BR usa ALTURA + cobertura obrigatória de 2 COLUNAS + 2 DÚZIAS.</p>
-            <p>Sessão anterior é excluída passivamente; nunca é usada como gatilho ou aposta.</p><p>É proibido gerar cobertura de 3 sessões ou "todas exceto a anterior".</p>
+            <p>BR com repetição de altura gera cobertura de coluna/dúzia.</p>
+            <p>BT com cor repetida usa ALTURA: REPETE (CONTRARIAN).</p>
           </div>
 
           <label className="mt-4 flex items-center gap-2 text-sm font-semibold">
@@ -123,5 +123,3 @@ function Configuracoes() {
     </AppShell>
   );
 }
-
-// v2.3: blindagem anti-manipulação, zero estendido, BR solto limitado e cobertura única.

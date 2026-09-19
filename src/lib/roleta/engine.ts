@@ -527,6 +527,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     }
 
     const mesmaCor = atual.numero !== 0 && atual.classificacao.cor === cA.cor;
+    const mesmaParidade = atual.numero !== 0 && atual.classificacao.pi === cA.pi;
 
     // v6.0 — executor cirúrgico: somente padrões históricos >=78%.
     const origem = cA.secao;
@@ -544,19 +545,16 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     if (brSeparado) {
       titulo = "BR SEPARADO · REPETE ALTURA";
       acao = "ENTRAR EM " + alturaAlvo;
-      conf = 84;
+      conf = mesmaParidade ? 86 : 84;
       cobertura = alturaAlvo === "ALTO" ? "C2+C3" : "D1+D2";
     } else if (btQuebra) {
       titulo = "BT QUEBRA COR · INVERSÃO";
       acao = "ENTRAR EM " + alturaOposta(cA.ab);
-      conf = 79;
+      conf = !mesmaCor ? 81 : 79;
       cobertura = acao.includes("ALTO") ? "D2+D3" : "D1+D2";
     } else {
-      // Martingale não é ativado automaticamente: não há sinal >=75% aplicável neste cenário.
-      titulo = "PADRÃO SUBÓTIMO";
-      acao = "AGUARDAR PRÓXIMO BIP";
-      conf = 0;
-      cobertura = null;
+      // v6.1: somente padrões validados geram pop-up; filtros não criam gatilhos.
+      continue;
     }
 
     const permitidas = acao.includes("ALTO")
@@ -585,7 +583,8 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     s.coverageText = cobertura;
     s.sessionPreference = conf > 0 ? sessaoPreferencial(bip, ctx, anterior, sequenciaLonga) : null;
     s.sequenceContext = ctx.context;
-    s.footerNote = conf > 0 ? `Conf: ${conf}% | Seq: ${ctx.context}` : "Aguardar Novo BIP";
+    const confirmador = brSeparado && mesmaParidade ? "✔️ Paridade Confirmada" : btQuebra && !mesmaCor ? "✔️ Cor Confirmada" : null;
+    s.footerNote = confirmador ? `${confirmador} | Conf: ${conf}%` : `Conf: ${conf}%`;
     s.auditExpectedHeight = alturaAlvo;
     s.auditExpectedCoverage = cobertura ? [cobertura] : [];
     sinais.push(s);

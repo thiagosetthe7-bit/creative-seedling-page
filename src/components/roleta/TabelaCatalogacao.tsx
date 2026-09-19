@@ -73,7 +73,6 @@ export function TabelaCatalogacao({ spins, sinais }: { spins: Spin[]; sinais: Si
             {linhas.map(({ spin, rodada }) => {
               const sinaisLinha = porRodada.get(rodada) ?? [];
               const catsComSinal = new Set(sinaisLinha.map((s) => s.categoria));
-
               return (
                 <tr key={spin.id}>
                   <td className="border border-[#3f3f3f] bg-[#f2f2f2] px-1 py-[3px] text-center text-[10px] text-[#666]">
