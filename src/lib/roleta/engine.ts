@@ -526,6 +526,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     let acao = "";
     let conf = 0;
     let cobertura: string | null = null;
+    const alturaAlvo = (ctx.title === "INVERTE ALTURA" ? alturaOposta(cA.ab) : cA.ab) as Altura;
 
     const brSeparado = bip === "rolando" && (ctx.context === "BR" || ctx.context.includes("BR")) && origem === "TIER";
     const btQuebra = bip === "timer" && !mesmaCor && !sequenciaLonga;
