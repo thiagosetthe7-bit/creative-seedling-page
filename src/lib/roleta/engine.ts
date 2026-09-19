@@ -530,27 +530,25 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     let conf = ctx.confidence || 0;
     let cobertura = coberturaUnica(ctx, bip, alturaAlvo);
 
-    if (sequenciaLonga) {
-      titulo = "PAUSA OPERACIONAL";
-      acao = "AGUARDAR NOVO BIP";
-      conf = 0;
+    // v4.1 — bloqueio pré-pop-up: altura/cobertura e confiança mínima de 75%.
+    // Os valores abaixo são a matriz validada fornecida para BR/TIER.
+    if (bip === "rolando" && origem === "TIER") {
+      if (alturaAlvo === "ALTO") { acao = "ENTRAR EM ALTO"; cobertura = "C2 + C3"; conf = 82; titulo = "BR TIER · REPETE ALTURA"; }
+      else { acao = "ENTRAR EM BAIXO"; cobertura = "D1 + D2"; conf = 78; titulo = "BR TIER · REPETE ALTURA"; }
+    }
+
+    const coberturaPermitida =
+      acao.includes("ALTO") ? ["D2 + D3", "C2 + C3"] :
+      acao.includes("BAIXO") ? ["D1 + D2", "C1 + C2"] : [];
+    const alinhada = !cobertura || coberturaPermitida.includes(cobertura);
+    const bloqueado = sequenciaLonga || conf < 75 || !alinhada;
+
+    if (bloqueado) {
+      titulo = conf < 75 ? "PADRÃO DETECTADO · AGUARDAR" : "SINAL BLOQUEADO";
+      acao = "AGUARDAR PRÓXIMO BIP";
       cobertura = null;
-    } else if (bip === "timer" && origem === "TIER" && !mesmaCor) {
-      titulo = "BT TIER · QUEBRA COR"; acao = "VOISINS DU ZERO (CHEIA)"; conf = 44; cobertura = "D2 + D3";
-    } else if (bip === "rolando" && origem === "TIER" && alturaAlvo === cA.ab) {
-      titulo = "BR TIER · REPETE ALTURA"; acao = "ENTRAR EM ALTO + D1+D2"; conf = 39; cobertura = "D1 + D2";
-    } else if (bip === "timer" && origem === "VOISINS" && !mesmaCor) {
-      titulo = "BT VOISINS · QUEBRA COR"; acao = "ENTRAR EM BAIXO + C1+C2"; conf = 41; cobertura = "C1 + C2";
-    } else if (bip === "rolando" && origem === "ORFÃO" && ctx.context === "BR") {
-      titulo = "BR ORFÃO · SEPARADO"; acao = "TIER + C2+C3"; conf = 36; cobertura = "C2 + C3";
-    } else if (bip === "rolando" && ctx.title !== "BR SOLTO" && conf < 35) {
-      titulo = "PADRÃO ATÍPICO - AGUARDAR"; acao = "AGUARDAR PRÓXIMO BIP"; conf = 0; cobertura = null;
+      conf = 0;
     }
-
-    if (conf > 0 && conf < 35) {
-      titulo = "PADRÃO ATÍPICO - AGUARDAR"; acao = "AGUARDAR PRÓXIMO BIP"; conf = 0; cobertura = null;
-    }
-
     const s = sinalBase(
       `${atual.id}-v4`, "ab", "ENTRADA ÚNICA", acao,
       atual, anterior, proximo, bip, conf === 0 ? "PAUSE" : "ENTRY_SIGNAL",
