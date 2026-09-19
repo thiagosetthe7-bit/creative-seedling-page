@@ -42,23 +42,27 @@ describe("BIP ANALYZER", () => {
     expect(sinais[0]!.message).toContain("ZERO detectado");
   });
 
-  it("BR com repetição de altura gera altura verde, sessão roxa e cobertura laranja", () => {
-    const anterior = criarSpin(17, 1000);
+  it("BR separado com origem TIER gera entrada única validada pela matriz", () => {
+    const anterior = criarSpin(5, 1000); // TIER, SEPARADO, BAIXO
     const atual = criarSpin(20, 2000);
     const sinais = analisarBips([anterior, atual], { [atual.id]: "rolando" });
-    expect(sinais.map((s) => s.colorCode)).toEqual(["#28a745", "#6f42c1", "#fd7e14"]);
-    expect(sinais[0]!.title).toBe("ALTURA: REPETE");
-    expect(sinais[1]!.title).toBe("SESSÃO: MUDANÇA OBRIGATÓRIA");
-    expect(sinais[2]!.title).toBe("COBERTURA: COLUNA/DÚZIA");
+    expect(sinais).toHaveLength(1);
+    expect(sinais[0]!.colorCode).toBe("#28a745");
+    expect(sinais[0]!.title).toBe("BR SEPARADO · REPETE ALTURA");
+    expect(sinais[0]!.mainAction).toBe("ENTRAR EM BAIXO");
+    expect(sinais[0]!.coverageText).toBe("D1+D2");
+    expect(sinais[0]!.confidence).toBe(82);
   });
 
-  it("BT com cor repetida gera altura verde contrarian", () => {
-    const anterior = criarSpin(17, 1000);
-    const atual = criarSpin(19, 2000);
+  it("BT com quebra de cor gera inversão validada pela matriz", () => {
+    const anterior = criarSpin(17, 1000); // vermelho
+    const atual = criarSpin(20, 2000); // preto
     const sinais = analisarBips([anterior, atual], { [atual.id]: "timer" });
-    expect(sinais[0]!.colorCode).toBe("#28a745");
-    expect(sinais[0]!.title).toBe("ALTURA: REPETE (CONTRARIAN)");
-    expect(sinais[0]!.message).toContain("NÃO entrar na quebra");
+    expect(sinais).toHaveLength(1);
+    expect(sinais[0]!.colorCode).toBe("#dc3545");
+    expect(sinais[0]!.title).toBe("BT QUEBRA COR · INVERSÃO");
+    expect(sinais[0]!.mainAction).toBe("ENTRAR EM ALTO");
+    expect(sinais[0]!.confidence).toBe(78);
   });
 
   it("Double BT bloqueia e não emite altura, sessão ou validação", () => {
