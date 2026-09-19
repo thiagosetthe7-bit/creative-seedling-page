@@ -11,8 +11,8 @@ export function PopupSinal({ sinal }: { sinal: Sinal }) {
           <div className="mt-5 text-4xl font-black text-white">{sinal.mainAction}</div>
         </section>
         <section className="min-h-[170px] space-y-3 p-5">
-          {sinal.coverageText && <div className="text-base font-medium">{sinal.coverageText}</div>}
-          {sinal.excludeText && <div className="text-base font-medium">{sinal.excludeText}</div>}
+          {sinal.coverageText && <div className="text-base font-medium">✅ COBERTURA: {sinal.coverageText}</div>}
+          {sinal.sessionPreference && <div className="text-base font-medium">🎯 SESSÃO: {sinal.sessionPreference}</div>}
           <div className="border-t border-border pt-3 text-xs italic text-muted-foreground">{sinal.footerNote ?? ("Conf: " + sinal.confidence + "%")}</div>
           {isPause && <div className="text-xs italic text-muted-foreground">Não entrar em nada</div>}
           <div className="flex gap-2 pt-1">

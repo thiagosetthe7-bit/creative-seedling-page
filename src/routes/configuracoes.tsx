@@ -123,3 +123,5 @@ function Configuracoes() {
     </AppShell>
   );
 }
+
+// v2.3: blindagem anti-manipulação, zero estendido, BR solto limitado e cobertura única.

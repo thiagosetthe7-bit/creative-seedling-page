@@ -59,6 +59,7 @@ export interface Sinal {
   priority: PrioridadeAlerta;
   mainAction: string;
   coverageText: string | null;
+  sessionPreference: string | null;
   excludeText: string | null;
   footerNote: string | null;
   sequenceContext: string | null;
@@ -209,6 +210,7 @@ function sinalBase(
     priority,
     mainAction: alvo,
     coverageText: null,
+    sessionPreference: null,
     excludeText: null,
     footerNote: null,
     sequenceContext: null,
@@ -288,6 +290,21 @@ function contextoSequencial(seq: string[], bip: TipoBip, anterior: Spin) {
   if (bip === "timer") return { title: "INVERTE ALTURA", action: "ENTRAR EM " + alturaOposta(anterior.classificacao.ab), confidence: 85, context: "BT isolado" };
   return { title: "REPETE ALTURA", action: "ENTRAR EM " + anterior.classificacao.ab, confidence: 90, context: "BR" };
 }
+function sessaoPreferencial(bip: TipoBip, ctx: ReturnType<typeof contextoSequencial>, anterior: Spin, longSeq: boolean) {
+  const prefs = longSeq ? ["ZERO", "ORPHÉLINS", "VOISINS", "TIER"] : bip === "timer"
+    ? (ctx.title === "REPETE FAIXA" ? ["ORPHÉLINS", "TIER", "VOISINS"] : ["VOISINS DU ZERO", "TIER", "ORPHÉLINS"])
+    : ["TIER", "VOISINS DU ZERO", "ORPHÉLINS"];
+  const excluded = sessaoExcluida(anterior.classificacao.secao);
+  return prefs.find((p) => p !== excluded) ?? prefs[0];
+}
+function coberturaUnica(ctx: ReturnType<typeof contextoSequencial>, bip: TipoBip, altura: Altura) {
+  if (ctx.context === "BT isolado" && altura === "ALTO") return "C2 + C3";
+  if (ctx.context === "BT isolado" && altura === "BAIXO") return "D1 + D2";
+  if (ctx.title === "REPETE FAIXA") return "C1 + C3";
+  if (ctx.title === "⚠️ SEQUÊNCIA ANÔMALA") return null;
+  if (ctx.title === "BR SOLTO") return "D2";
+  return altura === "ALTO" ? "C1 + C2" : "D2 + D3";
+}
 export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
   const spins = spinsEntrada.map(comRodadas);
   const sinais: Sinal[] = [];
@@ -344,9 +361,11 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       primary.title = seqCtx.title; primary.mainAction = seqCtx.action;
       primary.confidence = seqCtx.confidence || conf; primary.sequenceContext = seqCtx.context;
       primary.footerNote = seqCtx.confidence ? seqCtx.context + " | " + seqCtx.confidence + "%" : seqCtx.context;
-      primary.coverageText = "Cobrir: " + cobertura[0] + " + " + cobertura[1];
-      primary.excludeText = "Exclui: " + sessaoExcluida(anterior.classificacao.secao);
+      primary.coverageText = coberturaUnica(seqCtx, bip, (seqCtx.action.match(/ALTO|BAIXO/)?.[0] as Altura) ?? anterior.classificacao.ab);
+      primary.sessionPreference = sessaoPreferencial(bip, seqCtx, anterior, seq.length > 3);
+      primary.excludeText = null;
       primary.message = seqCtx.action;
+      primary.footerNote = seqCtx.confidence ? seqCtx.context + " | " + seqCtx.confidence + "%" : seqCtx.context;
     } else {
       // NÍVEL 1B: BT — quebra de cor = altura oposta; mesma cor = contrarian.
       const esperado = mesmaCor ? anterior.classificacao.ab : alturaOposta(anterior.classificacao.ab);
@@ -366,9 +385,11 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       primary.title = seqCtx.title; primary.mainAction = seqCtx.action;
       primary.confidence = seqCtx.confidence || conf; primary.sequenceContext = seqCtx.context;
       primary.footerNote = seqCtx.confidence ? seqCtx.context + " | " + seqCtx.confidence + "%" : seqCtx.context;
-      primary.coverageText = bip === "rolando" ? "Cobrir: " + coberturaObrigatoria(atual.classificacao.coluna, atual.classificacao.duzia).join(" + ") : null;
-      primary.excludeText = "Exclui: " + sessaoExcluida(anterior.classificacao.secao);
+      primary.coverageText = coberturaUnica(seqCtx, bip, (seqCtx.action.match(/ALTO|BAIXO/)?.[0] as Altura) ?? anterior.classificacao.ab);
+      primary.sessionPreference = sessaoPreferencial(bip, seqCtx, anterior, seq.length > 3);
+      primary.excludeText = null;
       primary.message = seqCtx.action;
+      primary.footerNote = seqCtx.confidence ? seqCtx.context + " | " + seqCtx.confidence + "%" : seqCtx.context;
     }
 
     // NÍVEL 1C: sessão universal, confiança fixa de 96%.
