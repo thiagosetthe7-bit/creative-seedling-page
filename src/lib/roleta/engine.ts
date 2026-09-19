@@ -283,6 +283,10 @@ function coberturaObrigatoria(coluna: string, duzia: string) {
 }
 
 function tipoBipLabel(bip: TipoBip) { return bip === "timer" ? "BT" : "BR"; }
+function seqLonga(spins: Spin[], index: number) {
+  const last = spins.slice(Math.max(0,index-3), index);
+  return last.length >= 3 && last.every((s) => s.classificacao.ab === last[0]!.classificacao.ab);
+}
 function sequenciaBips(spins: Spin[], bips: MapaBips, index: number) {
   return spins.slice(Math.max(0, index - 3), index + 1).map((s) => bips[s.id]).filter(Boolean).map((b) => tipoBipLabel(b as TipoBip));
 }
@@ -516,49 +520,53 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     const mesmaCor = atual.numero !== 0 && atual.classificacao.cor === cA.cor;
     const alturaAlvo = (ctx.title === "INVERTE ALTURA" ? alturaOposta(cA.ab) : cA.ab) as Altura;
 
-    // ALTURA — sinal principal de entrada.
-    const alturaTitulo = bip === "timer"
-      ? "ALTURA: REPETE (CONTRARIAN)"
-      : ctx.title === "INVERTE ALTURA" ? "ALTURA: QUEBRA" : "ALTURA: REPETE";
-    const alturaMsg = bip === "timer"
-      ? `NÃO entrar na quebra. Repetir ${alturaAlvo} (contrarian) no próximo giro.`
-      : `Entrar em ${alturaAlvo} no próximo giro.`;
-    sinais.push({
-      ...sinalBase(
-        `${atual.id}-ab`, "ab", "A/B", alturaAlvo,
-        atual, anterior, proximo, bip, "ENTRY_SIGNAL", PALETA_BIP.repeticao,
-        alturaTitulo, alturaMsg, "HIGH",
-        ctx.confidence || (bip === "timer" ? confidenceBT(mesmaCor) : confidenceBR(false, false, false)),
-      ),
-      sequenceContext: ctx.context,
-    });
+    // v4.0 — ENTRADA ÚNICA: um único comando operacional por BIP.
+    // As percentagens são apenas dados fornecidos pela matriz de configuração;
+    // não são inferidas como probabilidade matemática.
+    const origem = cA.secao;
+    const sequenciaLonga = seqLonga(spins, i);
+    let titulo = ctx.title;
+    let acao = ctx.action;
+    let conf = ctx.confidence || 0;
+    let cobertura = coberturaUnica(ctx, bip, alturaAlvo);
 
-    // SESSÃO — mudança obrigatória em relação à rodada anterior.
-    const pref = sessaoPreferencial(bip, ctx, anterior, false);
-    sinais.push({
-      ...sinalBase(
-        `${atual.id}-secao`, "secao", "SEÇÃO", pref,
-        atual, anterior, proximo, bip, "ENTRY_SIGNAL", PALETA_BIP.sessao,
-        "SESSÃO: MUDANÇA OBRIGATÓRIA",
-        `Sessão ${cA.secao} excluída neste giro. Preferência: ${pref}.`,
-        "MEDIUM", Math.max(50, (ctx.confidence || 70) - 10),
-      ),
-      sessionPreference: pref,
-      excludeText: `Excluir ${sessaoExcluida(cA.secao)}`,
-    });
+    if (sequenciaLonga) {
+      titulo = "PAUSA OPERACIONAL";
+      acao = "AGUARDAR NOVO BIP";
+      conf = 0;
+      cobertura = null;
+    } else if (bip === "timer" && origem === "TIER" && !mesmaCor) {
+      titulo = "BT TIER · QUEBRA COR"; acao = "VOISINS DU ZERO (CHEIA)"; conf = 44; cobertura = "D2 + D3";
+    } else if (bip === "rolando" && origem === "TIER" && alturaAlvo === cA.ab) {
+      titulo = "BR TIER · REPETE ALTURA"; acao = "ENTRAR EM ALTO + D1+D2"; conf = 39; cobertura = "D1 + D2";
+    } else if (bip === "timer" && origem === "VOISINS" && !mesmaCor) {
+      titulo = "BT VOISINS · QUEBRA COR"; acao = "ENTRAR EM BAIXO + C1+C2"; conf = 41; cobertura = "C1 + C2";
+    } else if (bip === "rolando" && origem === "ORFÃO" && ctx.context === "BR") {
+      titulo = "BR ORFÃO · SEPARADO"; acao = "TIER + C2+C3"; conf = 36; cobertura = "C2 + C3";
+    } else if (bip === "rolando" && ctx.title !== "BR SOLTO" && conf < 35) {
+      titulo = "PADRÃO ATÍPICO - AGUARDAR"; acao = "AGUARDAR PRÓXIMO BIP"; conf = 0; cobertura = null;
+    }
 
-    // COBERTURA — coluna/dúzia obrigatória atrelada à altura.
-    const cov = coberturaUnica(ctx, bip, alturaAlvo) ?? coberturaObrigatoria(cA.coluna, cA.duzia).join(" + ");
-    sinais.push({
-      ...sinalBase(
-        `${atual.id}-cobertura`, "duzia", "DÚZIA", cov,
-        atual, anterior, proximo, bip, "ENTRY_SIGNAL", PALETA_BIP.cobertura,
-        "COBERTURA: COLUNA/DÚZIA",
-        `Cobertura obrigatória atrelada à altura ${alturaAlvo}: ${cov}.`,
-        "MEDIUM", Math.max(50, (ctx.confidence || 70) - 5),
-      ),
-      coverageText: cov,
-    });
+    if (conf > 0 && conf < 35) {
+      titulo = "PADRÃO ATÍPICO - AGUARDAR"; acao = "AGUARDAR PRÓXIMO BIP"; conf = 0; cobertura = null;
+    }
+
+    const s = sinalBase(
+      `${atual.id}-v4`, "ab", "ENTRADA ÚNICA", acao,
+      atual, anterior, proximo, bip, conf === 0 ? "PAUSE" : "ENTRY_SIGNAL",
+      conf === 0 ? PALETA_BIP.bloqueio : (bip === "timer" && !mesmaCor ? PALETA_BIP.quebra : PALETA_BIP.repeticao),
+      titulo,
+      conf === 0 ? "Nenhuma entrada autorizada." : "Comando único validado pela matriz v4.0.",
+      conf === 0 ? "CRITICAL" : "HIGH", conf
+    );
+    s.mainAction = acao;
+    s.coverageText = cobertura;
+    s.sessionPreference = conf > 0 ? sessaoPreferencial(bip, ctx, anterior, sequenciaLonga) : null;
+    s.sequenceContext = ctx.context;
+    s.footerNote = conf > 0 ? `Conf: ${conf}% | Seq: ${ctx.context}` : "Aguardar Novo BIP";
+    s.auditExpectedHeight = alturaAlvo;
+    s.auditExpectedCoverage = cobertura ? [cobertura] : [];
+    sinais.push(s);
   }
 
   return sinais.sort(
