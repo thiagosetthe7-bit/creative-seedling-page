@@ -518,17 +518,6 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     }
 
     const mesmaCor = atual.numero !== 0 && atual.classificacao.cor === cA.cor;
-    const alturaAlvo = (ctx.title === "INVERTE ALTURA" ? alturaOposta(cA.ab) : cA.ab) as Altura;
-
-    // v4.0 — ENTRADA ÚNICA: um único comando operacional por BIP.
-    // As percentagens são apenas dados fornecidos pela matriz de configuração;
-    // não são inferidas como probabilidade matemática.
-    const origem = cA.secao;
-    const sequenciaLonga = seqLonga(spins, i);
-    let titulo = ctx.title;
-    let acao = ctx.action;
-    let conf = ctx.confidence || 0;
-    let cobertura = coberturaUnica(ctx, bip, alturaAlvo);
 
     // v5.0 — executor de sinais >=75%: somente padrões validados pela matriz.
     const origem = cA.secao;
@@ -537,10 +526,10 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     let acao = "";
     let conf = 0;
     let cobertura: string | null = null;
+    const alturaAlvo = (ctx.title === "INVERTE ALTURA" ? alturaOposta(cA.ab) : cA.ab) as Altura;
 
     const brSeparado = bip === "rolando" && (ctx.context === "BR" || ctx.context.includes("BR")) && origem === "TIER";
     const btQuebra = bip === "timer" && !mesmaCor && !sequenciaLonga;
-    const alturaAlvo = (ctx.title === "INVERTE ALTURA" ? alturaOposta(cA.ab) : cA.ab) as Altura;
 
     // Matriz v5.0. As taxas são parâmetros históricos configurados, não probabilidades inferidas.
     if (brSeparado) {
