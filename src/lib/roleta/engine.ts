@@ -294,13 +294,18 @@ function contextoSequencial(seq: string[], bip: TipoBip, anterior: Spin) {
   if (bip === "timer") return { title: "INVERTE ALTURA", action: "ENTRAR EM " + alturaOposta(anterior.classificacao.ab), confidence: 85, context: "BT isolado" };
   return { title: "REPETE ALTURA", action: "ENTRAR EM " + anterior.classificacao.ab, confidence: 90, context: "BR" };
 }
-function sessaoPreferencial(bip: TipoBip, ctx: ReturnType<typeof contextoSequencial>, anterior: Spin, longSeq: boolean) {
-  const prefs = longSeq ? ["ZERO", "ORPHÉLINS", "VOISINS", "TIER"] : bip === "timer"
-    ? (ctx.title === "REPETE FAIXA" ? ["ORPHÉLINS", "TIER", "VOISINS"] : ["VOISINS DU ZERO", "TIER", "ORPHÉLINS"])
-    : ["TIER", "VOISINS DU ZERO", "ORPHÉLINS"];
-  const excluded = sessaoExcluida(anterior.classificacao.secao);
-  return prefs.find((p) => p !== excluded) ?? prefs[0]!;
+function matrizSessoes(origem: string, sequenciaLonga: boolean) {
+  const base: Record<string, [string,string]> = {
+    "VOISINS DU ZERO": ["TIER", "ORPHÉLINS"],
+    "VOISINS": ["TIER", "ORPHÉLINS"],
+    "TIER": ["VOISINS DU ZERO", "ORPHÉLINS"],
+    "ORPHÉLINS": ["TIER", "VOISINS DU ZERO"],
+    "ORFÃO": ["TIER", "VOISINS DU ZERO"],
+  };
+  const pair = base[origem] ?? ["TIER", "VOISINS DU ZERO"];
+  return sequenciaLonga ? [pair[1], pair[0]] : pair;
 }
+
 function coberturaUnica(ctx: ReturnType<typeof contextoSequencial>, bip: TipoBip, altura: Altura) {
   // COVERAGE_EXCLUSIVE_LOCK: ALTO = somente colunas; BAIXO = somente dúzias.
   // BR solto é a única exceção de cobertura mínima.
