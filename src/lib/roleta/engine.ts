@@ -299,7 +299,7 @@ function sessaoPreferencial(bip: TipoBip, ctx: ReturnType<typeof contextoSequenc
     ? (ctx.title === "REPETE FAIXA" ? ["ORPHÉLINS", "TIER", "VOISINS"] : ["VOISINS DU ZERO", "TIER", "ORPHÉLINS"])
     : ["TIER", "VOISINS DU ZERO", "ORPHÉLINS"];
   const excluded = sessaoExcluida(anterior.classificacao.secao);
-  return prefs.find((p) => p !== excluded) ?? prefs[0];
+  return prefs.find((p) => p !== excluded) ?? prefs[0]!;
 }
 function coberturaUnica(ctx: ReturnType<typeof contextoSequencial>, bip: TipoBip, altura: Altura) {
   // COVERAGE_EXCLUSIVE_LOCK: ALTO = somente colunas; BAIXO = somente dúzias.
