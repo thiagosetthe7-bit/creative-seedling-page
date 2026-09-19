@@ -438,6 +438,116 @@ export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
   });
 }
 
+/**
+ * Estratégia oficial BIP ANALYZER.
+ *
+ * Para cada rodada marcada com BT (bip no timer) ou BR (bip rolando), compara
+ * a rodada anterior com o BIP atual e gera os alertas visuais operacionais.
+ * Prioridade: Bloqueio > Altura > Sessão > Coluna/Dúzia > Validação.
+ */
+export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
+  const spins = spinsEntrada.map(comRodadas);
+  const sinais: Sinal[] = [];
+
+  for (let i = 1; i < spins.length; i++) {
+    const atual = spins[i]!;
+    const bip = bips[atual.id];
+    if (!bip) continue;
+
+    const anterior = spins[i - 1]!;
+    const proximo = spins[i + 1] ?? null;
+    const cA = anterior.classificacao;
+    const ctx = contextoSequencial(sequenciaBips(spins, bips, i), bip, anterior);
+
+    // BLOQUEIO — Double BT: dois bips no timer seguidos bloqueiam a operação.
+    if (bip === "timer" && bips[anterior.id] === "timer") {
+      sinais.push(sinalBase(
+        `${atual.id}-bloqueio`, "ab", "A/B", "AGUARDAR",
+        atual, anterior, proximo, bip, "PAUSE", PALETA_BIP.bloqueio,
+        "⛔ BLOQUEIO: DOUBLE BT",
+        "Dois BIPs no TIMER em sequência. Bloqueio total: aguarde um BR válido antes de operar.",
+        "CRITICAL", 0,
+      ));
+      continue;
+    }
+
+    // BLOQUEIO — ZERO na rodada anterior pausa tudo e suprime os demais alertas.
+    if (anterior.numero === 0) {
+      sinais.push(sinalBase(
+        `${atual.id}-pausa`, "ab", "A/B", "PAUSAR",
+        atual, anterior, proximo, bip, "PAUSE", PALETA_BIP.bloqueio,
+        "⛔ PAUSA OPERACIONAL",
+        "ZERO detectado na rodada anterior. Nenhuma entrada neste giro: aguarde o próximo número.",
+        "CRITICAL", 0,
+      ));
+      continue;
+    }
+
+    // BLOQUEIO — sequência anômala de bips (BT+BT+BT).
+    if (ctx.title === "⚠️ SEQUÊNCIA ANÔMALA") {
+      sinais.push(sinalBase(
+        `${atual.id}-anomalia`, "ab", "A/B", "AGUARDAR",
+        atual, anterior, proximo, bip, "PAUSE", PALETA_BIP.bloqueio,
+        "⚠️ SEQUÊNCIA ANÔMALA",
+        `Sequência ${ctx.context}: aguardar BR válido antes de qualquer entrada.`,
+        "CRITICAL", 0,
+      ));
+      continue;
+    }
+
+    const mesmaCor = atual.numero !== 0 && atual.classificacao.cor === cA.cor;
+    const alturaAlvo = (ctx.title === "INVERTE ALTURA" ? alturaOposta(cA.ab) : cA.ab) as Altura;
+
+    // ALTURA — sinal principal de entrada.
+    const alturaTitulo = bip === "timer"
+      ? "ALTURA: REPETE (CONTRARIAN)"
+      : ctx.title === "INVERTE ALTURA" ? "ALTURA: QUEBRA" : "ALTURA: REPETE";
+    const alturaMsg = bip === "timer"
+      ? `NÃO entrar na quebra. Repetir ${alturaAlvo} (contrarian) no próximo giro.`
+      : `Entrar em ${alturaAlvo} no próximo giro.`;
+    sinais.push({
+      ...sinalBase(
+        `${atual.id}-ab`, "ab", "A/B", alturaAlvo,
+        atual, anterior, proximo, bip, "ENTRY_SIGNAL", PALETA_BIP.repeticao,
+        alturaTitulo, alturaMsg, "HIGH",
+        ctx.confidence || (bip === "timer" ? confidenceBT(mesmaCor) : confidenceBR(false, false, false)),
+      ),
+      sequenceContext: ctx.context,
+    });
+
+    // SESSÃO — mudança obrigatória em relação à rodada anterior.
+    const pref = sessaoPreferencial(bip, ctx, anterior, false);
+    sinais.push({
+      ...sinalBase(
+        `${atual.id}-secao`, "secao", "SEÇÃO", pref,
+        atual, anterior, proximo, bip, "ENTRY_SIGNAL", PALETA_BIP.sessao,
+        "SESSÃO: MUDANÇA OBRIGATÓRIA",
+        `Sessão ${cA.secao} excluída neste giro. Preferência: ${pref}.`,
+        "MEDIUM", Math.max(50, (ctx.confidence || 70) - 10),
+      ),
+      sessionPreference: pref,
+      excludeText: `Excluir ${sessaoExcluida(cA.secao)}`,
+    });
+
+    // COBERTURA — coluna/dúzia obrigatória atrelada à altura.
+    const cov = coberturaUnica(ctx, bip, alturaAlvo) ?? coberturaObrigatoria(cA.coluna, cA.duzia).join(" + ");
+    sinais.push({
+      ...sinalBase(
+        `${atual.id}-cobertura`, "duzia", "DÚZIA", cov,
+        atual, anterior, proximo, bip, "ENTRY_SIGNAL", PALETA_BIP.cobertura,
+        "COBERTURA: COLUNA/DÚZIA",
+        `Cobertura obrigatória atrelada à altura ${alturaAlvo}: ${cov}.`,
+        "MEDIUM", Math.max(50, (ctx.confidence || 70) - 5),
+      ),
+      coverageText: cov,
+    });
+  }
+
+  return sinais.sort(
+    (a, b) => a.timestamp - b.timestamp || prioridadeNumero(a.priority) - prioridadeNumero(b.priority),
+  );
+}
+
 /** Compatibilidade: a estratégia nova não usa mais detecção por sequência. */
 export function detectarSinais(spins: Spin[], _opcoes: OpcoesDeteccao): Sinal[] {
   return analisarBips(spins, {});
