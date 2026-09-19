@@ -493,8 +493,17 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       continue;
     }
 
-    // BLOQUEIO — ZERO na rodada anterior pausa tudo e suprime os demais alertas.
-    if (anterior.numero === 0) {
+    // BLOQUEIO — ZERO estendido: após qualquer ZERO, aguarde 2 giros coloridos válidos.
+    let zeroRecente = false;
+    let coloridosAposZero = 0;
+    for (let z = i - 1; z >= 0; z--) {
+      if (spins[z]!.numero === 0) {
+        zeroRecente = true;
+        break;
+      }
+      coloridosAposZero++;
+    }
+    if (atual.numero === 0 || (zeroRecente && coloridosAposZero < 2)) {
       sinais.push(sinalBase(
         `${atual.id}-pausa`, "ab", "A/B", "PAUSAR",
         atual, anterior, proximo, bip, "PAUSE", PALETA_BIP.bloqueio,
@@ -519,7 +528,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
 
     const mesmaCor = atual.numero !== 0 && atual.classificacao.cor === cA.cor;
 
-    // v5.0 — executor de sinais >=75%: somente padrões validados pela matriz.
+    // v6.0 — executor cirúrgico: somente padrões históricos >=78%.
     const origem = cA.secao;
     const sequenciaLonga = seqLonga(spins, i);
     let titulo = "";
@@ -535,12 +544,12 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     if (brSeparado) {
       titulo = "BR SEPARADO · REPETE ALTURA";
       acao = "ENTRAR EM " + alturaAlvo;
-      conf = 82;
+      conf = 84;
       cobertura = alturaAlvo === "ALTO" ? "C2+C3" : "D1+D2";
     } else if (btQuebra) {
       titulo = "BT QUEBRA COR · INVERSÃO";
       acao = "ENTRAR EM " + alturaOposta(cA.ab);
-      conf = 78;
+      conf = 79;
       cobertura = acao.includes("ALTO") ? "D2+D3" : "D1+D2";
     } else {
       // Martingale não é ativado automaticamente: não há sinal >=75% aplicável neste cenário.
@@ -557,7 +566,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
         : [];
 
     const alinhada = cobertura !== null && permitidas.includes(cobertura);
-    const bloqueado = conf < 75 || !alinhada;
+    const bloqueado = conf < 78 || !alinhada;
 
     if (bloqueado) {
       titulo = "PADRÃO SUBÓTIMO";
@@ -565,7 +574,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       cobertura = null;
       conf = 0;
     }    const s = sinalBase(
-      `${atual.id}-v4`, "ab", "ENTRADA ÚNICA", acao,
+      `${atual.id}-v6`, "ab", "ENTRADA ÚNICA", acao,
       atual, anterior, proximo, bip, conf === 0 ? "PAUSE" : "ENTRY_SIGNAL",
       conf === 0 ? PALETA_BIP.bloqueio : (bip === "timer" && !mesmaCor ? PALETA_BIP.quebra : PALETA_BIP.repeticao),
       titulo,

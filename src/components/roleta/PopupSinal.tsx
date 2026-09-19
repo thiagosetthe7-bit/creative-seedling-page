@@ -12,8 +12,8 @@ export function PopupSinal({ sinal }: { sinal: Sinal }) {
         </section>
         <section className="min-h-[170px] space-y-3 p-5">
           {sinal.coverageText && <div className="text-base font-medium">✅ COBERTURA: {sinal.coverageText}</div>}
-          {sinal.sessionPreference && <div className="text-base font-medium">🎯 SESSÃO: {sinal.sessionPreference}</div>}
-          <div className="border-t border-border pt-3 text-xs italic text-muted-foreground">{sinal.footerNote ?? ("Conf: " + sinal.confidence + "%")}</div>
+          
+          <div className="border-t border-border pt-3 text-xs italic text-muted-foreground">Conf: {sinal.confidence}%</div>
           {isPause && <div className="text-xs italic text-muted-foreground">Não entrar em nada</div>}
           <div className="flex gap-2 pt-1">
             <button onClick={() => acoes.confirmar(sinal.id)} className="flex-1 rounded py-2 text-sm font-black text-white" style={{ backgroundColor: sinal.colorCode }}>CONFIRMAR</button>
