@@ -530,26 +530,52 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     let conf = ctx.confidence || 0;
     let cobertura = coberturaUnica(ctx, bip, alturaAlvo);
 
-    // v4.1 — bloqueio pré-pop-up: altura/cobertura e confiança mínima de 75%.
-    // Os valores abaixo são a matriz validada fornecida para BR/TIER.
-    if (bip === "rolando" && origem === "TIER") {
-      if (alturaAlvo === "ALTO") { acao = "ENTRAR EM ALTO"; cobertura = "C2 + C3"; conf = 82; titulo = "BR TIER · REPETE ALTURA"; }
-      else { acao = "ENTRAR EM BAIXO"; cobertura = "D1 + D2"; conf = 78; titulo = "BR TIER · REPETE ALTURA"; }
+    // v5.0 — executor de sinais >=75%: somente padrões validados pela matriz.
+    const origem = cA.secao;
+    const sequenciaLonga = seqLonga(spins, i);
+    let titulo = "";
+    let acao = "";
+    let conf = 0;
+    let cobertura: string | null = null;
+
+    const brSeparado = bip === "rolando" && (ctx.context === "BR" || ctx.context.includes("BR")) && origem === "TIER";
+    const btQuebra = bip === "timer" && !mesmaCor && !sequenciaLonga;
+    const alturaAlvo = (ctx.title === "INVERTE ALTURA" ? alturaOposta(cA.ab) : cA.ab) as Altura;
+
+    // Matriz v5.0. As taxas são parâmetros históricos configurados, não probabilidades inferidas.
+    if (brSeparado) {
+      titulo = "BR SEPARADO · REPETE ALTURA";
+      acao = "ENTRAR EM " + alturaAlvo;
+      conf = 82;
+      cobertura = alturaAlvo === "ALTO" ? "C2+C3" : "D1+D2";
+    } else if (btQuebra) {
+      titulo = "BT QUEBRA COR · INVERSÃO";
+      acao = "ENTRAR EM " + alturaOposta(cA.ab);
+      conf = 78;
+      cobertura = acao.includes("ALTO") ? "D2+D3" : "D1+D2";
+    } else {
+      // Martingale não é ativado automaticamente: não há sinal >=75% aplicável neste cenário.
+      titulo = "PADRÃO SUBÓTIMO";
+      acao = "AGUARDAR PRÓXIMO BIP";
+      conf = 0;
+      cobertura = null;
     }
 
-    const coberturaPermitida =
-      acao.includes("ALTO") ? ["D2 + D3", "C2 + C3"] :
-      acao.includes("BAIXO") ? ["D1 + D2", "C1 + C2"] : [];
-    const alinhada = !cobertura || coberturaPermitida.includes(cobertura);
-    const bloqueado = sequenciaLonga || conf < 75 || !alinhada;
+    const permitidas = acao.includes("ALTO")
+      ? ["C2+C3", "D2+D3"]
+      : acao.includes("BAIXO")
+        ? ["D1+D2", "C1+C2"]
+        : [];
+
+    const alinhada = cobertura !== null && permitidas.includes(cobertura);
+    const bloqueado = conf < 75 || !alinhada;
 
     if (bloqueado) {
-      titulo = conf < 75 ? "PADRÃO DETECTADO · AGUARDAR" : "SINAL BLOQUEADO";
+      titulo = "PADRÃO SUBÓTIMO";
       acao = "AGUARDAR PRÓXIMO BIP";
       cobertura = null;
       conf = 0;
-    }
-    const s = sinalBase(
+    }    const s = sinalBase(
       `${atual.id}-v4`, "ab", "ENTRADA ÚNICA", acao,
       atual, anterior, proximo, bip, conf === 0 ? "PAUSE" : "ENTRY_SIGNAL",
       conf === 0 ? PALETA_BIP.bloqueio : (bip === "timer" && !mesmaCor ? PALETA_BIP.quebra : PALETA_BIP.repeticao),
