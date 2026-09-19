@@ -56,7 +56,7 @@ describe("BIP ANALYZER", () => {
 
   it("BT com quebra de cor gera inversão validada pela matriz", () => {
     const anterior = criarSpin(17, 1000); // vermelho
-    const atual = criarSpin(20, 2000); // preto
+    const atual = criarSpin(19, 2000); // vermelho
     const sinais = analisarBips([anterior, atual], { [atual.id]: "timer" });
     expect(sinais).toHaveLength(1);
     expect(sinais[0]!.colorCode).toBe("#dc3545");
