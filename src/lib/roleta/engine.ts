@@ -219,7 +219,7 @@ function sinalBase(
     footerNote: null,
     sequenceContext: null,
     bip,
-    rodadaAnterior: anterior.rodada,
+    rodadaAnterior: anterior.rodada ?? null,
     numeroAnterior: anterior.numero,
     confidence,
     auditResult: "NEUTRAL",
@@ -232,10 +232,10 @@ function sinalBase(
     auditExpectedHeight: categoria === "ab" || categoria === "duzia" ? atual.classificacao.ab : null,
     auditExpectedCoverage: [],
     auditExcludedSession: categoria === "secao" ? anterior.classificacao.secao : null,
-    auditTargetRow: atual.rodada,
+    auditTargetRow: atual.rodada ?? 0,
     auditResultPayload: {
       target_signal_id: id,
-      previous_bip_row_index: atual.rodada,
+      previous_bip_row_index: atual.rodada ?? 0,
       current_number: null,
       verdict: "NEUTRAL",
       reason: "Aguardando o giro atual.",
@@ -411,8 +411,7 @@ export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
     }
 
     // Sinal expira após dois giros se, por alguma razão, ainda estiver pendente.
-    const expira = segundoGiro !== null && sinal.auditSpinId === null && result === "NEUTRAL";
-    if (expira) result = "NEUTRAL";
+    if (segundoGiro !== null && sinal.auditSpinId === null) result = "NEUTRAL";
 
     const color = result === "GREEN" ? "#28a745" : result === "RED" ? "#dc3545" : result === "PARTIAL" ? "#ffc107" : "#6c757d";
     const badge = result === "GREEN" ? "✅ GREEN" : result === "RED" ? "❌ RED" : result === "PARTIAL" ? "🟡 PARCIAL" : "⚪ NEUTRO";
