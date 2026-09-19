@@ -306,6 +306,19 @@ function matrizSessoes(origem: string, sequenciaLonga: boolean) {
   return sequenciaLonga ? [pair[1], pair[0]] : pair;
 }
 
+function sessaoPreferencial(
+  bip: TipoBip,
+  ctx: ReturnType<typeof contextoSequencial>,
+  anterior: Spin,
+  sequenciaLonga: boolean,
+) {
+  const prefs = matrizSessoes(anterior.classificacao.secao, sequenciaLonga || ctx.title === "REPETE FAIXA");
+  const evitar = anterior.classificacao.secao;
+  const escolhida = prefs.find((p) => p !== evitar) ?? prefs[0]!;
+  return bip === "timer" ? escolhida : (prefs[0] ?? escolhida);
+}
+
+
 function coberturaUnica(ctx: ReturnType<typeof contextoSequencial>, bip: TipoBip, altura: Altura) {
   // COVERAGE_EXCLUSIVE_LOCK: ALTO = somente colunas; BAIXO = somente dúzias.
   // BR solto é a única exceção de cobertura mínima.
