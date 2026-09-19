@@ -18,7 +18,11 @@ export interface Spin {
   numero: number;
   timestamp: number;
   classificacao: Classificacao;
+  /** Posição cronológica (1-based); preenchida por comRodadas durante a análise. */
+  rodada?: number;
 }
+
+type Altura = "ALTO" | "BAIXO";
 
 export type StatusSinal = "PENDENTE" | "WIN" | "RED" | "PARTIAL" | "CANCELADO";
 export type TipoAlerta = "ENTRY_SIGNAL" | "WARNING" | "PAUSE" | "VALIDATION";
@@ -195,7 +199,7 @@ function sinalBase(
     quebra: "",
     quebraRodadas: 0,
     retorno: alvo,
-    rodada: atual.rodada,
+    rodada: atual.rodada ?? 0,
     spinId: atual.id,
     numero: atual.numero,
     timestamp: atual.timestamp,
