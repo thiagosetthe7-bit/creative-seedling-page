@@ -1,11 +1,11 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { analisarBips, auditarSinais, calcularEstatisticas, type Sinal } from "./engine";
-import { useEstado } from "./store";
+import { acoes, useEstado } from "./store";
 
 export function useSinais() {
   const estado = useEstado();
 
-  return useMemo(() => {
+  const resultado = useMemo(() => {
     const brutos = analisarBips(estado.spins, estado.bips);
     const auditados = auditarSinais(brutos, estado.spins);
     const sinais: Sinal[] = auditados.map((s) =>
@@ -19,4 +19,21 @@ export function useSinais() {
       confirmados: estado.confirmados,
     };
   }, [estado]);
+
+  useEffect(() => {
+    const registros = resultado.sinais
+      .filter((s) => s.auditSpinId && s.auditNumero !== null && (s.auditResult === "GREEN" || s.auditResult === "RED" || s.auditResult === "PARTIAL"))
+      .filter((s) => !estado.auditoriaLog[s.id])
+      .map((s) => ({
+        signalId: s.id,
+        strategy: s.title,
+        entry: s.mainAction,
+        result: s.auditNumero as number,
+        outcome: s.auditResult as "GREEN" | "RED" | "PARTIAL",
+        recordedAt: s.auditTimestamp ?? Date.now(),
+      }));
+    if (registros.length) acoes.registrarAuditorias(registros);
+  }, [resultado.sinais, estado.auditoriaLog]);
+
+  return resultado;
 }

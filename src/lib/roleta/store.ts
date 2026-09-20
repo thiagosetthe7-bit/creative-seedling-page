@@ -11,6 +11,15 @@ export interface Configuracoes {
   alertasAtivos: boolean;
 }
 
+export interface RegistroAuditoria {
+  signalId: string;
+  strategy: string;
+  entry: string;
+  result: number;
+  outcome: "GREEN" | "RED" | "PARTIAL";
+  recordedAt: number;
+}
+
 export interface EstadoApp {
   spins: Spin[];
   config: Configuracoes;
@@ -31,6 +40,8 @@ export interface EstadoApp {
    * aplicam-se à PRÓXIMA rodada catalogada com aquele número e então são consumidas.
    */
   pendentes: Record<number, TipoBip>;
+  /** Resultado já registrado; uma vez gravado, o veredito não volta a PENDENTE. */
+  auditoriaLog: Record<string, RegistroAuditoria>;
 }
 
 const CHAVE = "roleta-catalogacao-v1";
@@ -48,6 +59,7 @@ const inicial: EstadoApp = {
   banca: { inicial: 1000, unidade: 10 },
   bips: {},
   pendentes: {},
+  auditoriaLog: {},
 };
 
 let estado: EstadoApp = inicial;
@@ -160,6 +172,7 @@ export const acoes = {
       vistos: [],
       bips: {},
       pendentes: {},
+      auditoriaLog: {},
     }));
   },
   marcarVisto(id: string) {
@@ -197,6 +210,22 @@ export const acoes = {
     definir((e) => ({ ...e, bips: {}, pendentes: {} }));
   },
   /** Marca/desmarca a pendência de um número na grade (vale para a próxima catalogação). */
+  registrarAuditorias(registros: RegistroAuditoria[]) {
+    definir((e) => {
+      const auditoriaLog = { ...e.auditoriaLog };
+      let alterou = false;
+      for (const registro of registros) {
+        if (!auditoriaLog[registro.signalId]) {
+          auditoriaLog[registro.signalId] = registro;
+          alterou = true;
+        }
+      }
+      return alterou ? { ...e, auditoriaLog } : e;
+    });
+  },
+  limparAuditoria() {
+    definir((e) => ({ ...e, auditoriaLog: {} }));
+  },
   marcarPendente(numero: number, tipo: TipoBip | null) {
     definir((e) => {
       const pendentes = { ...e.pendentes };

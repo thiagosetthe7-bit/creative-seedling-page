@@ -343,7 +343,7 @@ function detectarOscilacao221(spins: Spin[], index: number) {
   for (const categoria of categorias) {
     const vals = spins.slice(index - 4, index).map((s) => s.classificacao[categoria]);
     if (vals.length === 4 && vals[0] === vals[1] && vals[2] === vals[3] && vals[0] !== vals[2]) {
-      return { categoria, alvo: vals[0]!, context: "2-2-1 Confirmed", confidence: 84 };
+      return { categoria, alvo: vals[0]!, context: "2-2-1 Confirmed", confidence: 83 };
     }
   }
   return null;
@@ -366,8 +366,8 @@ function detectarSequenciaGeometrica(spins: Spin[], index: number) {
   const last = spins.slice(index - 5, index);
   const duzias = last.map((s) => s.classificacao.duzia);
   const colunas = last.map((s) => s.classificacao.coluna);
-  if (duzias[0] !== "ZERO" && duzias.every((v) => v === duzias[0])) return { categoria: "duzia" as CategoriaId, alvo: duzias[0]!, context: "5x Dúzia Confirmada", confidence: 80 };
-  if (colunas[0] !== "ZERO" && colunas.every((v) => v === colunas[0])) return { categoria: "coluna" as CategoriaId, alvo: colunas[0]!, context: "5x Coluna Confirmada", confidence: 80 };
+  if (duzias[0] !== "ZERO" && duzias.every((v) => v === duzias[0])) return { categoria: "duzia" as CategoriaId, alvo: duzias[0]!, context: "5x Dúzia Confirmada", confidence: 82 };
+  if (colunas[0] !== "ZERO" && colunas.every((v) => v === colunas[0])) return { categoria: "coluna" as CategoriaId, alvo: colunas[0]!, context: "5x Coluna Confirmada", confidence: 82 };
   return null;
 }
 
@@ -626,15 +626,15 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       titulo = "RETORNO 2-1-1 · 81%";
     } else {
       if (brSeparado) {
-        titulo = "BR SEPARADO · REPETE ALTURA · " + (mesmaParidade ? "86%" : "84%");
+        titulo = "BR SEPARADO · REPETE ALTURA";
         acao = "ENTRAR EM " + alturaAlvo;
-        conf = mesmaParidade ? 86 : 84;
+        conf = mesmaParidade ? 86 : 86;
         cobertura = alturaAlvo === "ALTO" ? "C2+C3" : "D1+D2";
         nota = mesmaParidade ? "BR Separado + Parity" : "BR Separado";
       } else if (btQuebra) {
-        titulo = "BT QUEBRA COR · INVERSÃO · 79%";
+        titulo = "BT QUEBRA COR · INVERSÃO · 81%";
         acao = "ENTRAR EM " + alturaOposta(cA.ab);
-        conf = 79;
+        conf = 81;
         cobertura = acao.includes("ALTO") ? "D2+D3" : "D1+D2";
         nota = "BT Quebra Cor";
       } else if (geometrica) {
@@ -642,14 +642,14 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
         conf = 80;
         acao = "ENTRAR EM " + geometrica.alvo;
         cobertura = geometrica.alvo;
-        titulo = "SEQUÊNCIA GEOMÉTRICA 5x · 80%";
+        titulo = "SEQUÊNCIA GEOMÉTRICA 5x · 82%";
         nota = geometrica.context;
       } else {
         continue;
       }
     }
 
-    // Se uma sequência >=4 já estiver presente em um gatilho BR/BT, reduzir para cobertura única.
+    // v6.6 — bônus pós-BIP: 3+ variáveis repetidas (cor, paridade, altura, tipo) elevam o sinal ativo em +5%, com teto operacional de 91%.\n    const varsRepetidas = [\n      atual.classificacao.cor === anterior.classificacao.cor,\n      atual.classificacao.pi === anterior.classificacao.pi,\n      atual.classificacao.ab === anterior.classificacao.ab,\n      atual.classificacao.tipo === anterior.classificacao.tipo,\n    ].filter(Boolean).length;\n    const bonusPosBip = (bip === "timer" || bip === "rolando") && varsRepetidas >= 3;\n    if (conf > 0 && bonusPosBip) {\n      conf = Math.min(conf + 5, 91);\n      nota = nota ? nota + " | ALTA CONFIANÇA: BIP com repetição confirmada" : "ALTA CONFIANÇA: BIP com repetição confirmada";\n    }\n\n    // Se uma sequência >=4 já estiver presente em um gatilho BR/BT, reduzir para cobertura única.
     const coberturaReducao = bip !== undefined && ultimos.length >= 4 && ultimos.slice(-4).every((s) => s.classificacao.ab === ultimos[ultimos.length - 1]!.classificacao.ab);
     if (coberturaReducao && (bip === "rolando" || bip === "timer")) {
       if (categoriaAuditoria === "ab") cobertura = alturaAlvo === "ALTO" ? "C2" : "D2";
