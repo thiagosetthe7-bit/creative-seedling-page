@@ -25,6 +25,18 @@ export function StatusTag({ status }: { status: string }) {
 export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
   const ultimos = [...sinais].reverse().slice(0, 16);
 
+  const exportarCSV = useCallback(() => {
+    const csv = gerarLogAuditoriaCSV(sinais);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "log-auditoria-sinais.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [sinais]);
+
+
   return (
     <section className="rounded-lg border border-border bg-card">
       <div className="border-b border-border bg-sinal/15 px-3 py-2">
