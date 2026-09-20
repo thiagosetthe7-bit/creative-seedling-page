@@ -443,10 +443,11 @@ export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
         ? "Pausa respeitada; próximo número foi colorido."
         : "Padrão de bloqueio falhou: ZERO repetido.";
     } else if (sinal.categoria === "ab") {
-      result = alturaValida(atual.numero, sinal.alvo) ? "GREEN" : "RED";
+      const expectedHeight = sinal.auditExpectedHeight;
+      result = alturaValida(atual.numero, expectedHeight) ? "GREEN" : "RED";
       reason = result === "GREEN"
-        ? `Altura ${c.ab} confirmada.`
-        : `Altura esperada ${sinal.alvo}, saiu ${atual.numero === 0 ? "ZERO" : c.ab}.`;
+        ? `Entrada ${expectedHeight} confirmada pelo número ${atual.numero}.`
+        : `Entrada ${expectedHeight ?? "—"} não confirmada; saiu ${atual.numero === 0 ? "ZERO" : c.ab}.`;
     } else if (sinal.categoria === "duzia") {
       const hitAltura = alturaValida(atual.numero, sinal.auditExpectedHeight);
       const hitCoverage = coberturaValida(atual.numero, sinal.alvo);
@@ -765,3 +766,4 @@ export function calcularEstatisticas(sinais: Sinal[]): Estatisticas {
     ultimo: sinais.length ? sinais[sinais.length - 1]! : null,
   };
 }
+\n\n/** Formato tabular para auditoria/exportação do log lateral. */\nexport function gerarLogAuditoriaCSV(sinais: Sinal[]): string {\n  const esc = (v: unknown) => { const s = String(v ?? ""); return /[",\\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };\n  const header = ["Signal ID","Strategy Name","Suggested Entry","Actual Result Number","Outcome Status","Confidence","Timestamp"];\n  const rows = sinais.map((s, i) => [\n    i + 1, s.title, s.mainAction, s.auditNumero ?? "", s.auditResult === "GREEN" ? "GREEN" : s.auditResult === "RED" ? "RED" : s.auditResult === "PARTIAL" ? "PARTIAL" : "NEUTRAL", s.confidence, s.auditTimestamp ?? ""\n  ]);\n  return [header, ...rows].map((row) => row.map(esc).join(",")).join("\\n");\n}\n

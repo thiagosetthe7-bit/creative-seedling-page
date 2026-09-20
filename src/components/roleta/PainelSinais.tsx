@@ -1,4 +1,4 @@
-import type { Sinal } from "@/lib/roleta/engine";
+import { gerarLogAuditoriaCSV, type Sinal } from "@/lib/roleta/engine";\nimport { useCallback } from "react";
 
 const PRIORIDADE: Record<Sinal["priority"], string> = {
   CRITICAL: "CRÍTICA",
@@ -27,7 +27,7 @@ export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
   return (
     <section className="rounded-lg border border-border bg-card">
       <div className="border-b border-border bg-sinal/15 px-3 py-2">
-        <h2 className="text-xs font-black tracking-widest text-sinal">ALERTAS BIP</h2>
+        <div className="flex items-center justify-between gap-2"><h2 className="text-xs font-black tracking-widest text-sinal">ALERTAS BIP</h2><button type="button" onClick={exportarCSV} className="rounded border border-border px-2 py-1 text-[10px] font-bold text-muted-foreground hover:text-foreground">EXPORTAR CSV</button></div>
       </div>
       <ul className="max-h-[520px] divide-y divide-border overflow-auto">
         {ultimos.length === 0 && (
@@ -45,7 +45,7 @@ export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
             </div>
             <div className="mt-1 font-semibold">{s.message}</div>
             <div className="mt-0.5 text-muted-foreground">
-              {s.bip === "timer" ? "BT" : "BR"} · rodada anterior {s.rodadaAnterior ?? "—"} (nº {s.numeroAnterior ?? "—"}) · atual {s.rodada} (nº {s.numero})
+              {s.bip === "timer" ? "BT" : "BR"} · entrada: {s.mainAction} · resultado: {s.auditNumero ?? "—"} · {s.auditResult === "GREEN" ? "✅ GREEN" : s.auditResult === "RED" ? "❌ RED" : s.auditResult === "PARTIAL" ? "🟡 PARTIAL" : "⚪ PENDENTE"}
             </div>
           </li>
         ))}
