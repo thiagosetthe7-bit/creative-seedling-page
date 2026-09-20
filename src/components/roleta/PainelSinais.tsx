@@ -1,4 +1,5 @@
-import { gerarLogAuditoriaCSV, type Sinal } from "@/lib/roleta/engine";\nimport { useCallback } from "react";
+import { gerarLogAuditoriaCSV, type Sinal } from "@/lib/roleta/engine";
+import { useCallback } from "react";
 
 const PRIORIDADE: Record<Sinal["priority"], string> = {
   CRITICAL: "CRÍTICA",
