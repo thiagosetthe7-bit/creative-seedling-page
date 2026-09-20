@@ -104,3 +104,29 @@ describe("BIP ANALYZER v6.0", () => {
     expect(analisarBips([zero, g1, g2, g3], bips)[0]!.confidence).toBeGreaterThanOrEqual(78);
   });
 });
+
+
+describe("BIP ANALYZER v6.5", () => {
+  it("prioriza 2-2-1 sobre BR/BT", () => {
+    const spins=[5,7,20,22,19].map((n,i)=>criarSpin(n,1000+i));
+    const sinais=analisarBips(spins,{[spins[4]!.id]:"rolando"});
+    expect(sinais[0]!.title).toContain("OSCILAÇÃO 2-2-1");
+    expect(sinais[0]!.confidence).toBe(84);
+  });
+  it("detecta 2-1-1 quando 2-2-1 não existe", () => {
+    const spins=[5,7,20,19].map((n,i)=>criarSpin(n,1000+i));
+    const sinais=analisarBips(spins,{[spins[3]!.id]:"rolando"});
+    expect(sinais[0]!.title).toContain("RETORNO 2-1-1");
+    expect(sinais[0]!.confidence).toBe(80);
+  });
+  it("bloqueia alternância perfeita A-B-A-B", () => {
+    const spins=[5,20,7,22,19].map((n,i)=>criarSpin(n,1000+i));
+    expect(analisarBips(spins,{[spins[4]!.id]:"rolando"})).toHaveLength(0);
+  });
+  it("detecta sequência geométrica de 5 dúzias", () => {
+    const spins=[1,2,3,4,5,6].map((n,i)=>criarSpin(n,1000+i));
+    const sinais=analisarBips(spins,{[spins[5]!.id]:"rolando"});
+    expect(sinais[0]!.title).toContain("SEQUÊNCIA GEOMÉTRICA 5x");
+    expect(sinais[0]!.confidence).toBe(80);
+  });
+});

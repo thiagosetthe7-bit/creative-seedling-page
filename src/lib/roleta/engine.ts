@@ -336,6 +336,47 @@ function coberturaUnica(ctx: ReturnType<typeof contextoSequencial>, bip: TipoBip
   if (ctx.context === "BT isolado") return "D1 + D2";
   return "D2 + D3";
 }
+
+function detectarOscilacao221(spins: Spin[], index: number) {
+  if (index < 4) return null;
+  const categorias: Array<keyof Classificacao> = ["pi", "ab", "cor"];
+  for (const categoria of categorias) {
+    const vals = spins.slice(index - 4, index).map((s) => s.classificacao[categoria]);
+    if (vals.length === 4 && vals[0] === vals[1] && vals[2] === vals[3] && vals[0] !== vals[2]) {
+      return { categoria, alvo: vals[0]!, context: "2-2-1 Confirmed", confidence: 84 };
+    }
+  }
+  return null;
+}
+
+function detectarRetorno211(spins: Spin[], index: number) {
+  if (index < 3) return null;
+  const categorias: Array<keyof Classificacao> = ["pi", "ab", "cor"];
+  for (const categoria of categorias) {
+    const vals = spins.slice(index - 3, index).map((s) => s.classificacao[categoria]);
+    if (vals.length === 3 && vals[0] === vals[1] && vals[0] !== vals[2]) {
+      return { categoria, alvo: vals[0]!, context: "2-1-1 Confirmed", confidence: 80 };
+    }
+  }
+  return null;
+}
+
+function detectarSequenciaGeometrica(spins: Spin[], index: number) {
+  if (index < 5) return null;
+  const last = spins.slice(index - 5, index);
+  const duzias = last.map((s) => s.classificacao.duzia);
+  const colunas = last.map((s) => s.classificacao.coluna);
+  if (duzias[0] !== "ZERO" && duzias.every((v) => v === duzias[0])) return { categoria: "duzia" as CategoriaId, alvo: duzias[0]!, context: "5x Dúzia Confirmada", confidence: 80 };
+  if (colunas[0] !== "ZERO" && colunas.every((v) => v === colunas[0])) return { categoria: "coluna" as CategoriaId, alvo: colunas[0]!, context: "5x Coluna Confirmada", confidence: 80 };
+  return null;
+}
+
+function coberturaParaCategoria(categoria: CategoriaId, alvo: string) {
+  if (categoria === "coluna") return alvo;
+  if (categoria === "duzia") return alvo;
+  return null;
+}
+
 function alturaValida(numero: number, esperado: string | null) {
   if (numero === 0 || !esperado || esperado === "ZERO") return false;
   return classificar(numero).ab === esperado;
@@ -529,32 +570,89 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     const mesmaCor = atual.numero !== 0 && atual.classificacao.cor === cA.cor;
     const mesmaParidade = atual.numero !== 0 && atual.classificacao.pi === cA.pi;
 
-    // v6.0 — executor cirúrgico: somente padrões históricos >=78%.
+    // v6.5 — auditor rígido: prioridade 2-2-1 > 2-1-1 > BR/BT > sequência geométrica.
+    const oscilacao221 = detectarOscilacao221(spins, i);
+    const retorno211 = detectarRetorno211(spins, i);
+    const geometrica = detectarSequenciaGeometrica(spins, i);
     const origem = cA.secao;
     const sequenciaLonga = seqLonga(spins, i);
+    const ultimos = spins.slice(Math.max(0, i - 5), i);
+    const alternanciaPerfeita = ultimos.length >= 4 && ultimos.slice(-4).every((s, idx, arr) => idx === 0 || s.classificacao.ab !== arr[idx - 1]!.classificacao.ab);
+    const runAntes = ultimos.length ? ultimos[ultimos.length - 1]!.classificacao.ab : null;
     let titulo = "";
     let acao = "";
     let conf = 0;
     let cobertura: string | null = null;
+    let categoriaAuditoria: CategoriaId = "ab";
+    let nota = "";
     const alturaAlvo = (ctx.title === "INVERTE ALTURA" ? alturaOposta(cA.ab) : cA.ab) as Altura;
 
-    const brSeparado = bip === "rolando" && (ctx.context === "BR" || ctx.context.includes("BR")) && origem === "TIER";
-    const btQuebra = bip === "timer" && !mesmaCor && !sequenciaLonga;
-
-    // Matriz v5.0. As taxas são parâmetros históricos configurados, não probabilidades inferidas.
-    if (brSeparado) {
-      titulo = "BR SEPARADO · REPETE ALTURA";
-      acao = "ENTRAR EM " + alturaAlvo;
-      conf = mesmaParidade ? 86 : 84;
-      cobertura = alturaAlvo === "ALTO" ? "C2+C3" : "D1+D2";
-    } else if (btQuebra) {
-      titulo = "BT QUEBRA COR · INVERSÃO";
-      acao = "ENTRAR EM " + alturaOposta(cA.ab);
-      conf = !mesmaCor ? 81 : 79;
-      cobertura = acao.includes("ALTO") ? "D2+D3" : "D1+D2";
-    } else {
-      // v6.1: somente padrões validados geram pop-up; filtros não criam gatilhos.
+    // Bloqueios v6.5: alternância A-B-A-B e retornos 3-1-1/4-1-1.
+    if (alternanciaPerfeita) {
       continue;
+    }
+    const runAtual = runAntes ? ultimos.slice().reverse().findIndex((s) => s.classificacao.ab !== runAntes) : -1;
+    const repeticoes = runAntes ? (runAtual < 0 ? ultimos.length : runAtual) : 0;
+    if (repeticoes >= 3 && ultimos.length >= repeticoes + 1) {
+      continue;
+    }
+
+    if (oscilacao221) {
+      categoriaAuditoria = oscilacao221.categoria;
+      conf = 84;
+      nota = "2-2-1 Confirmed";
+      if (oscilacao221.categoria === "ab") {
+        acao = "ENTRAR EM " + oscilacao221.alvo;
+        cobertura = oscilacao221.alvo === "ALTO" ? "C2+C3" : "D1+D2";
+      } else {
+        acao = "ENTRAR EM " + oscilacao221.alvo;
+        cobertura = oscilacao221.alvo;
+      }
+      titulo = "OSCILAÇÃO 2-2-1 · 84%";
+    } else if (retorno211) {
+      categoriaAuditoria = retorno211.categoria;
+      conf = 80;
+      nota = "2-1-1 Confirmed";
+      if (retorno211.categoria === "ab") {
+        acao = "ENTRAR EM " + retorno211.alvo;
+        cobertura = retorno211.alvo === "ALTO" ? "C2+C3" : "D1+D2";
+      } else {
+        acao = "ENTRAR EM " + retorno211.alvo;
+        cobertura = retorno211.alvo;
+      }
+      titulo = "RETORNO 2-1-1 · 80%";
+    } else {
+      const brSeparado = bip === "rolando" && origem === "TIER" && atual.classificacao.tipo === "SEPARADO";
+      const btQuebra = bip === "timer" && !mesmaCor && !sequenciaLonga;
+      if (brSeparado) {
+        titulo = "BR SEPARADO · REPETE ALTURA · " + (mesmaParidade ? "86%" : "84%");
+        acao = "ENTRAR EM " + alturaAlvo;
+        conf = mesmaParidade ? 86 : 84;
+        cobertura = alturaAlvo === "ALTO" ? "C2+C3" : "D1+D2";
+        nota = mesmaParidade ? "BR Separado + Parity" : "BR Separado";
+      } else if (btQuebra) {
+        titulo = "BT QUEBRA COR · INVERSÃO · 79%";
+        acao = "ENTRAR EM " + alturaOposta(cA.ab);
+        conf = 79;
+        cobertura = acao.includes("ALTO") ? "D2+D3" : "D1+D2";
+        nota = "BT Quebra Cor";
+      } else if (geometrica) {
+        categoriaAuditoria = geometrica.categoria;
+        conf = 80;
+        acao = "ENTRAR EM " + geometrica.alvo;
+        cobertura = geometrica.alvo;
+        titulo = "SEQUÊNCIA GEOMÉTRICA 5x · 80%";
+        nota = geometrica.context;
+      } else {
+        continue;
+      }
+    }
+
+    // Se uma sequência >=4 já estiver presente em um gatilho BR/BT, reduzir para cobertura única.
+    const coberturaReducao = bip !== undefined && ultimos.length >= 4 && ultimos.slice(-4).every((s) => s.classificacao.ab === ultimos[ultimos.length - 1]!.classificacao.ab);
+    if (coberturaReducao && (bip === "rolando" || bip === "timer")) {
+      if (categoriaAuditoria === "ab") cobertura = alturaAlvo === "ALTO" ? "C2" : "D2";
+      else if (categoriaAuditoria === "duzia" || categoriaAuditoria === "coluna") cobertura = categoriaAuditoria === "duzia" ? cA.duzia : cA.coluna;
     }
 
     const permitidas = acao.includes("ALTO")
@@ -563,7 +661,9 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
         ? ["D1+D2", "C1+C2"]
         : [];
 
-    const alinhada = cobertura !== null && permitidas.includes(cobertura);
+    const alinhada = categoriaAuditoria === "ab"
+      ? cobertura !== null && permitidas.includes(cobertura)
+      : cobertura !== null;
     const bloqueado = conf < 78 || !alinhada;
 
     if (bloqueado) {
@@ -572,7 +672,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       cobertura = null;
       conf = 0;
     }    const s = sinalBase(
-      `${atual.id}-v6`, "ab", "ENTRADA ÚNICA", acao,
+      `${atual.id}-v65`, categoriaAuditoria, "ENTRADA ÚNICA", acao,
       atual, anterior, proximo, bip, conf === 0 ? "PAUSE" : "ENTRY_SIGNAL",
       conf === 0 ? PALETA_BIP.bloqueio : (bip === "timer" && !mesmaCor ? PALETA_BIP.quebra : PALETA_BIP.repeticao),
       titulo,
@@ -584,8 +684,8 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     s.sessionPreference = conf > 0 ? sessaoPreferencial(bip, ctx, anterior, sequenciaLonga) : null;
     s.sequenceContext = ctx.context;
     const confirmador = brSeparado && mesmaParidade ? "✔️ Paridade Confirmada" : btQuebra && !mesmaCor ? "✔️ Cor Confirmada" : null;
-    s.footerNote = confirmador ? `${confirmador} | Conf: ${conf}%` : `Conf: ${conf}%`;
-    s.auditExpectedHeight = alturaAlvo;
+    s.footerNote = nota ? `${nota} | Conf: ${conf}%` : (confirmador ? `${confirmador} | Conf: ${conf}%` : `Conf: ${conf}%`);
+    s.auditExpectedHeight = categoriaAuditoria === "ab" ? (acao.includes("ALTO") ? "ALTO" : acao.includes("BAIXO") ? "BAIXO" : alturaAlvo) : null;
     s.auditExpectedCoverage = cobertura ? [cobertura] : [];
     sinais.push(s);
   }
