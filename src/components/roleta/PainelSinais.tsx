@@ -1,4 +1,5 @@
-import { gerarLogAuditoriaCSV, type Sinal } from "@/lib/roleta/engine";\nimport { useCallback } from "react";
+import { gerarLogAuditoriaCSV, type Sinal } from "@/lib/roleta/engine";
+import { useCallback } from "react";
 
 const PRIORIDADE: Record<Sinal["priority"], string> = {
   CRITICAL: "CRÍTICA",
@@ -23,6 +24,18 @@ export function StatusTag({ status }: { status: string }) {
 
 export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
   const ultimos = [...sinais].reverse().slice(0, 16);
+
+  const exportarCSV = useCallback(() => {
+    const csv = gerarLogAuditoriaCSV(sinais);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "log-auditoria-sinais.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [sinais]);
+
 
   return (
     <section className="rounded-lg border border-border bg-card">
