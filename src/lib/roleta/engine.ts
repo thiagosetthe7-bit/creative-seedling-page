@@ -597,6 +597,8 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       continue;
     }
 
+    const brSeparado = bip === "rolando" && origem === "TIER" && atual.classificacao.tipo === "SEPARADO";
+    const btQuebra = bip === "timer" && !mesmaCor && !sequenciaLonga;
     if (oscilacao221) {
       categoriaAuditoria = oscilacao221.categoria;
       conf = 84;
@@ -622,8 +624,6 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       }
       titulo = "RETORNO 2-1-1 · 80%";
     } else {
-      const brSeparado = bip === "rolando" && origem === "TIER" && atual.classificacao.tipo === "SEPARADO";
-      const btQuebra = bip === "timer" && !mesmaCor && !sequenciaLonga;
       if (brSeparado) {
         titulo = "BR SEPARADO · REPETE ALTURA · " + (mesmaParidade ? "86%" : "84%");
         acao = "ENTRAR EM " + alturaAlvo;
