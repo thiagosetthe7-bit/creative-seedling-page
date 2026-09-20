@@ -597,6 +597,8 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       continue;
     }
 
+    const brSeparado = bip === "rolando" && origem === "TIER" && atual.classificacao.tipo === "SEPARADO";
+    const btQuebra = bip === "timer" && !mesmaCor && !sequenciaLonga;
     if (oscilacao221) {
       categoriaAuditoria = oscilacao221.categoria;
       conf = 84;
