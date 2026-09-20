@@ -639,7 +639,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
         nota = "BT Quebra Cor";
       } else if (geometrica) {
         categoriaAuditoria = geometrica.categoria;
-        conf = 80;
+        conf = 82;
         acao = "ENTRAR EM " + geometrica.alvo;
         cobertura = geometrica.alvo;
         titulo = "SEQUÊNCIA GEOMÉTRICA 5x · 82%";
@@ -649,7 +649,32 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       }
     }
 
-    // v6.6 — bônus pós-BIP: 3+ variáveis repetidas (cor, paridade, altura, tipo) elevam o sinal ativo em +5%, com teto operacional de 91%.\n    const varsRepetidas = [\n      atual.classificacao.cor === anterior.classificacao.cor,\n      atual.classificacao.pi === anterior.classificacao.pi,\n      atual.classificacao.ab === anterior.classificacao.ab,\n      atual.classificacao.tipo === anterior.classificacao.tipo,\n    ].filter(Boolean).length;\n    const bonusPosBip = (bip === "timer" || bip === "rolando") && varsRepetidas >= 3;\n    if (conf > 0 && bonusPosBip) {\n      conf = Math.min(conf + 5, 91);\n      nota = nota ? nota + " | ALTA CONFIANÇA: BIP com repetição confirmada" : "ALTA CONFIANÇA: BIP com repetição confirmada";\n    }\n\n    // Se uma sequência >=4 já estiver presente em um gatilho BR/BT, reduzir para cobertura única.
+    // v6.6+ — inteligência pós-BIP: bônus somente como modificador, nunca como gatilho.
+    const bipValido = bip === "timer" || bip === "rolando";
+    const varsRepetidas = [
+      atual.classificacao.cor === anterior.classificacao.cor,
+      atual.classificacao.pi === anterior.classificacao.pi,
+      atual.classificacao.ab === anterior.classificacao.ab,
+      atual.classificacao.tipo === anterior.classificacao.tipo,
+    ].filter(Boolean).length;
+    const spinsPosBip = spins.slice(Math.max(0, i - 3), i);
+    const mesmaCor3 = spinsPosBip.length >= 3 && spinsPosBip.slice(-3).every((s) => s.classificacao.cor === atual.classificacao.cor);
+    const gold = bipValido && atual.classificacao.cor === anterior.classificacao.cor && atual.classificacao.pi === anterior.classificacao.pi && (varsRepetidas >= 3 || spinsPosBip.length >= 2);
+    const silver = bipValido && !gold && atual.classificacao.cor === anterior.classificacao.cor;
+    const exclusaoFisica = bipValido && mesmaCor3;
+    if (conf > 0 && gold) {
+      conf = Math.min(conf + 7, 86);
+      nota = "🔥 ALTA CONFIANÇA: Cor+Paridade alinhadas pós-BIP.";
+    } else if (conf > 0 && silver) {
+      conf = Math.min(conf + 4, 86);
+      nota = "⚡ CONFIANÇA MODERADA: Cor mantida pós-BIP.";
+    }
+    if (exclusaoFisica && conf > 0) {
+      cobertura = null;
+      nota = "🚫 FILTRO FÍSICO: combinação setor+cor em exaustão.";
+    }
+
+    // Se uma sequência >=4 já estiver presente em um gatilho BR/BT, reduzir para cobertura única.
     const coberturaReducao = bip !== undefined && ultimos.length >= 4 && ultimos.slice(-4).every((s) => s.classificacao.ab === ultimos[ultimos.length - 1]!.classificacao.ab);
     if (coberturaReducao && (bip === "rolando" || bip === "timer")) {
       if (categoriaAuditoria === "ab") cobertura = alturaAlvo === "ALTO" ? "C2" : "D2";
@@ -772,8 +797,8 @@ export function calcularEstatisticas(sinais: Sinal[]): Estatisticas {
 export function gerarLogAuditoriaCSV(sinais: Sinal[]): string {
   const esc = (v: unknown) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
   const header = ["Signal ID","Strategy Name","Suggested Entry","Actual Result Number","Outcome Status","Confidence","Timestamp"];
-  const rows = sinais.map((s, i) => [
-    i + 1, s.title, s.mainAction, s.auditNumero ?? "", s.auditResult === "GREEN" ? "GREEN" : s.auditResult === "RED" ? "RED" : s.auditResult === "PARTIAL" ? "PARTIAL" : "NEUTRAL", s.confidence, s.auditTimestamp ?? ""
+  const rows = sinais.filter((s) => s.auditNumero !== null && ["GREEN","RED","PARTIAL"].includes(s.auditResult)).map((s) => [
+    s.id, s.title, s.mainAction, s.auditNumero ?? "", s.auditResult, s.confidence, s.auditTimestamp ?? ""
   ]);
   return [header, ...rows].map((row) => row.map(esc).join(",")).join("\n");
 }

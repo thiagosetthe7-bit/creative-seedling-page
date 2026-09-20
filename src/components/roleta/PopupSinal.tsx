@@ -12,6 +12,7 @@ export function PopupSinal({ sinal }: { sinal: Sinal }) {
         </section>
         <section className="min-h-[170px] space-y-3 p-5">
           {sinal.coverageText && <div className="text-base font-medium">✅ COBERTURA: {sinal.coverageText}</div>}
+          {sinal.confidence < 78 && <div className="rounded bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">Padrão detectado, mas assertividade abaixo de 78%. Aguardando.</div>}
           
           <div className="border-t border-border pt-3 text-xs italic text-muted-foreground">{sinal.footerNote ?? `Conf: ${sinal.confidence}%`}</div>
           {isPause && <div className="text-xs italic text-muted-foreground">Não entrar em nada</div>}

@@ -58,7 +58,7 @@ export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
             </div>
             <div className="mt-1 font-semibold">{s.message}</div>
             <div className="mt-0.5 text-muted-foreground">
-              {s.bip === "timer" ? "BT" : "BR"} · entrada: {s.mainAction} · resultado: {s.auditNumero ?? "—"} · {s.auditResult === "GREEN" ? "✅ GREEN" : s.auditResult === "RED" ? "❌ RED" : s.auditResult === "PARTIAL" ? "🟡 PARTIAL" : "⚪ PENDENTE"}
+              {s.bip === "timer" ? "BT" : "BR"} · entrada: {s.mainAction} · resultado: {s.auditNumero ?? "—"} · {s.auditResult === "GREEN" ? "✅ GREEN" : s.auditResult === "RED" ? "❌ RED" : s.auditResult === "PARTIAL" ? "🟡 PARTIAL" : s.auditSpinId ? "⚪ NEUTRO" : "⚪ PENDENTE"}
             </div>
           </li>
         ))}
