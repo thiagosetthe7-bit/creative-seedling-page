@@ -1,1 +1,22 @@
-import { useMemo } from "react";\nimport { analisarBips, auditarSinais, calcularEstatisticas, type Sinal } from "./engine";\nimport { useEstado } from "./store";\n\nexport function useSinais() {\n  const estado = useEstado();\n\n  return useMemo(() => {\n    const brutos = analisarBips(estado.spins, estado.bips);\n    const auditados = auditarSinais(brutos, estado.spins);\n    const sinais: Sinal[] = auditados.map((s) =>\n      estado.cancelados.includes(s.id) ? { ...s, status: "CANCELADO" } : s,\n    );\n\n    return {\n      sinais,\n      estatisticas: calcularEstatisticas(sinais),\n      naoVistos: sinais.filter((s) => !estado.vistos.includes(s.id)),\n      confirmados: estado.confirmados,\n    };\n  }, [estado]);\n}\n
+import { useMemo } from "react";
+import { analisarBips, auditarSinais, calcularEstatisticas, type Sinal } from "./engine";
+import { useEstado } from "./store";
+
+export function useSinais() {
+  const estado = useEstado();
+
+  return useMemo(() => {
+    const brutos = analisarBips(estado.spins, estado.bips);
+    const auditados = auditarSinais(brutos, estado.spins);
+    const sinais: Sinal[] = auditados.map((s) =>
+      estado.cancelados.includes(s.id) ? { ...s, status: "CANCELADO" } : s,
+    );
+
+    return {
+      sinais,
+      estatisticas: calcularEstatisticas(sinais),
+      naoVistos: sinais.filter((s) => !estado.vistos.includes(s.id)),
+      confirmados: estado.confirmados,
+    };
+  }, [estado]);
+}
