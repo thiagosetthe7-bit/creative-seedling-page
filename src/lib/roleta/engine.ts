@@ -599,10 +599,10 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
 
     const brSeparado = bip === "rolando" && origem === "TIER" && atual.classificacao.tipo === "SEPARADO";
     const btQuebra = bip === "timer" && !mesmaCor && !sequenciaLonga;
-    if (oscilacao221) {
+    if (oscilacao221 && (atual.classificacao[oscilacao221.categoria] === oscilacao221.alvo)) {
       categoriaAuditoria = oscilacao221.categoria;
       conf = 84;
-      nota = "2-2-1 Confirmed";
+      nota = "2-2-1 Confirmed by Return";
       if (oscilacao221.categoria === "ab") {
         acao = "ENTRAR EM " + oscilacao221.alvo;
         cobertura = oscilacao221.alvo === "ALTO" ? "C2+C3" : "D1+D2";
@@ -611,10 +611,10 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
         cobertura = oscilacao221.alvo;
       }
       titulo = "OSCILAÇÃO 2-2-1 · 84%";
-    } else if (retorno211) {
+    } else if (retorno211 && (atual.classificacao[retorno211.categoria] === retorno211.alvo)) {
       categoriaAuditoria = retorno211.categoria;
-      conf = 80;
-      nota = "2-1-1 Confirmed";
+      conf = 81;
+      nota = "2-1-1 Confirmed by Return";
       if (retorno211.categoria === "ab") {
         acao = "ENTRAR EM " + retorno211.alvo;
         cobertura = retorno211.alvo === "ALTO" ? "C2+C3" : "D1+D2";
@@ -622,7 +622,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
         acao = "ENTRAR EM " + retorno211.alvo;
         cobertura = retorno211.alvo;
       }
-      titulo = "RETORNO 2-1-1 · 80%";
+      titulo = "RETORNO 2-1-1 · 81%";
     } else {
       if (brSeparado) {
         titulo = "BR SEPARADO · REPETE ALTURA · " + (mesmaParidade ? "86%" : "84%");

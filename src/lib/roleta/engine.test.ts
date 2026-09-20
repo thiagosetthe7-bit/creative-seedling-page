@@ -117,7 +117,7 @@ describe("BIP ANALYZER v6.5", () => {
     const spins=[5,7,20,19].map((n,i)=>criarSpin(n,1000+i));
     const sinais=analisarBips(spins,{[spins[3]!.id]:"rolando"});
     expect(sinais[0]!.title).toContain("RETORNO 2-1-1");
-    expect(sinais[0]!.confidence).toBe(80);
+    expect(sinais[0]!.confidence).toBe(81);
   });
   it("bloqueia alternância perfeita A-B-A-B", () => {
     const spins=[5,20,7,22,19].map((n,i)=>criarSpin(n,1000+i));
