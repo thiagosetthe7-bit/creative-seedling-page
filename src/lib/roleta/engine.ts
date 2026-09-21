@@ -27,7 +27,7 @@ type Altura = "ALTO" | "BAIXO";
 export type StatusSinal = "PENDENTE" | "WIN" | "RED" | "PARTIAL" | "CANCELADO";
 export type TipoAlerta = "ENTRY_SIGNAL" | "WARNING" | "PAUSE" | "VALIDATION";
 export type PrioridadeAlerta = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
-export type ResultadoAuditoria = "GREEN" | "RED" | "NEUTRAL" | "PARTIAL";
+export type ResultadoAuditoria = "GREEN" | "RED" | "PARTIAL" | "AWAITING";
 
 export const PALETA_BIP = {
   repeticao: "#28a745",
@@ -222,7 +222,7 @@ function sinalBase(
     rodadaAnterior: anterior.rodada ?? null,
     numeroAnterior: anterior.numero,
     confidence,
-    auditResult: "NEUTRAL",
+    auditResult: "AWAITING",
     auditColor: "#6c757d",
     auditMessage: null,
     auditTimestamp: null,
@@ -237,9 +237,9 @@ function sinalBase(
       target_signal_id: id,
       previous_bip_row_index: atual.rodada ?? 0,
       current_number: null,
-      verdict: "NEUTRAL",
+      verdict: "AWAITING",
       reason: "Aguardando o giro atual.",
-      ui_update: { row_color: "#6c757d", badge_text: "⚪ NEUTRO", panel_status: "PENDING" },
+      ui_update: { row_color: "#6c757d", badge_text: "⏳ AGUARDANDO", panel_status: "AWAITING" },
     },
   };
 }
@@ -415,7 +415,7 @@ export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
     if (!atual) {
       return {
         ...sinal,
-        auditResult: "NEUTRAL",
+        auditResult: "AWAITING",
         auditColor: "#6c757d",
         auditMessage: null,
         auditTimestamp: null,
@@ -426,9 +426,9 @@ export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
           target_signal_id: sinal.id,
           previous_bip_row_index: sinal.rodada,
           current_number: null,
-          verdict: "NEUTRAL",
+          verdict: "AWAITING",
           reason: "Sinal pendente: aguardando o Giro Atual.",
-          ui_update: { row_color: "#6c757d", badge_text: "⚪ PENDENTE", panel_status: "PENDING" },
+          ui_update: { row_color: "#6c757d", badge_text: "⏳ AGUARDANDO", panel_status: "AWAITING" },
         },
       };
     }
@@ -475,10 +475,10 @@ export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
     }
 
     // Sinal expira após dois giros se, por alguma razão, ainda estiver pendente.
-    if (segundoGiro !== null && sinal.auditSpinId === null) result = "NEUTRAL";
+    if (segundoGiro !== null && sinal.auditSpinId === null) result = "RED";
 
     const color = result === "GREEN" ? "#28a745" : result === "RED" ? "#dc3545" : result === "PARTIAL" ? "#ffc107" : "#6c757d";
-    const badge = result === "GREEN" ? "✅ GREEN" : result === "RED" ? "❌ RED" : result === "PARTIAL" ? "🟡 PARCIAL" : "⚪ NEUTRO";
+    const badge = result === "GREEN" ? "✅ GREEN" : result === "RED" ? "❌ RED" : result === "PARTIAL" ? "🟡 PARCIAL" : "⏳ AGUARDANDO";
 
     return {
       ...sinal,
@@ -602,8 +602,8 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     const btQuebra = bip === "timer" && !mesmaCor && !sequenciaLonga;
     if (oscilacao221 && (atual.classificacao[oscilacao221.categoria] === oscilacao221.alvo)) {
       categoriaAuditoria = oscilacao221.categoria;
-      conf = 84;
-      nota = "2-2-1 Confirmed by Return";
+      conf = 83;
+      nota = "OSCILAÇÃO 2-2-1 CONFIRMADA";
       if (oscilacao221.categoria === "ab") {
         acao = "ENTRAR EM " + oscilacao221.alvo;
         cobertura = oscilacao221.alvo === "ALTO" ? "C2+C3" : "D1+D2";
@@ -614,8 +614,8 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       titulo = "OSCILAÇÃO 2-2-1 · 84%";
     } else if (retorno211 && (atual.classificacao[retorno211.categoria] === retorno211.alvo)) {
       categoriaAuditoria = retorno211.categoria;
-      conf = 81;
-      nota = "2-1-1 Confirmed by Return";
+      conf = 80;
+      nota = "RETORNO 2-1-1 CONFIRMADO";
       if (retorno211.categoria === "ab") {
         acao = "ENTRAR EM " + retorno211.alvo;
         cobertura = retorno211.alvo === "ALTO" ? "C2+C3" : "D1+D2";
@@ -662,14 +662,14 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     const gold = bipValido && atual.classificacao.cor === anterior.classificacao.cor && atual.classificacao.pi === anterior.classificacao.pi && (varsRepetidas >= 3 || spinsPosBip.length >= 2);
     const silver = bipValido && !gold && atual.classificacao.cor === anterior.classificacao.cor;
     const exclusaoFisica = bipValido && mesmaCor3;
-    if (conf > 0 && gold) {
+    if (conf >= 78 && gold) {
       conf = Math.min(conf + 7, 86);
       nota = "🔥 ALTA CONFIANÇA: Cor+Paridade alinhadas pós-BIP.";
-    } else if (conf > 0 && silver) {
+    } else if (conf >= 78 && silver) {
       conf = Math.min(conf + 4, 86);
       nota = "⚡ CONFIANÇA MODERADA: Cor mantida pós-BIP.";
     }
-    if (exclusaoFisica && conf > 0) {
+    if (exclusaoFisica && conf >= 78) {
       cobertura = null;
       nota = "🚫 FILTRO FÍSICO: combinação setor+cor em exaustão.";
     }
@@ -691,13 +691,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       ? cobertura !== null && permitidas.includes(cobertura)
       : cobertura !== null;
     const bloqueado = conf < 78 || !alinhada;
-
-    if (bloqueado) {
-      titulo = "PADRÃO SUBÓTIMO";
-      acao = "AGUARDAR PRÓXIMO BIP";
-      cobertura = null;
-      conf = 0;
-    }    const s = sinalBase(
+    if (bloqueado) continue;    const s = sinalBase(
       `${atual.id}-v65`, categoriaAuditoria, "ENTRADA ÚNICA", acao,
       atual, anterior, proximo, bip, conf === 0 ? "PAUSE" : "ENTRY_SIGNAL",
       conf === 0 ? PALETA_BIP.bloqueio : (bip === "timer" && !mesmaCor ? PALETA_BIP.quebra : PALETA_BIP.repeticao),
