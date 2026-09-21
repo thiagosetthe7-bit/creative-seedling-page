@@ -30,17 +30,8 @@ export function useSinais() {
       const existente = estado.auditoriaLog[s.id];
       if (existente && existente.status !== "AGUARDANDO_RESULTADO") continue;
 
-      if (s.auditSpinId && s.auditNumero !== null && (s.auditResult === "GREEN" || s.auditResult === "RED" || s.auditResult === "PARTIAL")) {
-        acoes.registrarResultadoAutomatico({
-          signalId: s.id,
-          strategy: s.title,
-          entry: s.mainAction,
-          result: s.auditNumero,
-          outcome: s.auditResult,
-          status: s.auditResult,
-          recordedAt: existente?.recordedAt ?? Date.now(),
-          resultTimestamp: s.auditTimestamp ?? Date.now(),
-        });
+      if (s.auditResult === "NO_BET") {
+        continue;
       } else if (!existente) {
         acoes.registrarAuditorias([{
           signalId: s.id,
