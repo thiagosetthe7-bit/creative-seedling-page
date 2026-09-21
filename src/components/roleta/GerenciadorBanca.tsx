@@ -255,7 +255,7 @@ export function GerenciadorBanca() {
         );
       }
       if (step === 5) {
-        return <Slider label="📈 Confirme a odd (payout)" value={state.odd} min={1.01} max={20} step={0.01} display={state.odd.toFixed(2) + "x"} />;
+        return <Slider label="📈 Confirme a odd (payout)" value={state.odd} min={1.01} max={20} step={0.01} display={state.odd.toFixed(2) + "x"} onChange={(v) => setState((s) => ({ ...s, odd: v }))} />;
       }
       if (step === 6) {
         return (
@@ -286,18 +286,18 @@ export function GerenciadorBanca() {
     })();
 
     return (
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm">
-        <div className="w-full max-w-[480px] rounded-2xl border border-border bg-card p-6 shadow-2xl">
+      <div className="gm-overlay fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm">
+        <div className="gm-wizard-card w-full max-w-[450px] rounded-2xl border border-slate-700 bg-slate-800 p-6 text-slate-50 shadow-2xl">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-black">✨ {step === 7 ? "Revise sua configuração" : stepsTitle(step)}</h2>
             <button onClick={() => setWizardOpen(false)} className="text-muted-foreground">✕</button>
           </div>
           <p className="mt-1 text-xs text-muted-foreground">Passo {step} de 7 — responda uma pergunta por vez.</p>
-          <div className="my-5 h-1 overflow-hidden rounded bg-border"><div className="h-full bg-emerald-400 transition-all" style={{ width: progress + "%" }} /></div>
+          <div className="gm-progress-track my-5 h-1 overflow-hidden rounded bg-slate-700"><div className="gm-progress-fill h-full bg-emerald-400 transition-all" style={{ width: progress + "%" }} /></div>
           {content}
           <div className="mt-6 flex justify-between">
             <button disabled={step === 1} onClick={() => setStep((s) => Math.max(1, s - 1))} className="rounded-lg border border-border px-4 py-2 text-sm font-bold disabled:invisible">← Voltar</button>
-            <button onClick={() => step === 7 ? startSession() : setStep((s) => s + 1)} className="rounded-lg bg-emerald-400 px-5 py-2 text-sm font-black text-black">{step === 7 ? "Iniciar operação" : "Continuar →"}</button>
+            <button onClick={() => step === 7 ? startSession() : setStep((s) => s + 1)} className="gm-btn gm-btn-primary rounded-lg bg-emerald-400 px-5 py-2 text-sm font-black text-black">{step === 7 ? "Iniciar operação" : "Continuar →"}</button>
           </div>
         </div>
       </div>
@@ -334,8 +334,8 @@ export function GerenciadorBanca() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => registerResult(true)} className="rounded-xl bg-emerald-400 px-6 py-4 text-lg font-black text-black">✅ GREEN</button>
-            <button onClick={() => registerResult(false)} className="rounded-xl bg-red-500 px-6 py-4 text-lg font-black text-white">❌ RED</button>
+            <button onClick={() => registerResult(true)} className="gm-btn-result rounded-xl bg-emerald-400 px-6 py-4 text-lg font-black text-black">✅ GREEN</button>
+            <button onClick={() => registerResult(false)} className="gm-btn-result rounded-xl bg-red-500 px-6 py-4 text-lg font-black text-white">❌ RED</button>
           </div>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3 text-xs md:grid-cols-4">
@@ -386,9 +386,9 @@ const stepsTitle = (step: number) =>
 function Slider({ label, value, min, max, step = 1, display, onChange, hint }: { label: string; value: number; min: number; max: number; step?: number; display: string; onChange?: (value: number) => void; hint?: string }) {
   return (
     <div>
-      <div className="text-sm font-semibold">{label}</div>
-      <div className="py-4 text-center text-3xl font-black text-emerald-400">{display}</div>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange?.(Number(e.target.value))} className="w-full accent-emerald-400" />
+      <div className="gm-question text-sm font-semibold">{label}</div>
+      <div className="gm-value-display py-4 text-center text-3xl font-black text-emerald-400">{display}</div>
+      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange?.(Number(e.target.value))} className="gm-slider w-full accent-emerald-400" />
       <div className="mt-2 flex justify-between text-[10px] text-muted-foreground"><span>{min}</span><span>{max}</span></div>
       {hint && <div className="mt-2 text-center text-xs text-muted-foreground">{hint}</div>}
     </div>
@@ -409,4 +409,26 @@ function Stat({ label, value, green, red }: { label: string; value: string; gree
 
 function Mini({ label, value }: { label: string; value: string }) {
   return <div className="rounded-lg bg-background p-3"><div className="text-[10px] font-black text-muted-foreground">{label}</div><div className="mt-1 truncate font-bold">{value}</div></div>;
+}
+
+
+const GM_STYLE_ID = "gerenciador-banca-v2-styles";
+
+if (typeof document !== "undefined" && !document.getElementById(GM_STYLE_ID)) {
+  const style = document.createElement("style");
+  style.id = GM_STYLE_ID;
+  style.textContent = `
+    .gm-overlay { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .gm-wizard-card { border-color: #334155; box-shadow: 0 25px 50px rgba(0,0,0,.5); }
+    .gm-progress-track { background: #334155; }
+    .gm-progress-fill { background: #4ade80; }
+    .gm-value-display { color: #4ade80; }
+    .gm-slider { accent-color: #4ade80; cursor: pointer; }
+    .gm-select { color: #f8fafc; }
+    .gm-btn { border: 0; font-weight: 700; cursor: pointer; }
+    .gm-btn-primary { background: #4ade80; color: #000; }
+    .gm-btn-result { border: 0; cursor: pointer; }
+    .gm-btn-result:active { transform: scale(.98); }
+  `;
+  document.head.appendChild(style);
 }
