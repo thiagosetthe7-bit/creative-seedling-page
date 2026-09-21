@@ -798,7 +798,7 @@ export function gerarLogAuditoriaCSV(sinais: Sinal[]): string {
   const esc = (v: unknown) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
   const header = ["Signal ID","Strategy Name","Suggested Entry","Actual Result Number","Outcome Status","Confidence","Timestamp"];
   const rows = sinais.filter((s) => s.auditNumero !== null && ["GREEN","RED","PARTIAL"].includes(s.auditResult)).map((s) => [
-    s.id, s.title, s.mainAction, s.auditNumero ?? "", s.auditResult, s.confidence, s.auditTimestamp ?? ""
+    s.id, s.title, s.mainAction, s.auditNumero ?? "INCOMPLETO", s.auditResult === "GREEN" ? "GREEN" : s.auditResult === "RED" ? "RED" : s.auditResult === "PARTIAL" ? "PARTIAL" : "INCOMPLETO", s.confidence, s.auditTimestamp ?? ""
   ]);
   return [header, ...rows].map((row) => row.map(esc).join(",")).join("\n");
 }
