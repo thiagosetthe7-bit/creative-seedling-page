@@ -10,7 +10,6 @@ const PRIORIDADE: Record<Sinal["priority"], string> = {
 
 export function StatusTag({ status }: { status: string }) {
   const cores: Record<string, string> = {
-    PENDENTE: "bg-amber-500/20 text-amber-700 dark:text-amber-300",
     AGUARDANDO_RESULTADO: "bg-amber-500/20 text-amber-700 dark:text-amber-300",
     WIN: "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300",
     RED: "bg-red-500/20 text-red-700 dark:text-red-300",
