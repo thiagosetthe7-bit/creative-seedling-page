@@ -21,6 +21,8 @@ interface BancaState {
   winPct: number;
   lossPct: number;
   odd: number;
+  targetEntries: number;
+  accumulatedLoss: number;
   profile: Perfil;
   game: Game;
   market: Market;
@@ -31,13 +33,15 @@ interface BancaState {
   processedSignals: string[];
 }
 
-const STORAGE_KEY = "roleta-gerenciador-banca-v1";
+const STORAGE_KEY = "roleta-gerenciador-banca-v2";
 
 const DEFAULT_STATE: BancaState = {
   bank: 100,
   winPct: 7,
   lossPct: 20,
   odd: 2,
+  targetEntries: 4,
+  accumulatedLoss: 0,
   profile: "conservador",
   game: "Roleta Europeia",
   market: "Alto / Baixo (Odd 2x)",
@@ -80,16 +84,15 @@ function loadState(): BancaState {
 }
 
 function calculateSmartStake(state: BancaState) {
-  const remainingWin =
-    (state.initialBank * state.winPct) / 100 - (state.currentBank - state.initialBank);
-  const remainingLoss =
-    (state.initialBank * state.lossPct) / 100 + (state.currentBank - state.initialBank);
-
-  if (remainingWin <= 0 || remainingLoss <= 0) return 0;
-
-  const idealStake = remainingWin * PROFILE_FACTOR[state.profile];
-  const maxSafeStake = remainingLoss * 0.5;
-  return Math.max(0, Math.min(idealStake, maxSafeStake));
+  const targetProfit = state.initialBank * state.winPct / 100;
+  const remainingStop = Math.max(0, state.initialBank * state.lossPct / 100 + (state.currentBank - state.initialBank));
+  if (targetProfit <= 0 || remainingStop <= 0 || state.currentBank <= 0) return 0;
+  const initialStake = targetProfit / Math.max(1, state.targetEntries);
+  const needed = targetProfit + state.accumulatedLoss;
+  const recoveryStake = needed / Math.max(0.01, state.odd - 1);
+  const desired = state.accumulatedLoss > 0 ? recoveryStake : initialStake;
+  const safeCap = remainingStop * 0.8;
+  return Math.max(0, Math.min(desired, safeCap, state.currentBank));
 }
 
 export function GerenciadorBanca() {
@@ -150,6 +153,7 @@ export function GerenciadorBanca() {
     setState((s) => ({
       ...s,
       currentBank: bankAfter,
+      accumulatedLoss: resolved ? 0 : s.accumulatedLoss + stake,
       history: [
         {
           id: s.history.length + 1,
@@ -189,6 +193,7 @@ export function GerenciadorBanca() {
     setState((s) => ({
       ...s,
       currentBank: bankAfter,
+      accumulatedLoss: isWin ? 0 : s.accumulatedLoss + stake,
       history: [
         {
           id: s.history.length + 1,
@@ -211,6 +216,7 @@ export function GerenciadorBanca() {
       initialBank: s.bank,
       history: [],
       processedSignals: [],
+      accumulatedLoss: 0,
     }));
     setStep(1);
     setWizardOpen(false);
@@ -232,6 +238,8 @@ export function GerenciadorBanca() {
   const remainingWin = Math.max(0, (state.initialBank * state.winPct) / 100 - (state.currentBank - state.initialBank));
   const remainingLoss = Math.max(0, (state.initialBank * state.lossPct) / 100 + (state.currentBank - state.initialBank));
   const pl = state.currentBank - state.initialBank;
+  const metaBatida = pl >= state.initialBank * state.winPct / 100;
+  const stopAtingido = state.currentBank <= state.initialBank * (1 - state.lossPct / 100);
 
   const renderWizard = () => {
     const progress = (step / 7) * 100;
@@ -322,6 +330,8 @@ export function GerenciadorBanca() {
         <Stat label="Limite (Stop Loss)" value={"-" + formatBRL(state.initialBank * state.lossPct / 100)} red />
         <Stat label="Lucro/Prejuízo" value={(pl >= 0 ? "+" : "") + formatBRL(pl)} green={pl >= 0} red={pl < 0} />
       </div>
+
+      {(metaBatida || stopAtingido) && <div className={`mb-4 rounded-xl border p-4 text-sm font-black ${metaBatida ? "border-emerald-500 bg-emerald-500/10 text-emerald-400" : "border-red-500 bg-red-500/10 text-red-400"}`}>{metaBatida ? "🎯 META BATIDA. Encerre a sessão." : "🛑 STOP LOSS ATINGIDO. Pare imediatamente."}</div>}
 
       <div className="mt-4 rounded-xl border border-border bg-card p-5">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
