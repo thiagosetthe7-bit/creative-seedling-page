@@ -28,6 +28,7 @@ export interface BancaState {
   market: Market;
   currentBank: number;
   initialBank: number;
+  martingaleLevel: 1 | 2;
   history: HistoricoBanca[];
   nextStrategyName: string;
   processedSignals: string[];
@@ -48,6 +49,7 @@ const DEFAULT_STATE: BancaState = {
   market: "Alto / Baixo (Odd 2x)",
   currentBank: 100,
   initialBank: 100,
+  martingaleLevel: 1,
   history: [],
   nextStrategyName: "Sinal v6.6",
   processedSignals: [],
@@ -109,7 +111,8 @@ function loadState(): BancaState {
       if (merged.accumulatedLoss < 0) merged.accumulatedLoss = 0;
     }
     // Sessões antigas que não possuem histórico são normalizadas para zero P/L.
-    if (!merged.history?.length) {
+    if (merged.martingaleLevel !== 2) merged.martingaleLevel = 1;
+    if (merged.history?.length) {
       merged.currentBank = merged.initialBank = merged.bank;
       merged.accumulatedLoss = 0;
       merged.processedSignals = [];
@@ -128,7 +131,7 @@ export function calculateSmartStake(state: BancaState, signal?: Parameters<typeo
   const initialStake = targetProfit / Math.max(1, state.targetEntries);
   const needed = targetProfit + state.accumulatedLoss;
   const recoveryStake = needed / Math.max(0.01, categoryOdd - 1);
-  const desired = state.accumulatedLoss > 0 ? recoveryStake : initialStake;
+  const desired = state.martingaleLevel === 2 ? Math.max(initialStake, recoveryStake) : initialStake;
   const safeCap = remainingStop * 0.8;
   const capped = Math.max(0, Math.min(desired, safeCap, state.currentBank));
   if (capped <= 0) return 0;
@@ -203,6 +206,7 @@ export function GerenciadorBanca() {
       ...s,
       currentBank: bankAfter,
       accumulatedLoss: isWin ? 0 : s.accumulatedLoss + stake,
+      martingaleLevel: isWin ? 1 : (s.martingaleLevel === 1 ? 2 : 1),
       history: [
         {
           id: s.history.length + 1,
@@ -226,6 +230,7 @@ export function GerenciadorBanca() {
       history: [],
       processedSignals: [],
       accumulatedLoss: 0,
+      martingaleLevel: 1,
     }));
     setStep(1);
     setWizardOpen(false);
@@ -353,7 +358,7 @@ export function GerenciadorBanca() {
             <div className="text-4xl font-black text-emerald-400">{formatBRL(nextStake)}</div>
             <div className="mt-1 text-xs text-muted-foreground">
               {latestOperationalSignal ? latestOperationalSignal.title : state.nextStrategyName}
-              {state.history.length > 0 && !state.history[0]!.isWin ? " · ⚠️ recuperação segura" : " · perfil " + state.profile}
+              {state.martingaleLevel === 2 ? " · ⚠️ recuperação nível 2" : " · perfil " + state.profile}
             </div>
           </div>
           <div className="flex gap-2">
@@ -389,7 +394,7 @@ export function GerenciadorBanca() {
       </div>
 
       <div className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-        Limites de segurança: a stake nunca supera 50% do Stop Loss restante. O resultado automático usa o status auditado do BIP Analyzer; os botões GREEN/RED permanecem disponíveis como fallback manual.
+        Fluxo: 1ª entrada usa a stake base. Um RED prepara apenas 1 recuperação em 2x. Um GREEN reseta para a base. Um segundo RED encerra a sequência e volta à base. Nunca há nível 3.
       </div>
     </section>
   );
