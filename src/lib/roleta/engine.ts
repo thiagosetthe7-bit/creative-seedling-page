@@ -499,7 +499,7 @@ export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
         current_number: atual.numero,
         verdict: result,
         reason,
-        ui_update: { row_color: color, badge_text: badge, panel_status: result === "GREEN" || result === "PARTIAL" ? "WIN" : result },
+        ui_update: { row_color: color, badge_text: badge, panel_status: result === "GREEN" ? "WIN" : result },
       },
     };
   });
