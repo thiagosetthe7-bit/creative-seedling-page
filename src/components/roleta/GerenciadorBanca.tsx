@@ -34,6 +34,7 @@ export interface BancaState {
 }
 
 const STORAGE_KEY = "roleta-gerenciador-banca-v2";
+const SESSION_KEY = "rouletteSession";
 
 const DEFAULT_STATE: BancaState = {
   bank: 100,
@@ -75,9 +76,17 @@ function formatBRL(value: number) {
 function loadState(): BancaState {
   if (typeof window === "undefined") return DEFAULT_STATE;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(SESSION_KEY) || window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_STATE;
-    return { ...DEFAULT_STATE, ...(JSON.parse(raw) as Partial<BancaState>) };
+    const saved = JSON.parse(raw) as Partial<BancaState>;
+    const merged = { ...DEFAULT_STATE, ...saved };
+    // Sessões antigas que não possuem histórico são normalizadas para zero P/L.
+    if (!merged.history?.length) {
+      merged.currentBank = merged.initialBank = merged.bank;
+      merged.accumulatedLoss = 0;
+      merged.processedSignals = [];
+    }
+    return merged;
   } catch {
     return DEFAULT_STATE;
   }
@@ -99,11 +108,17 @@ export function GerenciadorBanca() {
   const { sinais } = useSinais();
   const [state, setState] = useState<BancaState>(() => loadState());
   const [step, setStep] = useState(1);
-  const [wizardOpen, setWizardOpen] = useState(true);
+  const [wizardOpen, setWizardOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return !window.localStorage.getItem(SESSION_KEY) && !window.localStorage.getItem(STORAGE_KEY);
+  });
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }, [state]);
+    if (wizardOpen) return;
+    const sessionData = { ...state, timestamp: new Date().toISOString() };
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionData));
+    window.localStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
+  }, [state, wizardOpen]);
 
   useEffect(() => {
     const storedStrategy = window.localStorage.getItem("roleta-next-strategy");
@@ -126,50 +141,9 @@ export function GerenciadorBanca() {
       .sort((a, b) => b.timestamp - a.timestamp)[0] ?? null;
   }, [sinais]);
 
-  useEffect(() => {
-    if (!latestOperationalSignal) return;
+  // Resultado da banca NUNCA é registrado automaticamente pelo status do sinal.
+  // A alteração de saldo ocorre exclusivamente pelos botões GREEN/RED.
 
-    const strategy = latestOperationalSignal.title || "Sinal v6.6";
-    if (state.nextStrategyName !== strategy) {
-      updateNextStrategyName(strategy);
-      setState((s) => ({ ...s, nextStrategyName: strategy }));
-    }
-
-    const resolved =
-      latestOperationalSignal.status === "WIN"
-        ? true
-        : latestOperationalSignal.status === "RED"
-          ? false
-          : null;
-
-    if (resolved === null || state.processedSignals.includes(latestOperationalSignal.id)) return;
-
-    const stake = calculateSmartStake(state);
-    if (stake <= 0) return;
-
-    const profit = resolved ? stake * (state.odd - 1) : -stake;
-    const bankAfter = state.currentBank + profit;
-
-    setState((s) => ({
-      ...s,
-      currentBank: bankAfter,
-      accumulatedLoss: resolved ? 0 : s.accumulatedLoss + stake,
-      history: [
-        {
-          id: s.history.length + 1,
-          strategy,
-          stake,
-          result: profit,
-          bankAfter,
-          isWin: resolved,
-          signalId: latestOperationalSignal.id,
-          recordedAt: Date.now(),
-        },
-        ...s.history,
-      ],
-      processedSignals: [...s.processedSignals, latestOperationalSignal.id],
-    }));
-  }, [latestOperationalSignal, state]);
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -223,14 +197,10 @@ export function GerenciadorBanca() {
   }
 
   function resetSession() {
-    if (!window.confirm("Deseja realmente reiniciar a sessão? Todos os dados da sessão serão perdidos.")) return;
-    setState((s) => ({
-      ...s,
-      currentBank: s.bank,
-      initialBank: s.bank,
-      history: [],
-      processedSignals: [],
-    }));
+    if (!window.confirm("Deseja realmente limpar todos os dados e iniciar nova sessão?")) return;
+    window.localStorage.removeItem(SESSION_KEY);
+    window.localStorage.removeItem(STORAGE_KEY);
+    setState(DEFAULT_STATE);
     setStep(1);
     setWizardOpen(true);
   }
@@ -327,7 +297,7 @@ export function GerenciadorBanca() {
           <h1 className="text-lg font-black tracking-widest">GERENCIADOR DE BANCA · RECOVERY SMART</h1>
           <p className="mt-1 text-xs text-muted-foreground">Gestão operacional da banca conectada aos sinais do BIP Analyzer.</p>
         </div>
-        <button onClick={resetSession} className="rounded border border-border px-3 py-2 text-xs font-bold hover:bg-accent">REINICIAR SESSÃO</button>
+        <button onClick={resetSession} className="rounded border border-border px-3 py-2 text-xs font-bold hover:bg-accent">LIMPAR DADOS / NOVA SESSÃO</button>
       </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
