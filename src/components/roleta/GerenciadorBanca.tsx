@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useSinais } from "@/lib/roleta/useSinais";
 
 type Perfil = "conservador" | "equilibrado" | "agressivo";
