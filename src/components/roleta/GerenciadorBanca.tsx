@@ -252,7 +252,12 @@ export function GerenciadorBanca() {
         return <Slider label="🎯 Qual o lucro pretendido (Stop Win)?" value={state.winPct} min={1} max={100} display={state.winPct + "%"} onChange={(v) => setState((s) => ({ ...s, winPct: v }))} hint={formatBRL(state.bank * state.winPct / 100)} />;
       }
       if (step === 3) {
-        return <Slider label="Qual a perda máxima aceitável (Stop Loss)?" value={state.lossPct} min={1} max={99} display={state.lossPct + "%"} onChange={(v) => setState((s) => ({ ...s, lossPct: v }))} hint={formatBRL(state.bank * state.lossPct / 100)} />;
+        return (
+          <div className="space-y-5">
+            <Slider label="Qual a perda máxima aceitável (Stop Loss)?" value={state.lossPct} min={1} max={99} display={state.lossPct + "%"} onChange={(v) => setState((s) => ({ ...s, lossPct: v }))} hint={formatBRL(state.bank * state.lossPct / 100)} />
+            <Slider label="Quantas entradas você pretende fazer?" value={state.targetEntries} min={1} max={20} display={String(state.targetEntries)} onChange={(v) => setState((s) => ({ ...s, targetEntries: Math.round(v) }))} />
+          </div>
+        );
       }
       if (step === 4) {
         return (
@@ -285,6 +290,7 @@ export function GerenciadorBanca() {
           <ReviewRow label="Meta (Stop Win)" value={"+" + formatBRL(state.bank * state.winPct / 100)} green />
           <ReviewRow label="Risco (Stop Loss)" value={"-" + formatBRL(state.bank * state.lossPct / 100)} red />
           <ReviewRow label="Odd Confirmada" value={state.odd.toFixed(2) + "x"} />
+          <ReviewRow label="Entradas alvo" value={String(state.targetEntries)} />
           <ReviewRow label="Perfil Escolhido" value={state.profile.toUpperCase()} />
           <div className="mt-2 flex justify-between border-t border-border pt-3 font-black text-emerald-400">
             <span>1ª Entrada Sugerida</span><span>{formatBRL(calculateSmartStake({ ...state, initialBank: state.bank, currentBank: state.bank }))}</span>
