@@ -165,7 +165,10 @@ export function GerenciadorBanca() {
       return;
     }
 
-    const profit = isWin ? stake * (state.odd - 1) : -stake;
+    // Resultado líquido do GREEN: para Alto/Baixo (odd 2x), o lucro é exatamente a stake.
+    // A banca não deve transformar uma entrada de R$ 2,50 em R$ 3,75 por causa de uma odd configurada incorretamente.
+    const netWinProfit = state.market === "Alto / Baixo (Odd 2x)" ? stake : stake * Math.max(0, state.odd - 1);
+    const profit = isWin ? netWinProfit : -stake;
     const bankAfter = state.currentBank + profit;
 
     setState((s) => ({
