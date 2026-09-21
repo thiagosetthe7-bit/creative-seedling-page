@@ -20,10 +20,11 @@ export function PopupSinal({ sinal }: { sinal: Sinal }) {
         </section>
         <section className="min-h-[170px] space-y-3 p-5">
           {sinal.coverageText && <div className="text-base font-medium">✅ COBERTURA: {sinal.coverageText}</div>}
+          {sinal.type === "PAUSE" && <div className="text-base font-black">⏸ SEM APOSTA</div>}
           {sinal.confidence >= 78 && sinal.type === "ENTRY_SIGNAL" && <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-lg font-black text-emerald-400">💰 STAKE SUGERIDA: {stake.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>}
           {sinal.confidence < 78 && <div className="rounded bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">Padrão detectado, mas assertividade abaixo de 78%. Aguardando.</div>}
           
-          <div className="border-t border-border pt-3 text-xs italic text-muted-foreground">{sinal.footerNote ?? `Conf: ${sinal.confidence}%`}</div>
+          {sinal.type !== "PAUSE" && <div className="border-t border-border pt-3 text-xs italic text-muted-foreground">{sinal.footerNote ?? `Conf: ${sinal.confidence}%`}</div>}
           {isPause && <div className="text-xs italic text-muted-foreground">Não entrar em nada</div>}
           <div className="flex gap-2 pt-1">
             {sinal.confidence >= 78 && sinal.type === "ENTRY_SIGNAL" && (<button onClick={() => acoes.confirmar(sinal.id)} className="flex-1 rounded py-2 text-sm font-black text-white" style={{ backgroundColor: sinal.colorCode }}>CONFIRMAR</button>)}
