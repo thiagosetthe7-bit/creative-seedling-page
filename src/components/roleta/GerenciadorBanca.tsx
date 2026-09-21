@@ -16,7 +16,7 @@ interface HistoricoBanca {
   recordedAt: number;
 }
 
-interface BancaState {
+export interface BancaState {
   bank: number;
   winPct: number;
   lossPct: number;
@@ -83,7 +83,7 @@ function loadState(): BancaState {
   }
 }
 
-function calculateSmartStake(state: BancaState) {
+export function calculateSmartStake(state: BancaState) {
   const targetProfit = state.initialBank * state.winPct / 100;
   const remainingStop = Math.max(0, state.initialBank * state.lossPct / 100 + (state.currentBank - state.initialBank));
   if (targetProfit <= 0 || remainingStop <= 0 || state.currentBank <= 0) return 0;
