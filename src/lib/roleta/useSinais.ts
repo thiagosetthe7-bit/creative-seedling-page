@@ -26,19 +26,33 @@ export function useSinais() {
   }, [estado]);
 
   useEffect(() => {
-    const registros = resultado.sinais
-      .filter((s) => s.auditSpinId && s.auditNumero !== null && (s.auditResult === "GREEN" || s.auditResult === "RED" || s.auditResult === "PARTIAL"))
-      .filter((s) => !estado.auditoriaLog[s.id])
-      .map((s) => ({
-        signalId: s.id,
-        strategy: s.title,
-        entry: s.mainAction,
-        result: s.auditNumero as number,
-        outcome: s.auditResult as "GREEN" | "RED" | "PARTIAL",
-        status: "AGUARDANDO_RESULTADO",
-        recordedAt: s.auditTimestamp ?? Date.now(),
-      }));
-    if (registros.length) acoes.registrarAuditorias(registros);
+    for (const s of resultado.sinais) {
+      const existente = estado.auditoriaLog[s.id];
+      if (existente && existente.status !== "AGUARDANDO_RESULTADO") continue;
+
+      if (s.auditSpinId && s.auditNumero !== null && (s.auditResult === "GREEN" || s.auditResult === "RED" || s.auditResult === "PARTIAL")) {
+        acoes.registrarResultadoAutomatico({
+          signalId: s.id,
+          strategy: s.title,
+          entry: s.mainAction,
+          result: s.auditNumero,
+          outcome: s.auditResult,
+          status: s.auditResult,
+          recordedAt: existente?.recordedAt ?? Date.now(),
+          resultTimestamp: s.auditTimestamp ?? Date.now(),
+        });
+      } else if (!existente) {
+        acoes.registrarAuditorias([{
+          signalId: s.id,
+          strategy: s.title,
+          entry: s.mainAction,
+          result: 0,
+          outcome: "DADO_PERDIDO",
+          status: "AGUARDANDO_RESULTADO",
+          recordedAt: Date.now(),
+        }]);
+      }
+    }
   }, [resultado.sinais, estado.auditoriaLog]);
 
   return resultado;
