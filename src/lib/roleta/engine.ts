@@ -699,7 +699,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       atual, anterior, proximo, bip, conf === 0 ? "PAUSE" : "ENTRY_SIGNAL",
       conf === 0 ? PALETA_BIP.bloqueio : (bip === "timer" && !mesmaCor ? PALETA_BIP.quebra : PALETA_BIP.repeticao),
       titulo,
-      conf === 0 ? "Nenhuma entrada autorizada." : "Comando único validado pela matriz v4.0.",
+      conf === 0 ? "Nenhuma entrada autorizada." : "",
       conf === 0 ? "CRITICAL" : "HIGH", conf
     );
     s.mainAction = acao;
