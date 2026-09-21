@@ -212,8 +212,10 @@ export function GerenciadorBanca() {
     setWizardOpen(true);
   }
 
-  const remainingWin = Math.max(0, (state.initialBank * state.winPct) / 100 - (state.currentBank - state.initialBank));
-  const remainingLoss = Math.max(0, (state.initialBank * state.lossPct) / 100 + (state.currentBank - state.initialBank));
+  const accumulatedProfit = state.currentBank - state.initialBank;
+  const remainingWin = Math.max(0, (state.initialBank * state.winPct) / 100 - accumulatedProfit);
+  const accumulatedLossForDisplay = Math.max(0, -accumulatedProfit);
+  const remainingLoss = Math.max(0, (state.initialBank * state.lossPct) / 100 - accumulatedLossForDisplay);
   const pl = state.currentBank - state.initialBank;
   const metaBatida = pl >= state.initialBank * state.winPct / 100;
   const stopAtingido = state.currentBank <= state.initialBank * (1 - state.lossPct / 100);
