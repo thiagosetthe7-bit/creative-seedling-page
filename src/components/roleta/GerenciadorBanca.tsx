@@ -165,13 +165,13 @@ export function GerenciadorBanca() {
     return () => window.removeEventListener("roleta:strategy", onStrategy);
   }, []);
 
-  const nextStake = useMemo(() => calculateSmartStake(state, latestOperationalSignal), [state, latestOperationalSignal]);
-
   const latestOperationalSignal = useMemo(() => {
     return [...sinais]
       .filter((s) => s.type === "ENTRY_SIGNAL" && s.confidence >= 78)
       .sort((a, b) => b.timestamp - a.timestamp)[0] ?? null;
   }, [sinais]);
+
+  const nextStake = useMemo(() => calculateSmartStake(state, latestOperationalSignal), [state, latestOperationalSignal]);
 
   // Resultado da banca NUNCA é registrado automaticamente pelo status do sinal.
   // A alteração de saldo ocorre exclusivamente pelos botões GREEN/RED.
