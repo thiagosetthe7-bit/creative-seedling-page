@@ -226,6 +226,13 @@ export const acoes = {
       return alterou ? { ...e, auditoriaLog } : e;
     });
   },
+  registrarResultadoAutomatico(registro: RegistroAuditoria) {
+    definir((e) => {
+      const atual = e.auditoriaLog[registro.signalId];
+      if (atual && atual.status !== "AGUARDANDO_RESULTADO") return e;
+      return { ...e, auditoriaLog: { ...e.auditoriaLog, [registro.signalId]: { ...registro, status: registro.outcome } } };
+    });
+  },
   registrarResultadoManual(signalId: string, outcome: "GREEN" | "RED" | "PARTIAL", result: number) {
     definir((e) => {
       const atual = e.auditoriaLog[signalId];
