@@ -11,6 +11,7 @@ const PRIORIDADE: Record<Sinal["priority"], string> = {
 export function StatusTag({ status }: { status: string }) {
   const cores: Record<string, string> = {
     PENDENTE: "bg-amber-500/20 text-amber-700 dark:text-amber-300",
+    AGUARDANDO_RESULTADO: "bg-amber-500/20 text-amber-700 dark:text-amber-300",
     WIN: "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300",
     RED: "bg-red-500/20 text-red-700 dark:text-red-300",
     CANCELADO: "bg-muted text-muted-foreground",
@@ -58,7 +59,7 @@ export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
             </div>
             <div className="mt-1 font-semibold">{s.message}</div>
             <div className="mt-0.5 text-muted-foreground">
-              {s.bip === "timer" ? "BT" : "BR"} · entrada: {s.mainAction} · resultado: {s.auditNumero ?? "—"} · {s.auditResult === "GREEN" ? "✅ GREEN" : s.auditResult === "RED" ? "❌ RED" : s.auditResult === "PARTIAL" ? "🟡 PARTIAL" : s.auditSpinId ? "⚪ NEUTRO" : "⚪ PENDENTE"}
+              {s.bip === "timer" ? "BT" : "BR"} · entrada: {s.mainAction} · resultado: {s.auditNumero ?? "—"} · {s.auditResult === "GREEN" ? `✅ GREEN (${s.auditTimestamp ? new Date(s.auditTimestamp).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) : "--:--"})` : s.auditResult === "RED" ? `❌ RED (${s.auditTimestamp ? new Date(s.auditTimestamp).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) : "--:--"})` : s.auditResult === "PARTIAL" ? `🟡 PARTIAL (${s.auditTimestamp ? new Date(s.auditTimestamp).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) : "--:--"})` : "⏳ AGUARDANDO RESULTADO"}
             </div>
           </li>
         ))}
