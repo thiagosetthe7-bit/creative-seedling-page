@@ -73,6 +73,28 @@ function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function getSignalOdd(signal?: { categoria?: string; categoriaLabel?: string; title?: string; mainAction?: string } | null): number {
+  if (!signal) return 2;
+  const text = `${signal.categoria ?? ""} ${signal.categoriaLabel ?? ""} ${signal.title ?? ""} ${signal.mainAction ?? ""}`.toLowerCase();
+  const ternaryCategory = text.includes("cavalo") ||
+    ((text.includes("sequ") || text.includes("x5")) && (text.includes("dúzia") || text.includes("duzia") || text.includes("coluna")));
+  return ternaryCategory ? 3 : 2;
+}
+
+function getHistoryOdd(strategy: string): number {
+  return getSignalOdd({ title: strategy });
+}
+
+function normalizeHistory(history: HistoricoBanca[], initialBank: number) {
+  let bank = initialBank;
+  return [...history].reverse().map((h) => {
+    const odd = getHistoryOdd(h.strategy);
+    const profit = h.isWin ? h.stake * (odd - 1) : -h.stake;
+    bank += profit;
+    return { ...h, result: profit, bankAfter: bank };
+  }).reverse();
+}
+
 function loadState(): BancaState {
   if (typeof window === "undefined") return DEFAULT_STATE;
   try {
@@ -80,6 +102,12 @@ function loadState(): BancaState {
     if (!raw) return DEFAULT_STATE;
     const saved = JSON.parse(raw) as Partial<BancaState>;
     const merged = { ...DEFAULT_STATE, ...saved };
+    if (merged.history?.length) {
+      merged.history = normalizeHistory(merged.history, merged.initialBank ?? merged.bank);
+      merged.currentBank = merged.history[0] ? merged.history[0].bankAfter : merged.initialBank;
+      merged.accumulatedLoss = merged.history.filter((h) => !h.isWin).reduce((sum, h) => sum + h.stake, 0) - merged.history.filter((h) => h.isWin).reduce((sum, h) => sum + h.result, 0);
+      if (merged.accumulatedLoss < 0) merged.accumulatedLoss = 0;
+    }
     // Sessões antigas que não possuem histórico são normalizadas para zero P/L.
     if (!merged.history?.length) {
       merged.currentBank = merged.initialBank = merged.bank;
@@ -92,18 +120,18 @@ function loadState(): BancaState {
   }
 }
 
-export function calculateSmartStake(state: BancaState) {
+export function calculateSmartStake(state: BancaState, signal?: Parameters<typeof getSignalOdd>[0]) {
+  const categoryOdd = getSignalOdd(signal);
   const targetProfit = state.initialBank * state.winPct / 100;
   const remainingStop = Math.max(0, state.initialBank * state.lossPct / 100 + (state.currentBank - state.initialBank));
   if (targetProfit <= 0 || remainingStop <= 0 || state.currentBank <= 0) return 0;
   const initialStake = targetProfit / Math.max(1, state.targetEntries);
   const needed = targetProfit + state.accumulatedLoss;
-  const recoveryStake = needed / Math.max(0.01, state.odd - 1);
+  const recoveryStake = needed / Math.max(0.01, categoryOdd - 1);
   const desired = state.accumulatedLoss > 0 ? recoveryStake : initialStake;
   const safeCap = remainingStop * 0.8;
   const capped = Math.max(0, Math.min(desired, safeCap, state.currentBank));
   if (capped <= 0) return 0;
-  // Fichas físicas: toda stake deve ser múltipla de R$ 0,50.
   const rounded = Math.round(capped * 2) / 2;
   return Math.max(0.5, rounded);
 }
@@ -137,7 +165,7 @@ export function GerenciadorBanca() {
     return () => window.removeEventListener("roleta:strategy", onStrategy);
   }, []);
 
-  const nextStake = useMemo(() => calculateSmartStake(state), [state]);
+  const nextStake = useMemo(() => calculateSmartStake(state, latestOperationalSignal), [state, latestOperationalSignal]);
 
   const latestOperationalSignal = useMemo(() => {
     return [...sinais]
@@ -159,7 +187,7 @@ export function GerenciadorBanca() {
   }, [state]);
 
   function registerResult(isWin: boolean) {
-    const stake = calculateSmartStake(state);
+    const stake = calculateSmartStake(state, latestOperationalSignal);
     if (stake <= 0) {
       window.alert("Sessão encerrada: meta atingida ou Stop Loss acionado.");
       return;
@@ -167,8 +195,8 @@ export function GerenciadorBanca() {
 
     // Resultado líquido do GREEN: para Alto/Baixo (odd 2x), o lucro é exatamente a stake.
     // A banca não deve transformar uma entrada de R$ 2,50 em R$ 3,75 por causa de uma odd configurada incorretamente.
-    const netWinProfit = state.market === "Alto / Baixo (Odd 2x)" ? stake : stake * Math.max(0, state.odd - 1);
-    const profit = isWin ? netWinProfit : -stake;
+    const signalOdd = getSignalOdd(latestOperationalSignal);
+    const profit = isWin ? stake * (signalOdd - 1) : -stake;
     const bankAfter = state.currentBank + profit;
 
     setState((s) => ({
@@ -247,7 +275,7 @@ export function GerenciadorBanca() {
         );
       }
       if (step === 5) {
-        return <Slider label="📈 Confirme a odd (payout)" value={state.odd} min={1.01} max={20} step={0.01} display={state.odd.toFixed(2) + "x"} onChange={(v) => setState((s) => ({ ...s, odd: v }))} />;
+        return <div className="rounded-xl border border-border bg-background p-4 text-center"><div className="text-sm font-semibold">📈 Odd do payout</div><div className="py-4 text-3xl font-black text-emerald-400">DERIVADA DO SINAL</div><div className="text-xs text-muted-foreground">Binárias = 2x · Dúzia/Coluna x5 e Cavalo = 3x. A odd não é mais editável.</div></div>;
       }
       if (step === 6) {
         return (
@@ -268,11 +296,11 @@ export function GerenciadorBanca() {
           <ReviewRow label="Banca Inicial" value={formatBRL(state.bank)} />
           <ReviewRow label="Meta (Stop Win)" value={"+" + formatBRL(state.bank * state.winPct / 100)} green />
           <ReviewRow label="Risco (Stop Loss)" value={"-" + formatBRL(state.bank * state.lossPct / 100)} red />
-          <ReviewRow label="Odd Confirmada" value={state.odd.toFixed(2) + "x"} />
+          <ReviewRow label="Odd" value={latestOperationalSignal ? getSignalOdd(latestOperationalSignal).toFixed(0) + "x (sinal)" : "2x padrão"} />
           <ReviewRow label="Entradas alvo" value={String(state.targetEntries)} />
           <ReviewRow label="Perfil Escolhido" value={state.profile.toUpperCase()} />
           <div className="mt-2 flex justify-between border-t border-border pt-3 font-black text-emerald-400">
-            <span>1ª Entrada Sugerida</span><span>{formatBRL(calculateSmartStake({ ...state, initialBank: state.bank, currentBank: state.bank }))}</span>
+            <span>1ª Entrada Sugerida</span><span>{formatBRL(calculateSmartStake({ ...state, initialBank: state.bank, currentBank: state.bank }, latestOperationalSignal))}</span>
           </div>
         </div>
       );
