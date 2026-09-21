@@ -25,6 +25,43 @@ export function EntradaNumeros({ total }: { total: number }) {
     setTexto("");
   };
 
+  const colunas = [
+    Array.from({ length: 12 }, (_, i) => 1 + i * 3),
+    Array.from({ length: 12 }, (_, i) => 2 + i * 3),
+    Array.from({ length: 12 }, (_, i) => 3 + i * 3),
+  ];
+
+  const renderNumero = (n: number) => {
+    const marcado = pendentes[n];
+    return (
+      <div key={n} className="roulette-number-cell">
+        <button
+          onClick={() => acoes.adicionarNumero(n)}
+          style={estiloCor(n)}
+          className="roulette-number-btn"
+        >
+          {n}
+        </button>
+        <div className="roulette-toggle-row">
+          <button
+            onClick={() => acoes.marcarPendente(n, marcado === "timer" ? null : "timer")}
+            title="BT - BIP NO TIMER (vale para a próxima catalogação deste número)"
+            className={`roulette-toggle roulette-toggle-bt ${marcado === "timer" ? "is-active" : ""}`}
+          >
+            BT
+          </button>
+          <button
+            onClick={() => acoes.marcarPendente(n, marcado === "rolando" ? null : "rolando")}
+            title="BR - BIP ROLANDO (vale para a próxima catalogação deste número)"
+            className={`roulette-toggle roulette-toggle-br ${marcado === "rolando" ? "is-active" : ""}`}
+          >
+            BR
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <section className="rounded-lg border border-border bg-card p-3">
       <div className="mb-2 flex items-center justify-between">
@@ -34,45 +71,19 @@ export function EntradaNumeros({ total }: { total: number }) {
         <span className="text-xs text-muted-foreground">{total} rodadas</span>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(56px,1fr))] gap-1">
-        {NUMEROS.map((n) => {
-          const marcado = pendentes[n];
-          return (
-            <div key={n} className="flex flex-col gap-[2px]">
-              <button
-                onClick={() => acoes.adicionarNumero(n)}
-                style={estiloCor(n)}
-                className="h-9 rounded-sm border border-[#3f3f3f] text-sm font-bold transition-transform hover:scale-105 active:scale-95"
-              >
-                {n}
-              </button>
-              <div className="flex gap-[2px]">
-                <button
-                  onClick={() => acoes.marcarPendente(n, marcado === "timer" ? null : "timer")}
-                  title="BT - BIP NO TIMER (vale para a próxima catalogação deste número)"
-                  className={`flex-1 rounded-sm border border-[#3f3f3f] px-0 py-[2px] text-[8px] font-black tracking-wide transition-transform active:scale-95 ${
-                    marcado === "timer"
-                      ? "bg-[#FFD966] text-black"
-                      : "bg-[#FFF7DC] text-[#7a6a1f] hover:bg-[#FCE9A8]"
-                  }`}
-                >
-                  BT
-                </button>
-                <button
-                  onClick={() => acoes.marcarPendente(n, marcado === "rolando" ? null : "rolando")}
-                  title="BR - BIP ROLANDO (vale para a próxima catalogação deste número)"
-                  className={`flex-1 rounded-sm border border-[#3f3f3f] px-0 py-[2px] text-[8px] font-black tracking-wide transition-transform active:scale-95 ${
-                    marcado === "rolando"
-                      ? "bg-[#2196F3] text-white"
-                      : "bg-[#E3F0FD] text-[#1a5a96] hover:bg-[#BFDDF9]"
-                  }`}
-                >
-                  BR
-                </button>
-              </div>
-            </div>
-          );
-        })}
+      <div className="roulette-table-container" aria-label="Mesa de roleta">
+        <button
+          onClick={() => acoes.adicionarNumero(0)}
+          style={estiloCor(0)}
+          className="zero-btn"
+          aria-label="Zero"
+        >
+          0
+        </button>
+
+        <div className="number-grid">
+          {colunas.map((coluna) => coluna.map(renderNumero))}
+        </div>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">
