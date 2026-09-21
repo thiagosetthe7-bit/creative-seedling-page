@@ -384,12 +384,62 @@ const stepsTitle = (step: number) =>
   })[step] ?? "Configurar sessão";
 
 function Slider({ label, value, min, max, step = 1, display, onChange, hint }: { label: string; value: number; min: number; max: number; step?: number; display: string; onChange?: (value: number) => void; hint?: string }) {
+  const [draft, setDraft] = React.useState(String(value));
+
+  React.useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+
+  const syncInput = (raw: string) => {
+    setDraft(raw);
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) return;
+
+    const clamped = Math.min(max, Math.max(min, parsed));
+    onChange?.(clamped);
+  };
+
+  const commitInput = () => {
+    const parsed = Number(draft);
+    const normalized = Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : value;
+    setDraft(String(normalized));
+    onChange?.(normalized);
+  };
+
   return (
     <div>
       <div className="gm-question text-sm font-semibold">{label}</div>
-      <div className="gm-value-display py-4 text-center text-3xl font-black text-emerald-400">{display}</div>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange?.(Number(e.target.value))} className="gm-slider w-full accent-emerald-400" />
-      <div className="mt-2 flex justify-between text-[10px] text-muted-foreground"><span>{min}</span><span>{max}</span></div>
+      <div className="gm-value-display py-4 text-center text-3xl font-black text-emerald-400">
+        {display}
+      </div>
+
+      <input
+        type="number"
+        inputMode="decimal"
+        value={draft}
+        min={min}
+        max={max}
+        step={step}
+        onChange={(e) => syncInput(e.target.value)}
+        onBlur={commitInput}
+        className="gm-hybrid-input mb-4 w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-3 text-center text-xl text-white outline-none"
+        aria-label={label}
+      />
+
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange?.(Number(e.target.value))}
+        className="gm-slider w-full accent-emerald-400"
+        aria-label={`${label} slider`}
+      />
+
+      <div className="range-labels mt-2 flex justify-between text-[10px] text-muted-foreground">
+        <span>{min}</span><span>{max}</span>
+      </div>
       {hint && <div className="mt-2 text-center text-xs text-muted-foreground">{hint}</div>}
     </div>
   );
@@ -429,6 +479,9 @@ if (typeof document !== "undefined" && !document.getElementById(GM_STYLE_ID)) {
     .gm-btn-primary { background: #4ade80; color: #000; }
     .gm-btn-result { border: 0; cursor: pointer; }
     .gm-btn-result:active { transform: scale(.98); }
+    .gm-hybrid-input { border-color: #334155; background: #0f172a; color: #fff; }
+    .gm-hybrid-input:focus { border-color: #4ade80; box-shadow: 0 0 0 2px rgba(74,222,128,.15); }
+
   `;
   document.head.appendChild(style);
 }
