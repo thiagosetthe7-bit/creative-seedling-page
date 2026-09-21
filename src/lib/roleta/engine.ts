@@ -480,4 +480,322 @@ export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
       ? `Entrada ${sinal.mainAction} contém o número ${atual.numero}.`
       : `Número ${atual.numero} não pertence à entrada ${sinal.mainAction}.`;
 
+    const color = result === "GREEN" ? "#28a745" : "#dc3545";
+    const badge = result === "GREEN" ? "✅ GREEN" : "❌ RED";
 
+    return {
+      ...sinal,
+      status: result === "GREEN" ? "WIN" : "RED",
+      auditResult: result,
+      auditColor: color,
+      auditMessage: `Resultado: ${atual.numero} (${atual.numero === 0 ? "ZERO" : `${c.ab}, ${c.coluna}, ${c.duzia}`})`,
+      auditTimestamp: atual.timestamp,
+      auditSpinId: atual.id,
+      auditNumero: atual.numero,
+      auditClasse: atual.numero === 0 ? "ZERO" : `${c.ab}, ${c.coluna}, ${c.duzia}`,
+      auditResultPayload: {
+        target_signal_id: sinal.id,
+        previous_bip_row_index: sinal.rodada,
+        current_number: atual.numero,
+        verdict: result,
+        reason,
+        ui_update: { row_color: color, badge_text: badge, panel_status: result === "GREEN" ? "WIN" : result },
+      },
+    };
+  });
+}
+
+/**
+ * Estratégia oficial BIP ANALYZER.
+ *
+ * Para cada rodada marcada com BT (bip no timer) ou BR (bip rolando), compara
+ * a rodada anterior com o BIP atual e gera os alertas visuais operacionais.
+ * Prioridade: Bloqueio > Altura > Sessão > Coluna/Dúzia > Validação.
+ */
+export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
+  const spins = spinsEntrada.map(comRodadas);
+  const sinais: Sinal[] = [];
+
+  for (let i = 1; i < spins.length; i++) {
+    const atual = spins[i]!;
+    const bip = bips[atual.id];
+    if (!bip) continue;
+
+    const anterior = spins[i - 1]!;
+    const proximo = spins[i + 1] ?? null;
+    const cA = anterior.classificacao;
+    const ctx = contextoSequencial(sequenciaBips(spins, bips, i), bip, anterior);
+
+    // BLOQUEIO — Double BT: dois bips no timer seguidos bloqueiam a operação.
+    if (bip === "timer" && bips[anterior.id] === "timer") {
+      sinais.push(sinalBase(
+        `${atual.id}-bloqueio`, "ab", "A/B", "AGUARDAR",
+        atual, anterior, proximo, bip, "PAUSE", PALETA_BIP.bloqueio,
+        "⛔ BLOQUEIO: DOUBLE BT",
+        "Dois BIPs no TIMER em sequência. Bloqueio total: aguarde um BR válido antes de operar.",
+        "CRITICAL", 0,
+      ));
+      continue;
+    }
+
+    // BLOQUEIO — ZERO estendido: após qualquer ZERO, aguarde 2 giros coloridos válidos.
+    let zeroRecente = false;
+    let coloridosAposZero = 0;
+    for (let z = i - 1; z >= 0; z--) {
+      if (spins[z]!.numero === 0) {
+        zeroRecente = true;
+        break;
+      }
+      coloridosAposZero++;
+    }
+    if (atual.numero === 0 || (zeroRecente && coloridosAposZero < 2)) {
+      sinais.push(sinalBase(
+        `${atual.id}-pausa`, "ab", "A/B", "PAUSAR",
+        atual, anterior, proximo, bip, "PAUSE", PALETA_BIP.bloqueio,
+        "⛔ PAUSA OPERACIONAL",
+        "ZERO detectado na rodada anterior. Nenhuma entrada neste giro: aguarde o próximo número.",
+        "CRITICAL", 0,
+      ));
+      continue;
+    }
+
+    // BLOQUEIO — sequência anômala de bips (BT+BT+BT).
+    if (ctx.title === "⚠️ SEQUÊNCIA ANÔMALA") {
+      sinais.push(sinalBase(
+        `${atual.id}-anomalia`, "ab", "A/B", "AGUARDAR",
+        atual, anterior, proximo, bip, "PAUSE", PALETA_BIP.bloqueio,
+        "⚠️ SEQUÊNCIA ANÔMALA",
+        `Sequência ${ctx.context}: aguardar BR válido antes de qualquer entrada.`,
+        "CRITICAL", 0,
+      ));
+      continue;
+    }
+
+    const mesmaCor = atual.numero !== 0 && atual.classificacao.cor === cA.cor;
+    const mesmaParidade = atual.numero !== 0 && atual.classificacao.pi === cA.pi;
+
+    // v6.5 — auditor rígido: prioridade 2-2-1 > 2-1-1 > BR/BT > sequência geométrica.
+    const oscilacao221 = detectarOscilacao221(spins, i);
+    const retorno211 = detectarRetorno211(spins, i);
+    const geometrica = detectarSequenciaGeometrica(spins, i);
+    const origem = cA.secao;
+    const sequenciaLonga = seqLonga(spins, i);
+    const ultimos = spins.slice(Math.max(0, i - 5), i);
+    const alternanciaPerfeita = ultimos.length >= 4 && ultimos.slice(-4).every((s, idx, arr) => idx === 0 || s.classificacao.ab !== arr[idx - 1]!.classificacao.ab);
+    const runAntes = ultimos.length ? ultimos[ultimos.length - 1]!.classificacao.ab : null;
+    let titulo = "";
+    let acao = "";
+    let conf = 0;
+    let cobertura: string | null = null;
+    let categoriaAuditoria: CategoriaId = "ab";
+    let nota = "";
+    const alturaAlvo = (ctx.title === "INVERTE ALTURA" ? alturaOposta(cA.ab) : cA.ab) as Altura;
+
+    // Bloqueios v6.5: alternância A-B-A-B e retornos 3-1-1/4-1-1.
+    if (alternanciaPerfeita) {
+      continue;
+    }
+    const runAtual = runAntes ? ultimos.slice().reverse().findIndex((s) => s.classificacao.ab !== runAntes) : -1;
+    const repeticoes = runAntes ? (runAtual < 0 ? ultimos.length : runAtual) : 0;
+    if (repeticoes >= 3 && ultimos.length >= repeticoes + 1) {
+      continue;
+    }
+
+    const brSeparado = bip === "rolando" && origem === "TIER" && atual.classificacao.tipo === "SEPARADO";
+    const btQuebra = bip === "timer" && !mesmaCor && !sequenciaLonga;
+    if (oscilacao221 && (atual.classificacao[oscilacao221.categoria] === oscilacao221.alvo)) {
+      categoriaAuditoria = oscilacao221.categoria;
+      conf = 83;
+      nota = "OSCILAÇÃO 2-2-1 CONFIRMADA";
+      if (oscilacao221.categoria === "ab") {
+        acao = "ENTRAR EM " + oscilacao221.alvo;
+        cobertura = oscilacao221.alvo === "ALTO" ? "C2+C3" : "D1+D2";
+      } else {
+        acao = "ENTRAR EM " + oscilacao221.alvo;
+        cobertura = oscilacao221.alvo;
+      }
+      titulo = "OSCILAÇÃO 2-2-1 · 84%";
+    } else if (retorno211 && (atual.classificacao[retorno211.categoria] === retorno211.alvo)) {
+      categoriaAuditoria = retorno211.categoria;
+      conf = 80;
+      nota = "RETORNO 2-1-1 CONFIRMADO";
+      if (retorno211.categoria === "ab") {
+        acao = "ENTRAR EM " + retorno211.alvo;
+        cobertura = retorno211.alvo === "ALTO" ? "C2+C3" : "D1+D2";
+      } else {
+        acao = "ENTRAR EM " + retorno211.alvo;
+        cobertura = retorno211.alvo;
+      }
+      titulo = "RETORNO 2-1-1 · 81%";
+    } else {
+      if (brSeparado) {
+        titulo = "BR SEPARADO · REPETE ALTURA";
+        acao = "ENTRAR EM " + alturaAlvo;
+        conf = mesmaParidade ? 86 : 86;
+        cobertura = alturaAlvo === "ALTO" ? "C2+C3" : "D1+D2";
+        nota = mesmaParidade ? "BR Separado + Parity" : "BR Separado";
+      } else if (btQuebra) {
+        titulo = "BT QUEBRA COR · INVERSÃO · 81%";
+        acao = "ENTRAR EM " + alturaOposta(cA.ab);
+        conf = 81;
+        cobertura = acao.includes("ALTO") ? "D2+D3" : "D1+D2";
+        nota = "BT Quebra Cor";
+      } else if (geometrica) {
+        categoriaAuditoria = geometrica.categoria;
+        conf = 82;
+        acao = "ENTRAR EM " + geometrica.alvo;
+        cobertura = geometrica.alvo;
+        titulo = "SEQUÊNCIA GEOMÉTRICA 5x · 82%";
+        nota = geometrica.context;
+      } else {
+        continue;
+      }
+    }
+
+    // v6.6+ — inteligência pós-BIP: bônus somente como modificador, nunca como gatilho.
+    const bipValido = bip === "timer" || bip === "rolando";
+    const varsRepetidas = [
+      atual.classificacao.cor === anterior.classificacao.cor,
+      atual.classificacao.pi === anterior.classificacao.pi,
+      atual.classificacao.ab === anterior.classificacao.ab,
+      atual.classificacao.tipo === anterior.classificacao.tipo,
+    ].filter(Boolean).length;
+    const spinsPosBip = spins.slice(Math.max(0, i - 3), i);
+    const mesmaCor3 = spinsPosBip.length >= 3 && spinsPosBip.slice(-3).every((s) => s.classificacao.cor === atual.classificacao.cor);
+    const gold = bipValido && atual.classificacao.cor === anterior.classificacao.cor && atual.classificacao.pi === anterior.classificacao.pi && (varsRepetidas >= 3 || spinsPosBip.length >= 2);
+    const silver = bipValido && !gold && atual.classificacao.cor === anterior.classificacao.cor;
+    const exclusaoFisica = bipValido && mesmaCor3;
+    if (conf >= 78 && gold) {
+      conf = Math.min(conf + 7, 86);
+      nota = "🔥 ALTA CONFIANÇA: Cor+Paridade alinhadas pós-BIP.";
+    } else if (conf >= 78 && silver) {
+      conf = Math.min(conf + 4, 86);
+      nota = "⚡ CONFIANÇA MODERADA: Cor mantida pós-BIP.";
+    }
+    if (exclusaoFisica && conf >= 78) {
+      cobertura = null;
+      nota = "🚫 FILTRO FÍSICO: combinação setor+cor em exaustão.";
+    }
+
+    // Se uma sequência >=4 já estiver presente em um gatilho BR/BT, reduzir para cobertura única.
+    const coberturaReducao = bip !== undefined && ultimos.length >= 4 && ultimos.slice(-4).every((s) => s.classificacao.ab === ultimos[ultimos.length - 1]!.classificacao.ab);
+    if (coberturaReducao && (bip === "rolando" || bip === "timer")) {
+      if (categoriaAuditoria === "ab") cobertura = alturaAlvo === "ALTO" ? "C2" : "D2";
+      else if (categoriaAuditoria === "duzia" || categoriaAuditoria === "coluna") cobertura = categoriaAuditoria === "duzia" ? cA.duzia : cA.coluna;
+    }
+
+    const permitidas = acao.includes("ALTO")
+      ? ["C2+C3", "D2+D3"]
+      : acao.includes("BAIXO")
+        ? ["D1+D2", "C1+C2"]
+        : [];
+
+    const alinhada = categoriaAuditoria === "ab"
+      ? cobertura !== null && permitidas.includes(cobertura)
+      : cobertura !== null;
+    const bloqueado = conf < 78 || !alinhada;
+    if (bloqueado) continue;    const s = sinalBase(
+      `${atual.id}-v65`, categoriaAuditoria, "ENTRADA ÚNICA", acao,
+      atual, anterior, proximo, bip, conf === 0 ? "PAUSE" : "ENTRY_SIGNAL",
+      conf === 0 ? PALETA_BIP.bloqueio : (bip === "timer" && !mesmaCor ? PALETA_BIP.quebra : PALETA_BIP.repeticao),
+      titulo,
+      conf === 0 ? "Nenhuma entrada autorizada." : "Comando único validado pela matriz v4.0.",
+      conf === 0 ? "CRITICAL" : "HIGH", conf
+    );
+    s.mainAction = acao;
+    s.coverageText = cobertura;
+    s.sessionPreference = conf > 0 ? sessaoPreferencial(bip, ctx, anterior, sequenciaLonga) : null;
+    s.sequenceContext = ctx.context;
+    const confirmador = brSeparado && mesmaParidade ? "✔️ Paridade Confirmada" : btQuebra && !mesmaCor ? "✔️ Cor Confirmada" : null;
+    s.footerNote = nota ? `${nota} | Conf: ${conf}%` : (confirmador ? `${confirmador} | Conf: ${conf}%` : `Conf: ${conf}%`);
+    s.auditExpectedHeight = categoriaAuditoria === "ab" ? (acao.includes("ALTO") ? "ALTO" : acao.includes("BAIXO") ? "BAIXO" : alturaAlvo) : null;
+    s.auditExpectedCoverage = cobertura ? [cobertura] : [];
+    sinais.push(s);
+  }
+
+  return sinais.sort(
+    (a, b) => a.timestamp - b.timestamp || prioridadeNumero(a.priority) - prioridadeNumero(b.priority),
+  );
+}
+
+/** Compatibilidade: a estratégia nova não usa mais detecção por sequência. */
+export function detectarSinais(spins: Spin[], _opcoes: OpcoesDeteccao): Sinal[] {
+  return analisarBips(spins, {});
+}
+
+export interface Estatisticas {
+  total: number;
+  win: number;
+  red: number;
+  partial: number;
+  score: number;
+  pendentes: number;
+  cancelados: number;
+  taxaWin: number;
+  taxaRed: number;
+  maiorSeqWin: number;
+  maiorSeqRed: number;
+  ultimo: Sinal | null;
+}
+
+export function calcularEstatisticas(sinais: Sinal[]): Estatisticas {
+  let win = 0;
+  let red = 0;
+  let partial = 0;
+  let pendentes = 0;
+  let cancelados = 0;
+  let seqWin = 0;
+  let seqRed = 0;
+  let maiorSeqWin = 0;
+  let maiorSeqRed = 0;
+
+  for (const s of sinais) {
+    if (s.status === "WIN") {
+      win++;
+      seqWin++;
+      seqRed = 0;
+      maiorSeqWin = Math.max(maiorSeqWin, seqWin);
+    } else if (s.status === "PARTIAL") {
+      partial++;
+      seqWin = 0;
+      seqRed = 0;
+    } else if (s.status === "RED") {
+      red++;
+      seqRed++;
+      seqWin = 0;
+      maiorSeqRed = Math.max(maiorSeqRed, seqRed);
+    } else if (s.status === "PENDENTE") {
+      pendentes++;
+    } else {
+      cancelados++;
+    }
+  }
+
+  const resolvidos = win + red + partial;
+  const score = win + partial * 0.5;
+  return {
+    total: sinais.length,
+    win,
+    red,
+    partial,
+    score,
+    pendentes,
+    cancelados,
+    taxaWin: resolvidos ? (score / resolvidos) * 100 : 0,
+    taxaRed: resolvidos ? (red / resolvidos) * 100 : 0,
+    maiorSeqWin,
+    maiorSeqRed,
+    ultimo: sinais.length ? sinais[sinais.length - 1]! : null,
+  };
+}
+
+
+/** Formato tabular para auditoria/exportação do log lateral. */
+export function gerarLogAuditoriaCSV(sinais: Sinal[]): string {
+  const esc = (v: unknown) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const header = ["Signal ID","Strategy Name","Suggested Entry","Actual Result Number","Outcome Status","Confidence","Timestamp"];
+  const rows = sinais.filter((s) => s.auditNumero !== null && ["GREEN","RED","PARTIAL"].includes(s.auditResult)).map((s) => [
+    s.id, s.title, s.mainAction, s.auditNumero ?? "INCOMPLETO", s.auditResult === "GREEN" ? "GREEN" : s.auditResult === "RED" ? "RED" : s.auditResult === "PARTIAL" ? "PARTIAL" : "INCOMPLETO", s.confidence, s.auditTimestamp ?? ""
+  ]);
+  return [header, ...rows].map((row) => row.map(esc).join(",")).join("\n");
+}
