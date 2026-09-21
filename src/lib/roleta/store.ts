@@ -4,6 +4,7 @@ import { CATEGORIAS } from "./classificacao";
 import { criarSpin, type Spin } from "./engine";
 
 export type TipoBip = "timer" | "rolando";
+export type StatusAuditoriaPersistente = "AGUARDANDO_RESULTADO" | "GREEN" | "RED" | "PARTIAL" | "DADO_PERDIDO";
 
 export interface Configuracoes {
   minimo: number;
@@ -16,7 +17,9 @@ export interface RegistroAuditoria {
   strategy: string;
   entry: string;
   result: number;
-  outcome: "GREEN" | "RED" | "PARTIAL";
+  outcome: "GREEN" | "RED" | "PARTIAL" | "DADO_PERDIDO";
+  status: StatusAuditoriaPersistente;
+  resultTimestamp?: number;
   recordedAt: number;
 }
 
@@ -216,11 +219,18 @@ export const acoes = {
       let alterou = false;
       for (const registro of registros) {
         if (!auditoriaLog[registro.signalId]) {
-          auditoriaLog[registro.signalId] = registro;
+          auditoriaLog[registro.signalId] = { ...registro, status: registro.status ?? registro.outcome };
           alterou = true;
         }
       }
       return alterou ? { ...e, auditoriaLog } : e;
+    });
+  },
+  registrarResultadoManual(signalId: string, outcome: "GREEN" | "RED" | "PARTIAL", result: number) {
+    definir((e) => {
+      const atual = e.auditoriaLog[signalId];
+      if (atual && atual.status !== "AGUARDANDO_RESULTADO") return e;
+      return { ...e, auditoriaLog: { ...e.auditoriaLog, [signalId]: { signalId, strategy: atual?.strategy ?? "Resultado manual", entry: atual?.entry ?? "", result, outcome, status: outcome, recordedAt: atual?.recordedAt ?? Date.now(), resultTimestamp: Date.now() } } };
     });
   },
   limparAuditoria() {
