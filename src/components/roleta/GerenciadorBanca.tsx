@@ -101,7 +101,11 @@ export function calculateSmartStake(state: BancaState) {
   const recoveryStake = needed / Math.max(0.01, state.odd - 1);
   const desired = state.accumulatedLoss > 0 ? recoveryStake : initialStake;
   const safeCap = remainingStop * 0.8;
-  return Math.max(0, Math.min(desired, safeCap, state.currentBank));
+  const capped = Math.max(0, Math.min(desired, safeCap, state.currentBank));
+  if (capped <= 0) return 0;
+  // Fichas físicas: toda stake deve ser múltipla de R$ 0,50.
+  const rounded = Math.round(capped * 2) / 2;
+  return Math.max(0.5, rounded);
 }
 
 export function GerenciadorBanca() {
