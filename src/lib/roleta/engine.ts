@@ -480,9 +480,12 @@ export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
       ? `Entrada ${sinal.mainAction} contém o número ${atual.numero}.`
       : `Número ${atual.numero} não pertence à entrada ${sinal.mainAction}.`;
 
+    const color = result === "GREEN" ? "#28a745" : "#dc3545";
+    const badge = result === "GREEN" ? "✅ GREEN" : "❌ RED";
+
     return {
       ...sinal,
-      status: result === "GREEN" ? "WIN" : result === "PARTIAL" ? "PARTIAL" : result === "RED" ? "RED" : "CANCELADO",
+      status: result === "GREEN" ? "WIN" : "RED",
       auditResult: result,
       auditColor: color,
       auditMessage: `Resultado: ${atual.numero} (${atual.numero === 0 ? "ZERO" : `${c.ab}, ${c.coluna}, ${c.duzia}`})`,
