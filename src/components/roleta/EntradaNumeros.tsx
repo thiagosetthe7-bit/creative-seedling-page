@@ -1,19 +1,20 @@
 import { useState } from "react";
 import { corDoNumero } from "@/lib/roleta/classificacao";
-import { acoes, useEstado } from "@/lib/roleta/store";
+import { acoes } from "@/lib/roleta/store";
 
-const NUMEROS = Array.from({ length: 37 }, (_, i) => i);
+const TOPO = [3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36];
+const MEIO = [2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35];
+const BAIXO = [1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34];
 
 function estiloCor(n: number) {
   const c = corDoNumero(n);
-  if (c === "verde") return { backgroundColor: "#0E8A45", color: "#FFFFFF" };
-  if (c === "vermelho") return { backgroundColor: "#E03131", color: "#FFFFFF" };
-  return { backgroundColor: "#111111", color: "#FFFFFF" };
+  if (c === "verde") return { backgroundColor: "#00C853", color: "#FFFFFF" };
+  if (c === "vermelho") return { backgroundColor: "#D32F2F", color: "#FFFFFF" };
+  return { backgroundColor: "#212121", color: "#FFFFFF" };
 }
 
 export function EntradaNumeros({ total }: { total: number }) {
   const [texto, setTexto] = useState("");
-  const { pendentes } = useEstado();
 
   const enviarTexto = () => {
     const nums = texto
@@ -21,45 +22,13 @@ export function EntradaNumeros({ total }: { total: number }) {
       .filter(Boolean)
       .map(Number)
       .filter((n) => n >= 0 && n <= 36);
+
     if (nums.length) acoes.adicionarVarios(nums);
     setTexto("");
   };
 
-  const colunas = [
-    Array.from({ length: 12 }, (_, i) => 1 + i * 3),
-    Array.from({ length: 12 }, (_, i) => 2 + i * 3),
-    Array.from({ length: 12 }, (_, i) => 3 + i * 3),
-  ];
-
-  const renderNumero = (n: number) => {
-    const marcado = pendentes[n];
-    return (
-      <div key={n} className="roulette-number-cell">
-        <button
-          onClick={() => acoes.adicionarNumero(n)}
-          style={estiloCor(n)}
-          className="roulette-number-btn"
-        >
-          {n}
-        </button>
-        <div className="roulette-toggle-row">
-          <button
-            onClick={() => acoes.marcarPendente(n, marcado === "timer" ? null : "timer")}
-            title="BT - BIP NO TIMER (vale para a próxima catalogação deste número)"
-            className={`roulette-toggle roulette-toggle-bt ${marcado === "timer" ? "is-active" : ""}`}
-          >
-            BT
-          </button>
-          <button
-            onClick={() => acoes.marcarPendente(n, marcado === "rolando" ? null : "rolando")}
-            title="BR - BIP ROLANDO (vale para a próxima catalogação deste número)"
-            className={`roulette-toggle roulette-toggle-br ${marcado === "rolando" ? "is-active" : ""}`}
-          >
-            BR
-          </button>
-        </div>
-      </div>
-    );
+  const registrarNumero = (numero: number) => {
+    acoes.adicionarNumero(numero);
   };
 
   return (
@@ -73,7 +42,7 @@ export function EntradaNumeros({ total }: { total: number }) {
 
       <div className="roulette-table-container" aria-label="Mesa de roleta">
         <button
-          onClick={() => acoes.adicionarNumero(0)}
+          onClick={() => registrarNumero(0)}
           style={estiloCor(0)}
           className="zero-btn"
           aria-label="Zero"
@@ -81,8 +50,21 @@ export function EntradaNumeros({ total }: { total: number }) {
           0
         </button>
 
-        <div className="number-grid">
-          {colunas.map((coluna) => coluna.map(renderNumero))}
+        <div className="number-grid" aria-label="Números da roleta">
+          {[TOPO, MEIO, BAIXO].map((linha, linhaIndex) =>
+            linha.map((numero) => (
+              <button
+                key={numero}
+                onClick={() => registrarNumero(numero)}
+                style={estiloCor(numero)}
+                className="roulette-number-btn"
+                data-row={linhaIndex}
+                aria-label={"Número " + numero}
+              >
+                {numero}
+              </button>
+            )),
+          )}
         </div>
       </div>
 
