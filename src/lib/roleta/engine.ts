@@ -27,7 +27,7 @@ type Altura = "ALTO" | "BAIXO";
 export type StatusSinal = "PENDENTE" | "WIN" | "RED" | "PARTIAL" | "CANCELADO";
 export type TipoAlerta = "ENTRY_SIGNAL" | "WARNING" | "PAUSE" | "VALIDATION";
 export type PrioridadeAlerta = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
-export type ResultadoAuditoria = "GREEN" | "RED" | "PARTIAL" | "AWAITING" | "NO_BET";
+export type ResultadoAuditoria = "GREEN" | "RED" | "PARTIAL" | "AWAITING" | "NO_BET" | "INVALID";
 
 export const PALETA_BIP = {
   repeticao: "#28a745",
@@ -377,17 +377,70 @@ function coberturaParaCategoria(categoria: CategoriaId, alvo: string) {
   return null;
 }
 
-function entradaPertenceAoNumero(sinal: Sinal, numero: number) {
-  if (numero < 0 || numero > 36) return false;
-  if (sinal.categoria === "ab") return numero !== 0 && classificar(numero).ab === sinal.auditExpectedHeight;
-  if (sinal.categoria === "pi") return numero !== 0 && classificar(numero).pi === sinal.alvo;
-  if (sinal.categoria === "cor") return classificar(numero).cor === sinal.alvo;
-  if (sinal.categoria === "coluna") return numero !== 0 && classificar(numero).coluna === sinal.alvo;
-  if (sinal.categoria === "duzia") return numero !== 0 && classificar(numero).duzia === sinal.alvo;
-  if (sinal.categoria === "tipo" || sinal.categoria === "secao" || sinal.categoria === "terminal" || sinal.categoria === "cavalo" || sinal.categoria === "g010" || sinal.categoria === "g2234") {
-    return classificar(numero)[sinal.categoria] === sinal.alvo;
+function normalizarEntrada(entrada: string) {
+  let texto = String(entrada ?? "")
+    .normalize("NFD")
+    .replace(/[\\u0300-\\u036f]/g, "")
+    .toUpperCase()
+    .replace(/^\\s*(ENTRAR\\s+EM|ENTRADA\\s*:|SINAL\\s*:|APUESTA\\s+)/, "")
+    .replace(/\\s+/g, " ")
+    .trim();
+
+  const aliases: Array<[string, string, CategoriaId]> = [
+    ["IMPAR", "IMPAR", "pi"], ["PAR", "PAR", "pi"],
+    ["VERMELHO", "VERMELHO", "cor"], ["PRETO", "PRETO", "cor"], ["VERDE", "VERDE", "cor"],
+    ["ALTO", "ALTO", "ab"], ["BAIXO", "BAIXO", "ab"],
+    ["C1", "C1", "coluna"], ["C2", "C2", "coluna"], ["C3", "C3", "coluna"],
+    ["D1", "D1", "duzia"], ["D2", "D2", "duzia"], ["D3", "D3", "duzia"],
+    ["JUNTO", "JUNTO", "tipo"], ["SEPARADO", "SEPARADO", "tipo"],
+  ];
+
+  const exact = aliases.find(([label]) => texto === label);
+  if (exact) return { categoria: exact[2], valor: exact[1] };
+
+  const categoriaAliases: Array<[string, CategoriaId]> = [
+    ["TERMINAL", "terminal"], ["CAVALO", "cavalo"], ["TIPO", "tipo"],
+    ["SECAO", "secao"], ["VIZINHOS 0", "g010"], ["0/10", "g010"],
+    ["VIZINHOS 22", "g2234"], ["VIZINHOS 34", "g2234"], ["22/34", "g2234"],
+    ["ESPELHO", "g010"], ["LADO", "secao"], ["RUA", "secao"], ["LINHA", "secao"],
+  ];
+  for (const [prefix, categoria] of categoriaAliases) {
+    if (texto.startsWith(prefix + " ")) return { categoria, valor: texto };
   }
-  return false;
+
+  return null;
+}
+
+function entradaCanonicaDoSinal(sinal: Sinal) {
+  const raw = sinal.mainAction;
+  const normalizada = normalizarEntrada(raw);
+  if (normalizada) return normalizada;
+
+  // Para sinais em que a entrada é construída por estratégia, usa a dimensão
+  // já definida pelo próprio motor, sem comparar o texto livre.
+  if (sinal.categoria === "ab" && sinal.auditExpectedHeight) {
+    return { categoria: "ab" as CategoriaId, valor: sinal.auditExpectedHeight };
+  }
+  if (sinal.categoria === "pi" || sinal.categoria === "cor" || sinal.categoria === "coluna" || sinal.categoria === "duzia" || sinal.categoria === "tipo" || sinal.categoria === "secao" || sinal.categoria === "terminal" || sinal.categoria === "cavalo" || sinal.categoria === "g010" || sinal.categoria === "g2234") {
+    return { categoria: sinal.categoria, valor: sinal.alvo };
+  }
+  return null;
+}
+
+function entradaPertenceAoNumero(sinal: Sinal, numero: number) {
+  const entrada = entradaCanonicaDoSinal(sinal);
+  if (!entrada || numero < 0 || numero > 36) return null;
+  if (numero === 0 && ["pi","ab","coluna","duzia"].includes(entrada.categoria)) return false;
+
+  const classificacao = classificar(numero);
+  const valor = entrada.valor;
+
+  if (entrada.categoria === "cor") return classificacao.cor === valor;
+  if (entrada.categoria === "pi") return numero !== 0 && classificacao.pi === valor;
+  if (entrada.categoria === "ab") return numero !== 0 && classificacao.ab === valor;
+  if (entrada.categoria === "coluna") return numero !== 0 && classificacao.coluna === valor;
+  if (entrada.categoria === "duzia") return numero !== 0 && classificacao.duzia === valor;
+  return classificacao[entrada.categoria] === valor;
 }
 
 function alturaValida(numero: number, esperado: string | null) {
@@ -475,6 +528,27 @@ export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
 
     // Regra de ouro: GREEN somente quando o número sorteado pertence ao conjunto da entrada.
     const pertence = entradaPertenceAoNumero(sinal, atual.numero);
+    if (pertence === null) {
+      return {
+        ...sinal,
+        status: "CANCELADO",
+        auditResult: "INVALID",
+        auditColor: "#f59e0b",
+        auditMessage: "⚠️ ENTRADA NÃO RECONHECIDA",
+        auditTimestamp: atual.timestamp,
+        auditSpinId: atual.id,
+        auditNumero: null,
+        auditClasse: classeNumero(atual.numero),
+        auditResultPayload: {
+          target_signal_id: sinal.id,
+          previous_bip_row_index: sinal.rodada,
+          current_number: null,
+          verdict: "INVALID",
+          reason: "A entrada não pôde ser normalizada para uma dimensão e valor canônicos.",
+          ui_update: { row_color: "#f59e0b", badge_text: "⚠️ ENTRADA NÃO RECONHECIDA", panel_status: "INVALID" },
+        },
+      };
+    }
     result = pertence ? "GREEN" : "RED";
     reason = pertence
       ? `Entrada ${sinal.mainAction} contém o número ${atual.numero}.`
