@@ -54,13 +54,17 @@ export function normalizarEntradaAvaliador(entrada: string) {
   return aliases[texto] ?? null;
 }
 
-export function avaliar(dimensao: string, valor: string, numero: number, estado: "APOSTA_ATIVA"|"OBSERVACAO" = "APOSTA_ATIVA"): AvaliadorResultado {
-  if (avaliadorBoot.ok === false) return "INOPERANTE";
+function avaliarCanonico(dimensao: string, valor: string, numero: number, estado: "APOSTA_ATIVA"|"OBSERVACAO" = "APOSTA_ATIVA"): AvaliadorResultado {
   if (numero === 0) return "NO_BET";
   if (estado !== "APOSTA_ATIVA") return "NO_BET";
   const conjunto = conjuntoCanonico(dimensao, valor);
   if (!conjunto || conjunto.size === 0) return "INVALID";
   return conjunto.has(numero) ? "GREEN" : "RED";
+}
+
+export function avaliar(dimensao: string, valor: string, numero: number, estado: "APOSTA_ATIVA"|"OBSERVACAO" = "APOSTA_ATIVA"): AvaliadorResultado {
+  if (avaliadorBoot.ok === false) return "INOPERANTE";
+  return avaliarCanonico(dimensao, valor, numero, estado);
 }
 
 export function autoTestAvaliador(): AvaliadorBoot {
@@ -77,7 +81,7 @@ export function autoTestAvaliador(): AvaliadorBoot {
     ["DUZIA","D1",4,"GREEN"],["DUZIA","D1",22,"RED"],["DUZIA","D2",22,"GREEN"],["DUZIA","D2",33,"RED"],["DUZIA","D3",33,"GREEN"],["DUZIA","D3",22,"RED"],
     ["SECAO","TIER",36,"GREEN"],["SECAO","TIER",7,"RED"],["SECAO","VOISINS",7,"GREEN"],["SECAO","VOISINS",36,"RED"],["SECAO","ORFAOS",17,"GREEN"],["SECAO","ORFAOS",7,"RED"],["SECAO","ZERO",0,"NO_BET"]
   ];
-  for(const [d,v,n,e] of tests){const got=avaliar(d,v,n); if(got!==e) errors.push(d+"/"+v+"/"+n+"="+got+" expected "+e);}
+  for(const [d,v,n,e] of tests){const got=avaliarCanonico(d,v,n); if(got!==e) errors.push(d+"/"+v+"/"+n+"="+got+" expected "+e);}
   return {ok:errors.length===0,errors};
 }
 
