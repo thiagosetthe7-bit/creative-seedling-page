@@ -78,6 +78,9 @@ export function updateNextStrategyName(name: string) {
 export function registerBancaResult(isWin: boolean) {
   window.dispatchEvent(new CustomEvent("roleta:banca-result", { detail: { isWin } }));
 }
+export function registerBancaGale1() {
+  window.dispatchEvent(new CustomEvent("roleta:banca-gale1"));
+}
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -193,9 +196,14 @@ export function GerenciadorBanca() {
       const detail = (event as CustomEvent<{ isWin?: boolean }>).detail;
       if (typeof detail?.isWin === "boolean") registerResult(detail.isWin);
     };
+    const galeHandler = () => registerGale1Green();
     window.addEventListener("roleta:banca-result", handler);
-    return () => window.removeEventListener("roleta:banca-result", handler);
-  }, [state]);
+    window.addEventListener("roleta:banca-gale1", galeHandler);
+    return () => {
+      window.removeEventListener("roleta:banca-result", handler);
+      window.removeEventListener("roleta:banca-gale1", galeHandler);
+    };
+  }, [state, latestOperationalSignal]);
 
   function registerResult(isWin: boolean) {
     const stake = calculateSmartStake(state, latestOperationalSignal);
