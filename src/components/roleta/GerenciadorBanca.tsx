@@ -15,7 +15,7 @@ interface HistoricoBanca {
   isWin: boolean;
   signalId?: string | undefined;
   regimeClassificado?: "LIMPA" | "HOSTIL" | undefined;
-  motivoHostil?: "ZERO" | "RAJADA" | "SATURACAO" | "nenhum" | undefined;
+  motivoHostil?: "ZERO" | "RAJADA" | "SATURACAO" | "MIGRACAO_BR_BT" | "nenhum" | undefined;
   gale1Liberado?: boolean | undefined;
   gale1Usado?: boolean | undefined;
   gale1Resultado?: "GREEN" | "RED" | "n/a" | undefined;
