@@ -4,7 +4,7 @@ import { CATEGORIAS } from "./classificacao";
 import { criarSpin, type Spin } from "./engine";
 
 export type TipoBip = "timer" | "rolando";
-export type StatusAuditoriaPersistente = "AGUARDANDO_RESULTADO" | "GREEN" | "RED" | "PARTIAL" | "DADO_PERDIDO";
+export type StatusAuditoriaPersistente = "AGUARDANDO_RESULTADO" | "GREEN" | "RED" | "PARTIAL" | "NO_BET" | "DADO_PERDIDO";
 
 export interface Configuracoes {
   minimo: number;
@@ -17,7 +17,7 @@ export interface RegistroAuditoria {
   strategy: string;
   entry: string;
   result: number;
-  outcome: "GREEN" | "RED" | "PARTIAL" | "DADO_PERDIDO";
+  outcome: "GREEN" | "RED" | "PARTIAL" | "NO_BET" | "DADO_PERDIDO";
   status: StatusAuditoriaPersistente;
   resultTimestamp?: number;
   recordedAt: number;
