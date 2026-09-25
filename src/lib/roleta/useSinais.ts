@@ -4,6 +4,7 @@ import { acoes, useEstado } from "./store";
 
 export function useSinais() {
   const estado = useEstado();
+  const REPROCESS_KEY = "roleta-auditoria-v67-reprocessada";
 
   const resultado = useMemo(() => {
     const brutos = analisarBips(estado.spins, estado.bips);
@@ -27,6 +28,39 @@ export function useSinais() {
   }, [estado]);
 
   useEffect(() => {
+    if (typeof window !== "undefined" && !window.localStorage.getItem(REPROCESS_KEY)) {
+      const historico = Object.values(estado.auditoriaLog);
+      for (const s of resultado.sinais) {
+        const antigo = estado.auditoriaLog[s.id];
+        if (!antigo) continue;
+        if (s.auditResult === "GREEN" || s.auditResult === "RED") {
+          acoes.reprocessarAuditoria({
+            signalId: s.id,
+            strategy: s.title,
+            entry: s.mainAction,
+            result: s.auditNumero ?? antigo.result,
+            outcome: s.auditResult,
+            status: s.auditResult,
+            recordedAt: antigo.recordedAt,
+            resultTimestamp: s.auditTimestamp ?? antigo.resultTimestamp,
+          });
+        } else if (s.auditResult === "NO_BET" && (antigo.outcome === "GREEN" || antigo.outcome === "RED" || antigo.outcome === "DADO_PERDIDO")) {
+          acoes.reprocessarAuditoria({
+            signalId: s.id,
+            strategy: s.title,
+            entry: s.mainAction,
+            result: 0,
+            outcome: "PARTIAL",
+            status: "PARTIAL",
+            recordedAt: antigo.recordedAt,
+            resultTimestamp: s.auditTimestamp ?? antigo.resultTimestamp,
+          });
+        }
+      }
+      window.localStorage.setItem(REPROCESS_KEY, "1");
+      void historico;
+    }
+
     for (const s of resultado.sinais) {
       const existente = estado.auditoriaLog[s.id];
       if (existente && existente.status !== "AGUARDANDO_RESULTADO") continue;
