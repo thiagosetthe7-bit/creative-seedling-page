@@ -245,6 +245,38 @@ export function GerenciadorBanca() {
     }));
   }
 
+  function registerGale1Green() {
+    if (state.martingaleLevel !== 2) return;
+    const stake = calculateSmartStake({ ...state, martingaleLevel: 2 }, latestOperationalSignal);
+    const signalOdd = getSignalOdd(latestOperationalSignal);
+    const profit = Math.max(0, stake * (signalOdd - 1));
+    const bankAfter = state.currentBank + profit - (state.accumulatedLoss || 0);
+    registrarResultadoGale1Calibracao(true, false);
+    setState((s) => ({
+      ...s,
+      currentBank: bankAfter,
+      accumulatedLoss: 0,
+      martingaleLevel: 1,
+      history: [{
+        id: s.history.length + 1,
+        strategy: latestOperationalSignal?.title ?? s.nextStrategyName,
+        stake,
+        result: profit,
+        bankAfter,
+        isWin: true,
+        signalId: latestOperationalSignal?.id,
+        regimeClassificado: latestOperationalSignal?.regimeClassificado,
+        motivoHostil: latestOperationalSignal?.motivoHostil,
+        gale1Liberado: true,
+        gale1Usado: true,
+        gale1Resultado: "GREEN",
+        desfechoSequencia: "GREEN_GALE1",
+        unidadesLiquidasSequencia: 1,
+        recordedAt: Date.now(),
+      }, ...s.history],
+    }));
+  }
+
   function startSession() {
     setState((s) => ({
       ...s,
@@ -387,11 +419,11 @@ export function GerenciadorBanca() {
           <div className="flex gap-2">
             <button onClick={() => registerResult(true)} className="gm-btn-result rounded-xl bg-emerald-400 px-6 py-4 text-lg font-black text-black">G · GREEN</button>
             <button
-              onClick={() => state.martingaleLevel === 1 && (latestOperationalSignal?.gale1Liberado ?? false) ? registerResult(false) : undefined}
-              disabled={state.martingaleLevel !== 1 || !(latestOperationalSignal?.gale1Liberado ?? false)}
+              onClick={() => registerGale1Green()}
+              disabled={state.martingaleLevel !== 2 || !(latestOperationalSignal?.gale1Liberado ?? false)}
               className="gm-btn-result rounded-xl bg-amber-400 px-6 py-4 text-lg font-black text-black disabled:cursor-not-allowed disabled:opacity-30"
               title="G1 só fica disponível quando o portão estiver LIMPO."
-            >G1 · GALE 1</button>
+            >G1 · GALE 1 GREEN</button>
           </div>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3 text-xs md:grid-cols-4">
