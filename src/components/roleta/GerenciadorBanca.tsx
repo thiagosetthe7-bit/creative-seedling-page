@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSinais } from "@/lib/roleta/useSinais";
+import { registrarResultadoGale1Calibracao } from "@/lib/roleta/engine";
 
 type Perfil = "conservador" | "equilibrado" | "agressivo";
 type Game = "Roleta Europeia" | "Roleta Americana";
@@ -18,9 +19,8 @@ interface HistoricoBanca {
   gale1Liberado?: boolean;
   gale1Usado?: boolean;
   gale1Resultado?: "GREEN" | "RED" | "n/a";
-  gale2Usado?: boolean;
-  gale2Resultado?: "GREEN" | "RED" | "n/a";
-  unidadesLiquidasSequencia?: number;
+  desfechoSequencia?: "GREEN_DIRETO" | "GREEN_GALE1" | "FALHA_GALE1" | "n/a";
+  unidadesLiquidasSequencia?: 0 | 1 | -3;
   recordedAt: number;
 }
 
@@ -169,7 +169,7 @@ export function GerenciadorBanca() {
 
     const onStrategy = (event: Event) => {
       const name = (event as CustomEvent<string>).detail;
-      setState((s) => ({ ...s, nextStrategyName: name || "Sinal v6.6" }));
+      registrarResultadoGale1Calibracao(gateLiberado, isRecovery && !isWin);\n\n    setState((s) => ({ ...s, nextStrategyName: name || "Sinal v6.6" }));
     };
     window.addEventListener("roleta:strategy", onStrategy);
 
@@ -212,11 +212,9 @@ export function GerenciadorBanca() {
     const gateLiberado = latestOperationalSignal?.gale1Liberado ?? true;
     const isRecovery = state.martingaleLevel === 2;
     const gale1Usado = isRecovery;
-    const gale2Usado = false;
-    const sequenceUnits = isRecovery
-      ? (isWin ? 1 : -3)
-      : (isWin ? 1 : -1);
+    const sequenceUnits = isRecovery ? (isWin ? 1 : -3) : (isWin ? 1 : -1);
     const nextLevel: 1 | 2 = isWin ? 1 : (state.martingaleLevel === 1 && gateLiberado ? 2 : 1);
+    const desfechoSequencia = isRecovery ? (isWin ? "GREEN_GALE1" : "FALHA_GALE1") : (isWin ? "GREEN_DIRETO" : "n/a");
 
     setState((s) => ({
       ...s,
@@ -236,10 +234,10 @@ export function GerenciadorBanca() {
           motivoHostil: latestOperationalSignal?.motivoHostil,
           gale1Liberado: gateLiberado,
           gale1Usado,
-          gale1Resultado: isRecovery ? "n/a" : (isWin ? "GREEN" : "RED"),
-          gale2Usado,
-          gale2Resultado: "n/a",
-          unidadesLiquidasSequencia: sequenceUnits,
+          gale1Resultado: isRecovery ? (isWin ? "GREEN" : "RED") : (isWin ? "n/a" : "n/a"),
+          desfechoSequencia,
+          unidadesLiquidasSequencia: sequenceUnits === -1 ? -1 : sequenceUnits,
+
           recordedAt: Date.now(),
         },
         ...s.history,
@@ -387,8 +385,13 @@ export function GerenciadorBanca() {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => registerResult(true)} className="gm-btn-result rounded-xl bg-emerald-400 px-6 py-4 text-lg font-black text-black">✅ GREEN</button>
-            <button onClick={() => registerResult(false)} className="gm-btn-result rounded-xl bg-red-500 px-6 py-4 text-lg font-black text-white">❌ RED</button>
+            <button onClick={() => registerResult(true)} className="gm-btn-result rounded-xl bg-emerald-400 px-6 py-4 text-lg font-black text-black">G · GREEN</button>
+            <button
+              onClick={() => state.martingaleLevel === 1 && (latestOperationalSignal?.gale1Liberado ?? false) ? registerResult(false) : undefined}
+              disabled={state.martingaleLevel !== 1 || !(latestOperationalSignal?.gale1Liberado ?? false)}
+              className="gm-btn-result rounded-xl bg-amber-400 px-6 py-4 text-lg font-black text-black disabled:cursor-not-allowed disabled:opacity-30"
+              title="G1 só fica disponível quando o portão estiver LIMPO."
+            >G1 · GALE 1</button>
           </div>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3 text-xs md:grid-cols-4">
@@ -419,7 +422,7 @@ export function GerenciadorBanca() {
       </div>
 
       <div className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-        Fluxo: 1ª entrada usa a stake base. Um RED prepara apenas 1 recuperação em 2x. Um GREEN reseta para a base. Um segundo RED encerra a sequência e volta à base. Nunca há nível 3.
+        Fluxo: G fecha o giro-1 como GREEN direto. RED no giro-1 abre somente o estado PENDENTE_GALE1 quando o portão estiver liberado. G1 é manual e encerra a recuperação; RED no G1 é terminal. Nunca há Gale 2.
       </div>
     </section>
   );
