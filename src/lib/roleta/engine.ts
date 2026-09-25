@@ -13,6 +13,76 @@
 import { CATEGORIAS, classificar, type CategoriaId, type Classificacao } from "./classificacao";
 import type { TipoBip } from "./store";
 
+export const CANONICAL_RED = new Set<number>([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
+export const CANONICAL_BLACK = new Set<number>(Array.from({length:36},(_,i)=>i+1).filter(n=>!CANONICAL_RED.has(n)));
+export const CANONICAL_ODD = new Set<number>(Array.from({length:36},(_,i)=>i+1).filter(n=>n%2===1));
+export const CANONICAL_EVEN = new Set<number>(Array.from({length:36},(_,i)=>i+1).filter(n=>n%2===0));
+export const CANONICAL_HIGH = new Set<number>(Array.from({length:18},(_,i)=>i+19));
+export const CANONICAL_LOW = new Set<number>(Array.from({length:18},(_,i)=>i+1));
+export const CANONICAL_COLUMNS: Record<string, Set<number>> = { C1:new Set(Array.from({length:12},(_,i)=>i*3+1)), C2:new Set(Array.from({length:12},(_,i)=>i*3+2)), C3:new Set(Array.from({length:12},(_,i)=>i*3+3)) };
+export const CANONICAL_DOZENS: Record<string, Set<number>> = { D1:new Set(Array.from({length:12},(_,i)=>i+1)), D2:new Set(Array.from({length:12},(_,i)=>i+13)), D3:new Set(Array.from({length:12},(_,i)=>i+25)) };
+export const CANONICAL_SECTORS: Record<string, Set<number>> = {
+  TIER:new Set([27,13,36,11,30,8,23,10,5,24,16,33]),
+  VOISINS:new Set([22,18,29,7,28,12,35,3,26,0,32,15,19,4,21,2,25]),
+  ORFAOS:new Set([17,34,6,1,20,14,31,9]),
+  ZERO:new Set([0]),
+};
+
+export type AvaliadorResultado = "GREEN" | "RED" | "NO_BET" | "INVALID" | "INOPERANTE";
+export interface AvaliadorBoot { ok: boolean; errors: string[]; }
+
+function conjuntoCanonico(dimensao: string, valor: string): Set<number> | null {
+  const d = dimensao.toUpperCase(); const v = valor.toUpperCase();
+  if (d === "PI") return v === "PAR" ? CANONICAL_EVEN : v === "IMPAR" ? CANONICAL_ODD : null;
+  if (d === "COR") return v === "VERMELHO" ? CANONICAL_RED : v === "PRETO" ? CANONICAL_BLACK : v === "VERDE" ? new Set([0]) : null;
+  if (d === "AB") return v === "ALTO" ? CANONICAL_HIGH : v === "BAIXO" ? CANONICAL_LOW : null;
+  if (d === "COLUNA") return CANONICAL_COLUMNS[v] ?? null;
+  if (d === "DUZIA") return CANONICAL_DOZENS[v] ?? null;
+  if (d === "SECAO") return CANONICAL_SECTORS[v] ?? null;
+  return null;
+}
+
+export function normalizarEntradaAvaliador(entrada: string) {
+  const texto = String(entrada ?? "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toUpperCase()
+    .replace(/^\\s*(ENTRAR\\s+EM|ENTRADA\\s*:|SINAL\\s*:|APUESTA\\s+)/, "").replace(/\\s+/g," ").trim();
+  const aliases: Record<string,[string,string]> = {
+    IMPAR:["PI","IMPAR"], PAR:["PI","PAR"], VERMELHO:["COR","VERMELHO"], PRETO:["COR","PRETO"], VERDE:["COR","VERDE"],
+    ALTO:["AB","ALTO"], BAIXO:["AB","BAIXO"], C1:["COLUNA","C1"], C2:["COLUNA","C2"], C3:["COLUNA","C3"],
+    D1:["DUZIA","D1"], D2:["DUZIA","D2"], D3:["DUZIA","D3"], ZERO:["SECAO","ZERO"], TIER:["SECAO","TIER"],
+    VOISINS:["SECAO","VOISINS"], ORFAOS:["SECAO","ORFAOS"], "ORFÃOS":["SECAO","ORFAOS"]
+  };
+  return aliases[texto] ?? null;
+}
+
+export function avaliar(dimensao: string, valor: string, numero: number, estado: "APOSTA_ATIVA"|"OBSERVACAO" = "APOSTA_ATIVA"): AvaliadorResultado {
+  if (avaliadorBoot.ok === false) return "INOPERANTE";
+  if (numero === 0) return "NO_BET";
+  if (estado !== "APOSTA_ATIVA") return "NO_BET";
+  const conjunto = conjuntoCanonico(dimensao, valor);
+  if (!conjunto || conjunto.size === 0) return "INVALID";
+  return conjunto.has(numero) ? "GREEN" : "RED";
+}
+
+export function autoTestAvaliador(): AvaliadorBoot {
+  const errors:string[]=[];
+  const guard=(name:string,s:Set<number>|undefined,size:number)=>{ if(!s || s.size!==size) errors.push(name); };
+  guard("PAR",CANONICAL_EVEN,18); guard("IMPAR",CANONICAL_ODD,18); guard("VERMELHO",CANONICAL_RED,18); guard("PRETO",CANONICAL_BLACK,18);
+  for(const k of ["C1","C2","C3"]) guard(k,CANONICAL_COLUMNS[k],12); for(const k of ["D1","D2","D3"]) guard(k,CANONICAL_DOZENS[k],12);
+  guard("VOISINS",CANONICAL_SECTORS.VOISINS,17); guard("TIER",CANONICAL_SECTORS.TIER,12); guard("ORFAOS",CANONICAL_SECTORS.ORFAOS,8);
+  const tests:Array<[string,string,number,AvaliadorResultado]>=[
+    ["PI","PAR",4,"GREEN"],["PI","PAR",33,"RED"],["PI","IMPAR",33,"GREEN"],["PI","IMPAR",4,"RED"],
+    ["COR","VERMELHO",16,"GREEN"],["COR","VERMELHO",28,"RED"],["COR","PRETO",2,"GREEN"],["COR","PRETO",16,"RED"],
+    ["AB","ALTO",36,"GREEN"],["AB","ALTO",5,"RED"],["AB","BAIXO",2,"GREEN"],["AB","BAIXO",21,"RED"],
+    ["COLUNA","C1",34,"GREEN"],["COLUNA","C1",33,"RED"],["COLUNA","C2",35,"GREEN"],["COLUNA","C2",34,"RED"],["COLUNA","C3",33,"GREEN"],["COLUNA","C3",34,"RED"],
+    ["DUZIA","D1",4,"GREEN"],["DUZIA","D1",22,"RED"],["DUZIA","D2",22,"GREEN"],["DUZIA","D2",33,"RED"],["DUZIA","D3",33,"GREEN"],["DUZIA","D3",22,"RED"],
+    ["SECAO","TIER",36,"GREEN"],["SECAO","TIER",7,"RED"],["SECAO","VOISINS",7,"GREEN"],["SECAO","VOISINS",36,"RED"],["SECAO","ORFAOS",17,"GREEN"],["SECAO","ORFAOS",7,"RED"],["SECAO","ZERO",0,"NO_BET"]
+  ];
+  for(const [d,v,n,e] of tests){const got=avaliar(d,v,n); if(got!==e) errors.push(d+"/"+v+"/"+n+"="+got+" expected "+e);}
+  return {ok:errors.length===0,errors};
+}
+
+export const avaliadorBoot: AvaliadorBoot = autoTestAvaliador();
+
 export interface Spin {
   id: string;
   numero: number;
@@ -541,6 +611,13 @@ export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
 
     let result: ResultadoAuditoria = "RED";
     let reason = "";
+    if (!avaliadorBoot.ok) {
+      return { ...sinal, status: "CANCELADO", auditResult: "INVALID", auditColor: "#f59e0b", auditMessage: "⚠️ AVALIADOR INOPERANTE — resultados suspensos, não opere", auditTimestamp: atual.timestamp, auditSpinId: atual.id, auditNumero: null,
+        auditResultPayload: { target_signal_id:sinal.id, previous_bip_row_index:sinal.rodada, current_number:null, verdict:"INVALID", reason:"Auto-teste do avaliador falhou: "+avaliadorBoot.errors.join("; "), ui_update:{row_color:"#f59e0b",badge_text:"-",panel_status:"INOPERANTE"} } };
+    }
+    if (sinal.observacaoHostil || sinal.gale1Stake === 0 && sinal.type === "ENTRY_SIGNAL" && sinal.confidence >= 78) {
+      return { ...sinal, status:"CANCELADO", auditResult:"NO_BET", auditColor:"#6c757d", auditMessage:"n/a — OBSERVAÇÃO / stake 0", auditTimestamp:atual.timestamp, auditSpinId:atual.id, auditNumero:null, auditClasse:classeNumero(atual.numero), auditResultPayload:{target_signal_id:sinal.id,previous_bip_row_index:sinal.rodada,current_number:null,verdict:"NO_BET",reason:"OBSERVAÇÃO/stake 0 não participa da auditoria.",ui_update:{row_color:"#6c757d",badge_text:"n/a",panel_status:"NO_BET"}}};
+    }
     const c = classificar(atual.numero);
 
     // PAUSE/BLOQUEIO nunca é aposta e nunca pode consumir o giro seguinte como GREEN/RED.
