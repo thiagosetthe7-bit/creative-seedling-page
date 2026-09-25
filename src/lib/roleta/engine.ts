@@ -1009,9 +1009,18 @@ export function calcularEstatisticas(sinais: Sinal[]): Estatisticas {
 /** Formato tabular para auditoria/exportação do log lateral. */
 export function gerarLogAuditoriaCSV(sinais: Sinal[]): string {
   const esc = (v: unknown) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-  const header = ["Signal ID","Strategy Name","Suggested Entry","Actual Result Number","Outcome Status","Confidence","Timestamp"];
-  const rows = sinais.filter((s) => s.auditNumero !== null && ["GREEN","RED","PARTIAL"].includes(s.auditResult)).map((s) => [
-    s.id, s.title, s.mainAction, s.auditNumero ?? "INCOMPLETO", s.auditResult === "GREEN" ? "GREEN" : s.auditResult === "RED" ? "RED" : s.auditResult === "PARTIAL" ? "PARTIAL" : "INCOMPLETO", s.confidence, s.auditTimestamp ?? ""
-  ]);
+  const header = [
+    "Signal ID","Strategy Name","Suggested Entry","Actual Result Number","Outcome Status","Confidence","Timestamp",
+    "regime_classificado","motivo_hostil","gale1_librado","gale1_usado","gale1_resultado","gale2_usado","gale2_resultado","unidades_liquidas_da_sequencia"
+  ];
+  const rows = sinais
+    .filter((s) => s.auditNumero !== null && ["GREEN","RED","PARTIAL"].includes(s.auditResult))
+    .map((s) => [
+      s.id, s.title, s.mainAction, s.auditNumero ?? "INCOMPLETO",
+      s.auditResult === "GREEN" ? "GREEN" : s.auditResult === "RED" ? "RED" : "PARTIAL",
+      s.confidence, s.auditTimestamp ?? "",
+      s.regimeClassificado, s.motivoHostil, s.gale1Liberado ? "S" : "N", s.gale1Usado ? "S" : "N",
+      s.gale1Resultado, s.gale2Usado ? "S" : "N", s.gale2Resultado, s.unidadesLiquidasSequencia
+    ]);
   return [header, ...rows].map((row) => row.map(esc).join(",")).join("\n");
 }
