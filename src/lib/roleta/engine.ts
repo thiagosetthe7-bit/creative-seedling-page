@@ -28,6 +28,8 @@ export type StatusSinal = "PENDENTE" | "WIN" | "RED" | "PARTIAL" | "CANCELADO";
 export type TipoAlerta = "ENTRY_SIGNAL" | "WARNING" | "PAUSE" | "VALIDATION";
 export type PrioridadeAlerta = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 export type ResultadoAuditoria = "GREEN" | "RED" | "PARTIAL" | "AWAITING" | "NO_BET" | "INVALID";
+export type RegimeClassificado = "LIMPA" | "HOSTIL";
+export type MotivoHostil = "ZERO" | "RAJADA" | "SATURACAO" | "nenhum";
 
 export const PALETA_BIP = {
   repeticao: "#28a745",
@@ -90,6 +92,15 @@ export interface Sinal {
     ui_update: { row_color: string; badge_text: string; panel_status: string };
   };
   auditExcludedSession: string | null;
+  regimeClassificado: RegimeClassificado;
+  motivoHostil: MotivoHostil;
+  gale1Liberado: boolean;
+  gale1Usado: boolean;
+  gale1Resultado: "GREEN" | "RED" | "n/a";
+  gale2Usado: boolean;
+  gale2Resultado: "GREEN" | "RED" | "n/a";
+  unidadesLiquidasSequencia: number;
+  observacaoHostil: boolean;
 }
 
 export interface OpcoesDeteccao {
@@ -232,6 +243,15 @@ function sinalBase(
     auditExpectedHeight: categoria === "ab" || categoria === "duzia" ? atual.classificacao.ab : null,
     auditExpectedCoverage: [],
     auditExcludedSession: categoria === "secao" ? anterior.classificacao.secao : null,
+    regimeClassificado: "LIMPA",
+    motivoHostil: "nenhum",
+    gale1Liberado: true,
+    gale1Usado: false,
+    gale1Resultado: "n/a",
+    gale2Usado: false,
+    gale2Resultado: "n/a",
+    unidadesLiquidasSequencia: 0,
+    observacaoHostil: false,
     auditTargetRow: atual.rodada ?? 0,
     auditResultPayload: {
       target_signal_id: id,
@@ -526,6 +546,29 @@ export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
       };
     }
 
+    // ZERO nunca é GREEN/RED: é SEM APOSTA e não consome o giro como resultado.
+    if (atual.numero === 0) {
+      return {
+        ...sinal,
+        status: "CANCELADO",
+        auditResult: "NO_BET",
+        auditColor: "#6c757d",
+        auditMessage: "⏸ SEM APOSTA",
+        auditTimestamp: atual.timestamp,
+        auditSpinId: null,
+        auditNumero: null,
+        auditClasse: "ZERO",
+        auditResultPayload: {
+          target_signal_id: sinal.id,
+          previous_bip_row_index: sinal.rodada,
+          current_number: null,
+          verdict: "NO_BET",
+          reason: "ZERO: giro não pontua e não é consumido como resultado de aposta.",
+          ui_update: { row_color: "#6c757d", badge_text: "⏸ SEM APOSTA", panel_status: "NO_BET" },
+        },
+      };
+    }
+
     // Regra de ouro: GREEN somente quando o número sorteado pertence ao conjunto da entrada.
     const pertence = entradaPertenceAoNumero(sinal, atual.numero);
     if (pertence === null) {
@@ -586,6 +629,41 @@ export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
  * a rodada anterior com o BIP atual e gera os alertas visuais operacionais.
  * Prioridade: Bloqueio > Altura > Sessão > Coluna/Dúzia > Validação.
  */
+export interface PortaoGale {
+  regimeClassificado: RegimeClassificado;
+  motivoHostil: MotivoHostil;
+  gale1Liberado: boolean;
+  zeroRecente: boolean;
+  rajada: boolean;
+  saturacao: boolean;
+  janela: number;
+}
+
+export function classificarRegimeJanela(spins: Spin[], bips: MapaBips, index: number, janela = 14, limiarSat = 0.70): PortaoGale {
+  const inicio = Math.max(0, index - janela + 1);
+  const w = spins.slice(inicio, index + 1);
+  const n = w.length || 1;
+  const zeroRecente = w.some((s) => s.numero === 0);
+  let rajada = false;
+  for (let j = 1; j < w.length; j++) {
+    if (bips[w[j - 1]!.id] && bips[w[j]!.id]) { rajada = true; break; }
+  }
+  const counts: Record<string, number> = {};
+  for (const s of w) {
+    if (s.numero === 0) continue;
+    for (const key of ["ab", "cor", "pi"] as const) {
+      const value = s.classificacao[key];
+      if (value && value !== "ZERO") {
+        const k = key + ":" + value;
+        counts[k] = (counts[k] ?? 0) + 1;
+      }
+    }
+  }
+  const saturacao = Object.values(counts).some((count) => count / n >= limiarSat);
+  const motivoHostil: MotivoHostil = zeroRecente ? "ZERO" : rajada ? "RAJADA" : saturacao ? "SATURACAO" : "nenhum";
+  return { regimeClassificado: motivoHostil === "nenhum" ? "LIMPA" : "HOSTIL", motivoHostil, gale1Liberado: motivoHostil === "nenhum", zeroRecente, rajada, saturacao, janela: w.length };
+}
+
 export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
   const spins = spinsEntrada.map(comRodadas);
   const sinais: Sinal[] = [];
@@ -599,6 +677,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     const proximo = spins[i + 1] ?? null;
     const cA = anterior.classificacao;
     const ctx = contextoSequencial(sequenciaBips(spins, bips, i), bip, anterior);
+    const regime = classificarRegimeJanela(spins, bips, i, 14, 0.70);
 
     // BLOQUEIO — Double BT: dois bips no timer seguidos bloqueiam a operação.
     if (bip === "timer" && bips[anterior.id] === "timer") {
@@ -675,8 +754,14 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       continue;
     }
 
-    const brSeparado = bip === "rolando" && origem === "TIER" && atual.classificacao.tipo === "SEPARADO";
-    const btQuebra = bip === "timer" && !mesmaCor && !sequenciaLonga;
+    const janela = spins.slice(Math.max(0, i - 13), i + 1);
+    const naoZero = janela.filter((s) => s.numero !== 0);
+    const alturaSaturada = naoZero.length > 0 && ["ALTO","BAIXO"].some((v) => naoZero.filter((s) => s.classificacao.ab === v).length / Math.max(1, regime.janela) >= 0.70);
+    const bipAnterior = i > 0 ? bips[spins[i - 1]!.id] : undefined;
+    const bipAnterior2 = i > 1 ? bips[spins[i - 2]!.id] : undefined;
+    const bipIsolado = bip === "rolando" && !bipAnterior;
+    const brSeparado = bip === "rolando" && bipIsolado && origem === "TIER" && atual.classificacao.tipo === "SEPARADO" && !alturaSaturada;
+    const btQuebra = bip === "timer" && !mesmaCor && !sequenciaLonga && atual.classificacao.secao === cA.secao && bipAnterior2 !== "timer";
     if (oscilacao221 && (atual.classificacao[oscilacao221.categoria] === oscilacao221.alvo)) {
       categoriaAuditoria = oscilacao221.categoria;
       conf = 83;
@@ -767,17 +852,74 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     const alinhada = categoriaAuditoria === "ab"
       ? cobertura !== null && permitidas.includes(cobertura)
       : cobertura !== null;
+
+    const strategy = titulo.startsWith("OSCILAÇÃO") ? "OSCILACAO_221"
+      : titulo.startsWith("BR SEPARADO") ? "BR_SEPARADO"
+      : titulo.startsWith("BT QUEBRA") ? "BT_QUEBRA_COR"
+      : titulo.startsWith("RETORNO") ? "RETORNO_211"
+      : titulo.startsWith("SEQUÊNCIA") ? "SEQUENCIA_GEOMETRICA_5X" : "OUTRA";
+
+    let observacaoHostil = false;
+    let observacaoMotivo = "";
+
+    if (strategy === "BR_SEPARADO" && (!bipIsolado || origem !== "TIER" || atual.classificacao.tipo !== "SEPARADO" || alturaSaturada)) {
+      observacaoHostil = true;
+      observacaoMotivo = "BIP/Tipo/Altura fora da condição";
+    }
+    if (regime.regimeClassificado === "HOSTIL" && (strategy === "OSCILACAO_221" || strategy === "RETORNO_211")) {
+      observacaoHostil = true;
+      observacaoMotivo = "regime hostil";
+    }
+    if (strategy === "BT_QUEBRA_COR" && atual.classificacao.secao !== cA.secao) {
+      observacaoHostil = true;
+      observacaoMotivo = "troca brusca de seção";
+    }
+
+    if (bip === "rolando" && !geometrica && !oscilacao221 && !retorno211 &&
+        (!bipIsolado || origem !== "TIER" || atual.classificacao.tipo !== "SEPARADO" || alturaSaturada)) {
+      titulo = "BR SEPARADO · REPETE ALTURA";
+      acao = "ENTRAR EM " + alturaAlvo;
+      conf = 86;
+      categoriaAuditoria = "ab";
+      cobertura = alturaAlvo === "ALTO" ? "C2+C3" : "D1+D2";
+      observacaoHostil = true;
+      observacaoMotivo = "BIP/Tipo/Altura fora da condição";
+    }
+
     const bloqueado = conf < 78 || !alinhada;
-    if (bloqueado) continue;    const s = sinalBase(
-      `${atual.id}-v65`, categoriaAuditoria, "ENTRADA ÚNICA", acao,
-      atual, anterior, proximo, bip, conf === 0 ? "PAUSE" : "ENTRY_SIGNAL",
-      conf === 0 ? PALETA_BIP.bloqueio : (bip === "timer" && !mesmaCor ? PALETA_BIP.quebra : PALETA_BIP.repeticao),
+    if (bloqueado && !observacaoHostil) continue;
+
+    const operacional = !observacaoHostil && conf >= 78 && alinhada;
+    const s = sinalBase(
+      atual.id + "-v67", categoriaAuditoria, "ENTRADA ÚNICA", acao,
+      atual, anterior, proximo, bip, "ENTRY_SIGNAL",
+      PALETA_BIP.repeticao,
       titulo,
-      conf === 0 ? "Nenhuma entrada autorizada." : "",
-      conf === 0 ? "CRITICAL" : "HIGH", conf
-    );
-    s.mainAction = acao;
+      "",
+      "HIGH", conf
+    );    s.mainAction = acao;
     s.coverageText = cobertura;
+    s.regimeClassificado = regime.regimeClassificado;
+    s.motivoHostil = regime.motivoHostil;
+    s.gale1Liberado = operacional && regime.gale1Liberado;
+    s.observacaoHostil = !operacional;
+    s.gale1Usado = false;
+    s.gale1Resultado = "n/a";
+    s.gale2Usado = false;
+    s.gale2Resultado = "n/a";
+    s.unidadesLiquidasSequencia = 0;
+    if (s.observacaoHostil) {
+      s.title = "👁 OBSERVAÇÃO · " + s.title;
+      s.message = "Stake 0 · " + (observacaoMotivo || "condição de regime");
+      s.footerNote = "👁 OBSERVAÇÃO | " + (observacaoMotivo || "regime hostil") + " | 🔒 GALE 1 BLOQUEADO";
+    } else {
+      s.message = regime.gale1Liberado
+        ? "🔓 GALE 1 LIBERADO — janela limpa"
+        : "🔒 GALE 1 BLOQUEADO — regime hostil (motivo: " + regime.motivoHostil + ")";
+      s.footerNote = (s.footerNote ?? "") + " | " + (regime.gale1Liberado
+        ? "🔓 GALE 1 LIBERADO — janela limpa"
+        : "🔒 GALE 1 BLOQUEADO — regime hostil (motivo: " + regime.motivoHostil + ")");
+    }
     s.sessionPreference = conf > 0 ? sessaoPreferencial(bip, ctx, anterior, sequenciaLonga) : null;
     s.sequenceContext = ctx.context;
     const confirmador = brSeparado && mesmaParidade ? "✔️ Paridade Confirmada" : btQuebra && !mesmaCor ? "✔️ Cor Confirmada" : null;
