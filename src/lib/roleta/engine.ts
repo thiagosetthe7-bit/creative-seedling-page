@@ -29,7 +29,7 @@ export type TipoAlerta = "ENTRY_SIGNAL" | "WARNING" | "PAUSE" | "VALIDATION";
 export type PrioridadeAlerta = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 export type ResultadoAuditoria = "GREEN" | "RED" | "PARTIAL" | "AWAITING" | "NO_BET" | "INVALID";
 export type RegimeClassificado = "LIMPA" | "HOSTIL";
-export type MotivoHostil = "ZERO" | "RAJADA" | "SATURACAO" | "nenhum";
+export type MotivoHostil = "ZERO" | "RAJADA" | "SATURACAO" | "MIGRACAO_BR_BT" | "nenhum";
 
 export const PALETA_BIP = {
   repeticao: "#28a745",
@@ -97,9 +97,10 @@ export interface Sinal {
   gale1Liberado: boolean;
   gale1Usado: boolean;
   gale1Resultado: "GREEN" | "RED" | "n/a";
-  desfechoSequencia: "GREEN_DIRETO" | "GREEN_GALE1" | "FALHA_GALE1" | "n/a";
-  unidadesLiquidasSequencia: 0 | 1 | -3;
+  desfechoSequencia: "GREEN_DIRETO" | "GREEN_GALE1" | "FALHA_GIRO1" | "FALHA_GALE1" | "n/a";
+  unidadesLiquidasSequencia: 0 | 1 | -1 | -3;
   observacaoHostil: boolean;
+  gale1Stake: number;
 }
 
 export interface OpcoesDeteccao {
@@ -250,6 +251,7 @@ function sinalBase(
     desfechoSequencia: "n/a",
     unidadesLiquidasSequencia: 0,
     observacaoHostil: false,
+    gale1Stake: 0,
     auditTargetRow: atual.rodada ?? 0,
     auditResultPayload: {
       target_signal_id: id,
@@ -393,6 +395,26 @@ function coberturaParaCategoria(categoria: CategoriaId, alvo: string) {
   if (categoria === "coluna") return alvo;
   if (categoria === "duzia") return alvo;
   return null;
+}
+
+function classificarRegime(spins: Spin[], bips: MapaBips, index: number) {
+  const janela = spins.slice(Math.max(0, index - 14), index);
+  const zero = janela.some((s) => s.numero === 0);
+  const tipos = janela.map((s) => bips[s.id]).filter(Boolean);
+  const rajada = tipos.some((t, i) => i > 0 && t === tipos[i - 1]);
+  const saturacao = (key: keyof Pick<Classificacao, "ab" | "cor" | "pi">) => {
+    const counts = new Map<string, number>();
+    for (const s of janela) {
+      const v = s.classificacao[key];
+      if (v === "ZERO" || v === "VERDE") continue;
+      counts.set(v, (counts.get(v) ?? 0) + 1);
+    }
+    const max = Math.max(0, ...counts.values());
+    return janela.length > 0 && max / janela.length >= 0.70;
+  };
+  const sat = saturacao("ab") || saturacao("cor") || saturacao("pi");
+  const motivo = zero ? "ZERO" : rajada ? "RAJADA" : sat ? "SATURACAO" : "nenhum";
+  return { regimeClassificado: motivo === "nenhum" ? "LIMPA" as const : "HOSTIL" as const, motivoHostil: motivo as MotivoHostil };
 }
 
 function normalizarEntrada(entrada: string) {
