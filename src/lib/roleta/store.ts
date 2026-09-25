@@ -233,6 +233,15 @@ export const acoes = {
       return { ...e, auditoriaLog: { ...e.auditoriaLog, [registro.signalId]: { ...registro, status: registro.outcome } } };
     });
   },
+  reprocessarAuditoria(registro: RegistroAuditoria) {
+    definir((e) => ({
+      ...e,
+      auditoriaLog: {
+        ...e.auditoriaLog,
+        [registro.signalId]: { ...registro, status: registro.outcome },
+      },
+    }));
+  },
   registrarResultadoManual(signalId: string, outcome: "GREEN" | "RED" | "PARTIAL", result: number) {
     definir((e) => {
       const atual = e.auditoriaLog[signalId];
