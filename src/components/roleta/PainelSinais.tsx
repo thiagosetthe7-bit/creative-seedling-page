@@ -1,6 +1,5 @@
 import { gerarLogAuditoriaCSV, type Sinal } from "@/lib/roleta/engine";
 import { useCallback, useState } from "react";
-import { registerBancaResult, registerBancaGale1 } from "./GerenciadorBanca";
 
 const PRIORIDADE: Record<Sinal["priority"], string> = {
   CRITICAL: "CRÍTICA",
@@ -66,8 +65,8 @@ export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
               <div><b>Portão:</b> {s.observacaoHostil ? "👁 OBSERVAÇÃO" : s.gale1Liberado ? "🔓 GALE 1 LIBERADO" : `🔒 GALE 1 BLOQUEADO (${s.motivoHostil})`}</div>
               <div><b>Resultado:</b> {s.auditResult === "INVALID" ? "-" : s.auditResult === "NO_BET" ? "n/a" : s.auditResult}</div>
               {s.type === "ENTRY_SIGNAL" && !s.observacaoHostil && s.confidence >= 78 && <div className="grid grid-cols-2 gap-2 pt-2">
-                <button type="button" onClick={() => registerBancaResult(true)} className="rounded bg-emerald-500 px-2 py-2 font-black">G · GREEN</button>
-                <button type="button" disabled={!s.gale1Liberado} onClick={() => registerBancaGale1()} className="rounded bg-amber-400 px-2 py-2 font-black disabled:opacity-30">G1 · GALE 1</button>
+                <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("roleta:banca-result", { detail: { isWin: true } }))} className="rounded bg-emerald-500 px-2 py-2 font-black">G · GREEN</button>
+                <button type="button" disabled={!s.gale1Liberado} onClick={() => window.dispatchEvent(new CustomEvent("roleta:banca-gale1"))} className="rounded bg-amber-400 px-2 py-2 font-black disabled:opacity-30">G1 · GALE 1</button>
               </div>}
             </div>}
           </li>
