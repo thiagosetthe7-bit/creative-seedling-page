@@ -54,8 +54,7 @@ export function normalizarEntradaAvaliador(entrada: string) {
   return aliases[texto] ?? null;
 }
 
-export function avaliar(dimensao: string, valor: string, numero: number, estado: "APOSTA_ATIVA"|"OBSERVACAO" = "APOSTA_ATIVA"): AvaliadorResultado {
-  if (avaliadorBoot.ok === false) return "INOPERANTE";
+function avaliarCanonico(dimensao: string, valor: string, numero: number, estado: "APOSTA_ATIVA"|"OBSERVACAO" = "APOSTA_ATIVA"): AvaliadorResultado {
   if (numero === 0) return "NO_BET";
   if (estado !== "APOSTA_ATIVA") return "NO_BET";
   const conjunto = conjuntoCanonico(dimensao, valor);
@@ -63,12 +62,17 @@ export function avaliar(dimensao: string, valor: string, numero: number, estado:
   return conjunto.has(numero) ? "GREEN" : "RED";
 }
 
+export function avaliar(dimensao: string, valor: string, numero: number, estado: "APOSTA_ATIVA"|"OBSERVACAO" = "APOSTA_ATIVA"): AvaliadorResultado {
+  if (avaliadorBoot.ok === false) return "INOPERANTE";
+  return avaliarCanonico(dimensao, valor, numero, estado);
+}
+
 export function autoTestAvaliador(): AvaliadorBoot {
   const errors:string[]=[];
   const guard=(name:string,s:Set<number>|undefined,size:number)=>{ if(!s || s.size!==size) errors.push(name); };
   guard("PAR",CANONICAL_EVEN,18); guard("IMPAR",CANONICAL_ODD,18); guard("VERMELHO",CANONICAL_RED,18); guard("PRETO",CANONICAL_BLACK,18);
   for(const k of ["C1","C2","C3"]) guard(k,CANONICAL_COLUMNS[k],12); for(const k of ["D1","D2","D3"]) guard(k,CANONICAL_DOZENS[k],12);
-  guard("VOISINS",CANONICAL_SECTORS.VOISINS,17); guard("TIER",CANONICAL_SECTORS.TIER,12); guard("ORFAOS",CANONICAL_SECTORS.ORFAOS,8);
+  guard("VOISINS",CANONICAL_SECTORS["VOISINS"],17); guard("TIER",CANONICAL_SECTORS["TIER"],12); guard("ORFAOS",CANONICAL_SECTORS["ORFAOS"],8);
   const tests:Array<[string,string,number,AvaliadorResultado]>=[
     ["PI","PAR",4,"GREEN"],["PI","PAR",33,"RED"],["PI","IMPAR",33,"GREEN"],["PI","IMPAR",4,"RED"],
     ["COR","VERMELHO",16,"GREEN"],["COR","VERMELHO",28,"RED"],["COR","PRETO",2,"GREEN"],["COR","PRETO",16,"RED"],
@@ -77,7 +81,7 @@ export function autoTestAvaliador(): AvaliadorBoot {
     ["DUZIA","D1",4,"GREEN"],["DUZIA","D1",22,"RED"],["DUZIA","D2",22,"GREEN"],["DUZIA","D2",33,"RED"],["DUZIA","D3",33,"GREEN"],["DUZIA","D3",22,"RED"],
     ["SECAO","TIER",36,"GREEN"],["SECAO","TIER",7,"RED"],["SECAO","VOISINS",7,"GREEN"],["SECAO","VOISINS",36,"RED"],["SECAO","ORFAOS",17,"GREEN"],["SECAO","ORFAOS",7,"RED"],["SECAO","ZERO",0,"NO_BET"]
   ];
-  for(const [d,v,n,e] of tests){const got=avaliar(d,v,n); if(got!==e) errors.push(d+"/"+v+"/"+n+"="+got+" expected "+e);}
+  for(const [d,v,n,e] of tests){const got=avaliarCanonico(d,v,n); if(got!==e) errors.push(d+"/"+v+"/"+n+"="+got+" expected "+e);}
   return {ok:errors.length===0,errors};
 }
 

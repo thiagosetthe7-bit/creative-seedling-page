@@ -13,14 +13,14 @@ interface HistoricoBanca {
   result: number;
   bankAfter: number;
   isWin: boolean;
-  signalId?: string;
-  regimeClassificado?: "LIMPA" | "HOSTIL";
-  motivoHostil?: "ZERO" | "RAJADA" | "SATURACAO" | "nenhum";
-  gale1Liberado?: boolean;
-  gale1Usado?: boolean;
-  gale1Resultado?: "GREEN" | "RED" | "n/a";
-  desfechoSequencia?: "GREEN_DIRETO" | "GREEN_GALE1" | "FALHA_GALE1" | "n/a";
-  unidadesLiquidasSequencia?: 0 | 1 | -3;
+  signalId?: string | undefined;
+  regimeClassificado?: "LIMPA" | "HOSTIL" | undefined;
+  motivoHostil?: "ZERO" | "RAJADA" | "SATURACAO" | "MIGRACAO_BR_BT" | "nenhum" | undefined;
+  gale1Liberado?: boolean | undefined;
+  gale1Usado?: boolean | undefined;
+  gale1Resultado?: "GREEN" | "RED" | "n/a" | undefined;
+  desfechoSequencia?: "GREEN_DIRETO" | "GREEN_GALE1" | "FALHA_GALE1" | "n/a" | undefined;
+  unidadesLiquidasSequencia?: 0 | 1 | -1 | -3 | undefined;
   recordedAt: number;
 }
 
