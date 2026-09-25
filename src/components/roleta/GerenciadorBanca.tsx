@@ -13,6 +13,14 @@ interface HistoricoBanca {
   bankAfter: number;
   isWin: boolean;
   signalId?: string;
+  regimeClassificado?: "LIMPA" | "HOSTIL";
+  motivoHostil?: "ZERO" | "RAJADA" | "SATURACAO" | "nenhum";
+  gale1Liberado?: boolean;
+  gale1Usado?: boolean;
+  gale1Resultado?: "GREEN" | "RED" | "n/a";
+  gale2Usado?: boolean;
+  gale2Resultado?: "GREEN" | "RED" | "n/a";
+  unidadesLiquidasSequencia?: number;
   recordedAt: number;
 }
 
@@ -170,7 +178,7 @@ export function GerenciadorBanca() {
 
   const latestOperationalSignal = useMemo(() => {
     return [...sinais]
-      .filter((s) => s.type === "ENTRY_SIGNAL" && s.confidence >= 78)
+      .filter((s) => s.type === "ENTRY_SIGNAL" && s.confidence >= 78 && !s.observacaoHostil)
       .sort((a, b) => b.timestamp - a.timestamp)[0] ?? null;
   }, [sinais]);
 
@@ -201,20 +209,37 @@ export function GerenciadorBanca() {
     const signalOdd = getSignalOdd(latestOperationalSignal);
     const profit = isWin ? stake * (signalOdd - 1) : -stake;
     const bankAfter = state.currentBank + profit;
+    const gateLiberado = latestOperationalSignal?.gale1Liberado ?? true;
+    const isRecovery = state.martingaleLevel === 2;
+    const gale1Usado = isRecovery;
+    const gale2Usado = false;
+    const sequenceUnits = isRecovery
+      ? (isWin ? 1 : -3)
+      : (isWin ? 1 : -1);
+    const nextLevel: 1 | 2 = isWin ? 1 : (state.martingaleLevel === 1 && gateLiberado ? 2 : 1);
 
     setState((s) => ({
       ...s,
       currentBank: bankAfter,
-      accumulatedLoss: isWin ? 0 : s.accumulatedLoss + stake,
-      martingaleLevel: isWin ? 1 : (s.martingaleLevel === 1 ? 2 : 1),
+      accumulatedLoss: isWin ? 0 : (nextLevel === 2 ? s.accumulatedLoss + stake : 0),
+      martingaleLevel: nextLevel,
       history: [
         {
           id: s.history.length + 1,
-          strategy: s.nextStrategyName,
+          strategy: latestOperationalSignal?.title ?? s.nextStrategyName,
           stake,
           result: profit,
           bankAfter,
           isWin,
+          signalId: latestOperationalSignal?.id,
+          regimeClassificado: latestOperationalSignal?.regimeClassificado,
+          motivoHostil: latestOperationalSignal?.motivoHostil,
+          gale1Liberado: gateLiberado,
+          gale1Usado,
+          gale1Resultado: isRecovery ? "n/a" : (isWin ? "GREEN" : "RED"),
+          gale2Usado,
+          gale2Resultado: "n/a",
+          unidadesLiquidasSequencia: sequenceUnits,
           recordedAt: Date.now(),
         },
         ...s.history,
