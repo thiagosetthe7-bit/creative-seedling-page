@@ -97,9 +97,8 @@ export interface Sinal {
   gale1Liberado: boolean;
   gale1Usado: boolean;
   gale1Resultado: "GREEN" | "RED" | "n/a";
-  gale2Usado: boolean;
-  gale2Resultado: "GREEN" | "RED" | "n/a";
-  unidadesLiquidasSequencia: number;
+  desfechoSequencia: "GREEN_DIRETO" | "GREEN_GALE1" | "FALHA_GALE1" | "n/a";
+  unidadesLiquidasSequencia: 0 | 1 | -3;
   observacaoHostil: boolean;
 }
 
@@ -248,8 +247,7 @@ function sinalBase(
     gale1Liberado: true,
     gale1Usado: false,
     gale1Resultado: "n/a",
-    gale2Usado: false,
-    gale2Resultado: "n/a",
+    desfechoSequencia: "n/a",
     unidadesLiquidasSequencia: 0,
     observacaoHostil: false,
     auditTargetRow: atual.rodada ?? 0,
@@ -659,9 +657,18 @@ export function classificarRegimeJanela(spins: Spin[], bips: MapaBips, index: nu
       }
     }
   }
-  const saturacao = Object.values(counts).some((count) => count / n >= limiarSat);
-  const motivoHostil: MotivoHostil = zeroRecente ? "ZERO" : rajada ? "RAJADA" : saturacao ? "SATURACAO" : "nenhum";
-  return { regimeClassificado: motivoHostil === "nenhum" ? "LIMPA" : "HOSTIL", motivoHostil, gale1Liberado: motivoHostil === "nenhum", zeroRecente, rajada, saturacao, janela: w.length };
+  const saturacao = Object.values(counts).some((count) => count / n >= limiarEfetivo);
+  const isolamentoAtual = contarBipsIsolados(spins, bips, index, janela);
+  const isolamentoInsuficiente = calib.isolamento > 0 && isolamentoAtual < calib.isolamento;
+  const motivoHostil: MotivoHostil = zeroRecente ? "ZERO" : rajada ? "RAJADA" : saturacao || isolamentoInsuficiente ? "SATURACAO" : "nenhum";
+  return {
+    regimeClassificado: motivoHostil === "nenhum" ? "LIMPA" : "HOSTIL",
+    motivoHostil,
+    gale1Liberado: motivoHostil === "nenhum",
+    zeroRecente, rajada, saturacao, janela: w.length,
+    limiarSat: limiarEfetivo,
+    isolamentoExigido: calib.isolamento,
+  };
 }
 
 export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
@@ -905,8 +912,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     s.observacaoHostil = !operacional;
     s.gale1Usado = false;
     s.gale1Resultado = "n/a";
-    s.gale2Usado = false;
-    s.gale2Resultado = "n/a";
+    s.desfechoSequencia = "n/a";
     s.unidadesLiquidasSequencia = 0;
     if (s.observacaoHostil) {
       s.title = "👁 OBSERVAÇÃO · " + s.title;
@@ -1011,7 +1017,7 @@ export function gerarLogAuditoriaCSV(sinais: Sinal[]): string {
   const esc = (v: unknown) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
   const header = [
     "Signal ID","Strategy Name","Suggested Entry","Actual Result Number","Outcome Status","Confidence","Timestamp",
-    "regime_classificado","motivo_hostil","gale1_librado","gale1_usado","gale1_resultado","gale2_usado","gale2_resultado","unidades_liquidas_da_sequencia"
+    "regime_classificado","motivo_hostil","gale1_librado","gale1_usado","gale1_resultado","desfecho_sequencia","unidades_liquidas_da_sequencia"
   ];
   const rows = sinais
     .filter((s) => s.auditNumero !== null && ["GREEN","RED","PARTIAL"].includes(s.auditResult))
@@ -1020,7 +1026,7 @@ export function gerarLogAuditoriaCSV(sinais: Sinal[]): string {
       s.auditResult === "GREEN" ? "GREEN" : s.auditResult === "RED" ? "RED" : "PARTIAL",
       s.confidence, s.auditTimestamp ?? "",
       s.regimeClassificado, s.motivoHostil, s.gale1Liberado ? "S" : "N", s.gale1Usado ? "S" : "N",
-      s.gale1Resultado, s.gale2Usado ? "S" : "N", s.gale2Resultado, s.unidadesLiquidasSequencia
+      s.gale1Resultado, s.desfechoSequencia, s.unidadesLiquidasSequencia
     ]);
   return [header, ...rows].map((row) => row.map(esc).join(",")).join("\n");
 }
