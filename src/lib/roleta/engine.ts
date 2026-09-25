@@ -635,9 +635,75 @@ export interface PortaoGale {
   rajada: boolean;
   saturacao: boolean;
   janela: number;
+  limiarSat: number;
+  isolamentoExigido: number;
+}
+
+interface CalibracaoPortaoGale {
+  limiarSat: number;
+  isolamento: number;
+  liberacoes: Array<{ falhou: boolean; at: number }>;
+  limpaSemFalha: number;
+}
+
+const GALE_CALIBRATION_KEY = "roleta-gale-calibracao-v671";
+const GALE_DEFAULTS = { limiarSat: 0.70, isolamento: 0, maxSat: 0.85, maxIsolamento: 4, janela: 14, tetoFalha: 0.40, M: 10 };
+
+function carregarCalibracaoPortao(): CalibracaoPortaoGale {
+  if (typeof window === "undefined") return { limiarSat: 0.70, isolamento: 0, liberacoes: [], limpaSemFalha: 0 };
+  try {
+    const v = JSON.parse(window.localStorage.getItem(GALE_CALIBRATION_KEY) ?? "{}");
+    return {
+      limiarSat: Math.min(0.85, Math.max(0.70, Number(v.limiarSat) || 0.70)),
+      isolamento: Math.min(4, Math.max(0, Number(v.isolamento) || 0)),
+      liberacoes: Array.isArray(v.liberacoes) ? v.liberacoes.slice(-10) : [],
+      limpaSemFalha: Math.max(0, Number(v.limpaSemFalha) || 0),
+    };
+  } catch {
+    return { limiarSat: 0.70, isolamento: 0, liberacoes: [], limpaSemFalha: 0 };
+  }
+}
+
+function salvarCalibracaoPortao(v: CalibracaoPortaoGale) {
+  if (typeof window !== "undefined") window.localStorage.setItem(GALE_CALIBRATION_KEY, JSON.stringify(v));
+}
+
+export function registrarResultadoGale1Calibracao(gale1FoiLiberado: boolean, falhouGale1: boolean) {
+  if (!gale1FoiLiberado) return carregarCalibracaoPortao();
+  const v = carregarCalibracaoPortao();
+  v.liberacoes = [...v.liberacoes, { falhou: falhouGale1, at: Date.now() }].slice(-10);
+  if (falhouGale1) v.limpaSemFalha = 0;
+  else v.limpaSemFalha += 1;
+  const falhas = v.liberacoes.filter((x) => x.falhou).length;
+  if (v.liberacoes.length >= 10 && falhas / v.liberacoes.length > 0.40) {
+    v.liberacoes = [];
+    v.limpaSemFalha = 0;
+    v.limiarSat = Math.min(0.85, Number((v.limiarSat + 0.05).toFixed(2)));
+    v.isolamento = Math.min(4, v.isolamento + 1);
+  } else if (!falhouGale1 && v.limpaSemFalha >= 5) {
+    v.limpaSemFalha = 0;
+    v.limiarSat = Math.max(0.70, Number((v.limiarSat - 0.05).toFixed(2)));
+    v.isolamento = Math.max(0, v.isolamento - 1);
+  }
+  salvarCalibracaoPortao(v);
+  return v;
+}
+
+function contarBipsIsolados(spins: Spin[], bips: MapaBips, index: number, janela: number) {
+  const inicio = Math.max(0, index - janela + 1);
+  let total = 0;
+  for (let i = inicio; i <= index; i++) {
+    if (!bips[spins[i]!.id]) continue;
+    const anterior = i > inicio && !!bips[spins[i - 1]!.id];
+    const proximo = i < index && !!bips[spins[i + 1]!.id];
+    if (!anterior && !proximo) total += 1;
+  }
+  return total;
 }
 
 export function classificarRegimeJanela(spins: Spin[], bips: MapaBips, index: number, janela = 14, limiarSat = 0.70): PortaoGale {
+  const calib = carregarCalibracaoPortao();
+  const limiarEfetivo = Math.min(0.85, Math.max(limiarSat, calib.limiarSat));
   const inicio = Math.max(0, index - janela + 1);
   const w = spins.slice(inicio, index + 1);
   const n = w.length || 1;
@@ -663,11 +729,9 @@ export function classificarRegimeJanela(spins: Spin[], bips: MapaBips, index: nu
   const motivoHostil: MotivoHostil = zeroRecente ? "ZERO" : rajada ? "RAJADA" : saturacao || isolamentoInsuficiente ? "SATURACAO" : "nenhum";
   return {
     regimeClassificado: motivoHostil === "nenhum" ? "LIMPA" : "HOSTIL",
-    motivoHostil,
-    gale1Liberado: motivoHostil === "nenhum",
+    motivoHostil, gale1Liberado: motivoHostil === "nenhum",
     zeroRecente, rajada, saturacao, janela: w.length,
-    limiarSat: limiarEfetivo,
-    isolamentoExigido: calib.isolamento,
+    limiarSat: limiarEfetivo, isolamentoExigido: calib.isolamento,
   };
 }
 
