@@ -8,7 +8,7 @@ export function PopupSinal({ sinal }: { sinal: Sinal }) {
   if (typeof window !== "undefined") {
     try {
       const raw = window.localStorage.getItem("roleta-gerenciador-banca-v2");
-      if (raw) stake = calculateSmartStake(JSON.parse(raw) as BancaState);
+      if (raw) stake = calculateSmartStake(JSON.parse(raw) as BancaState, sinal);
     } catch { stake = 0; }
   }
   return (
@@ -21,7 +21,16 @@ export function PopupSinal({ sinal }: { sinal: Sinal }) {
         <section className="min-h-[170px] space-y-3 p-5">
           {sinal.coverageText && <div className="text-base font-medium">✅ COBERTURA: {sinal.coverageText}</div>}
           {sinal.type === "PAUSE" && <div className="text-base font-black">⏸ SEM APOSTA</div>}
-          {sinal.confidence >= 78 && sinal.type === "ENTRY_SIGNAL" && <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-lg font-black text-emerald-400">💰 STAKE SUGERIDA: {stake.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>}
+          {sinal.confidence >= 78 && sinal.type === "ENTRY_SIGNAL" && !sinal.observacaoHostil && <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-lg font-black text-emerald-400">💰 STAKE SUGERIDA: {stake.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>}
+          {sinal.type === "ENTRY_SIGNAL" && (
+            <div className={sinal.gale1Liberado ? "rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm font-black text-emerald-400" : "rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm font-black text-amber-300"}>
+              {sinal.observacaoHostil
+                ? "👁 OBSERVAÇÃO · STAKE 0 · 🔒 GALE 1 BLOQUEADO"
+                : sinal.gale1Liberado
+                  ? "🔓 GALE 1 LIBERADO — janela limpa"
+                  : `🔒 GALE 1 BLOQUEADO — regime hostil (motivo: ${sinal.motivoHostil})`}
+            </div>
+          )}
           {sinal.confidence < 78 && <div className="rounded bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">Padrão detectado, mas assertividade abaixo de 78%. Aguardando.</div>}
           
           {sinal.type !== "PAUSE" && <div className="border-t border-border pt-3 text-xs italic text-muted-foreground">{sinal.footerNote ?? `Conf: ${sinal.confidence}%`}</div>}
