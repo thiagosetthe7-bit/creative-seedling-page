@@ -12,8 +12,8 @@ export function useSinais() {
     const sinais: Sinal[] = auditados.map((s) => {
       const persistido = estado.auditoriaLog[s.id];
       if (persistido && persistido.status !== "AGUARDANDO_RESULTADO") {
-        const outcome = persistido.outcome === "DADO_PERDIDO" ? "RED" : persistido.outcome;
-        return { ...s, status: outcome === "GREEN" ? "WIN" : outcome === "PARTIAL" ? "PARTIAL" : "RED", auditResult: outcome, auditNumero: persistido.result, auditTimestamp: persistido.resultTimestamp ?? persistido.recordedAt };
+        const outcome = persistido.outcome === "DADO_PERDIDO" || persistido.outcome === "NO_BET" ? "CANCELADO" : persistido.outcome;
+        return { ...s, status: outcome === "GREEN" ? "WIN" : outcome === "PARTIAL" ? "PARTIAL" : "RED", auditResult: outcome === "CANCELADO" ? "NO_BET" : outcome, auditNumero: persistido.result, auditTimestamp: persistido.resultTimestamp ?? persistido.recordedAt };
       }
       if (estado.cancelados.includes(s.id)) return { ...s, status: "CANCELADO" };
       return s;
@@ -50,8 +50,8 @@ export function useSinais() {
             strategy: s.title,
             entry: s.mainAction,
             result: 0,
-            outcome: "PARTIAL",
-            status: "PARTIAL",
+            outcome: "NO_BET",
+            status: "NO_BET",
             recordedAt: antigo.recordedAt,
             resultTimestamp: s.auditTimestamp ?? antigo.resultTimestamp,
           });
