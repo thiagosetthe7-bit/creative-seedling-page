@@ -172,7 +172,7 @@ export function GerenciadorBanca() {
 
     const onStrategy = (event: Event) => {
       const name = (event as CustomEvent<string>).detail;
-      registrarResultadoGale1Calibracao(gateLiberado, isRecovery && !isWin);\n\n    setState((s) => ({ ...s, nextStrategyName: name || "Sinal v6.6" }));
+      setState((s) => ({ ...s, nextStrategyName: name || "Sinal v6.6" }));
     };
     window.addEventListener("roleta:strategy", onStrategy);
 
