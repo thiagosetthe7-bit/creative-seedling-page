@@ -20,7 +20,7 @@ interface HistoricoBanca {
   gale1Usado?: boolean | undefined;
   gale1Resultado?: "GREEN" | "RED" | "n/a" | undefined;
   desfechoSequencia?: "GREEN_DIRETO" | "GREEN_GALE1" | "FALHA_GALE1" | "n/a" | undefined;
-  unidadesLiquidasSequencia?: 0 | 1 | -3 | undefined;
+  unidadesLiquidasSequencia?: 0 | 1 | -1 | -3 | undefined;
   recordedAt: number;
 }
 
