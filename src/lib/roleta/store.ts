@@ -19,7 +19,7 @@ export interface RegistroAuditoria {
   result: number;
   outcome: "GREEN" | "RED" | "PARTIAL" | "NO_BET" | "DADO_PERDIDO";
   status: StatusAuditoriaPersistente;
-  resultTimestamp?: number;
+  resultTimestamp?: number | undefined;
   recordedAt: number;
 }
 
