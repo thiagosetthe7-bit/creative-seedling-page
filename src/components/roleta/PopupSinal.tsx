@@ -1,6 +1,6 @@
 import type { Sinal } from "@/lib/roleta/engine";
 import { acoes } from "@/lib/roleta/store";
-import { calculateSmartStake, type BancaState } from "./GerenciadorBanca";
+import { calculateSmartStake, type BancaState, registerBancaResult, registerBancaGale1 } from "./GerenciadorBanca";
 
 export function PopupSinal({ sinal }: { sinal: Sinal }) {
   const isPause = sinal.type === "PAUSE";
@@ -33,6 +33,12 @@ export function PopupSinal({ sinal }: { sinal: Sinal }) {
           )}
           {sinal.confidence < 78 && <div className="rounded bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">Padrão detectado, mas assertividade abaixo de 78%. Aguardando.</div>}
           
+          {sinal.type === "ENTRY_SIGNAL" && !sinal.observacaoHostil && sinal.confidence >= 78 && (
+            <div className="grid grid-cols-2 gap-2 border-t border-border pt-3">
+              <button onClick={() => registerBancaResult(true)} className="rounded-lg bg-emerald-400 px-3 py-3 text-sm font-black text-black">G · GREEN</button>
+              <button onClick={() => registerBancaGale1()} disabled={!sinal.gale1Liberado} className="rounded-lg bg-amber-400 px-3 py-3 text-sm font-black text-black disabled:cursor-not-allowed disabled:opacity-30">G1 · GALE 1 GREEN</button>
+            </div>
+          )}
           {sinal.type !== "PAUSE" && <div className="border-t border-border pt-3 text-xs italic text-muted-foreground">{sinal.footerNote ?? `Conf: ${sinal.confidence}%`}</div>}
           {isPause && <div className="text-xs italic text-muted-foreground">Não entrar em nada</div>}
           <div className="flex gap-2 pt-1">
