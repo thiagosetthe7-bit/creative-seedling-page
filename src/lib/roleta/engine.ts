@@ -583,6 +583,43 @@ function classeNumero(numero: number) {
  * é catalogado. Um sinal ainda sem giro seguinte permanece PENDENTE; depois
  * de dois giros sem resolução possível, torna-se NEUTRAL.
  */
+/** Resolver explícito: o próximo giro existente NUNCA pode permanecer aguardando. */
+export function resolverPendentes(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
+  return auditarSinais(sinais, spinsEntrada);
+}
+
+/** Smoke-test do pipeline real de resolução usado no boot e após cada catálogo. */
+export function autoTestResolver(): { ok: boolean; errors: string[] } {
+  const errors: string[] = [];
+  const cases: Array<[string,string,number,AvaliadorResultado]> = [
+    ["COR","VERMELHO",12,"GREEN"], ["COR","VERMELHO",1,"GREEN"],
+    ["PI","IMPAR",33,"GREEN"], ["PI","PAR",4,"GREEN"],
+    ["AB","ALTO",36,"GREEN"], ["AB","BAIXO",2,"GREEN"],
+    ["COR","PRETO",2,"GREEN"], ["COLUNA","C3",33,"GREEN"],
+  ];
+  for (const [d,v,n,e] of cases) {
+    const got = avaliar(d,v,n,"APOSTA_ATIVA");
+    if (got !== e) errors.push(`${d}+${n}=${got}, esperado ${e}`);
+  }
+  const s1 = criarSpin(7, 1000); const s2 = criarSpin(12, 2000);
+  const sint = { id:"self-test-resolver", categoria:"cor", categoriaLabel:"COR", alvo:"VERMELHO",
+    sequenciaInicial:1, quebra:"", quebraRodadas:0, retorno:"VERMELHO", rodada:1, spinId:s1.id,
+    numero:7, timestamp:1000, resultadoSeguinte:null, numeroSeguinte:null, status:"PENDENTE",
+    action:"SHOW_POPUP", type:"ENTRY_SIGNAL", colorCode:"#000", title:"SELF", message:"SELF",
+    priority:"HIGH", mainAction:"VERMELHO", coverageText:null, sessionPreference:null, excludeText:null,
+    footerNote:null, sequenceContext:null, bip:"timer", rodadaAnterior:null, numeroAnterior:null,
+    confidence:80, auditResult:"AWAITING", auditColor:"#000", auditMessage:null, auditTimestamp:null,
+    auditSpinId:null, auditNumero:null, auditClasse:null, auditExpectedHeight:null, auditExpectedCoverage:[],
+    auditTargetRow:1, auditResultPayload:{target_signal_id:"self-test-resolver",previous_bip_row_index:1,current_number:null,
+    verdict:"AWAITING",reason:"",ui_update:{row_color:"",badge_text:"",panel_status:""}},
+    auditExcludedSession:null, regimeClassificado:"LIMPA", motivoHostil:"nenhum", gale1Liberado:true,
+    gale1Usado:false, gale1Resultado:"n/a", desfechoSequencia:"n/a", unidadesLiquidasSequencia:0,
+    observacaoHostil:false, gale1Stake:1 } as Sinal;
+  const resolved = resolverPendentes([sint], [s1,s2])[0];
+  if (!resolved || resolved.auditResult !== "GREEN" || resolved.auditNumero !== 12) errors.push("resolverPendentes não resolveu o próximo giro");
+  return { ok: errors.length === 0 && avaliadorBoot.ok, errors: [...avaliadorBoot.errors, ...errors] };
+}
+
 export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
   const spins = spinsEntrada.map(comRodadas);
 
