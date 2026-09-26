@@ -28,6 +28,16 @@ export function useSinais() {
   }, [estado]);
 
   useEffect(() => {
+    const onCatalogo = () => {
+      // A atualização do store dispara o render; esta chamada garante o ponto
+      // de integração explícito exigido pelo resolver após cada catalogação.
+      window.dispatchEvent(new CustomEvent("roleta:resolver-run"));
+    };
+    window.addEventListener("roleta:catalogo-atualizado", onCatalogo);
+    return () => window.removeEventListener("roleta:catalogo-atualizado", onCatalogo);
+  }, []);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     // W5: pipeline real no boot. O resultado é exposto ao UI sem alterar estratégias.
     const boot = autoTestResolver();
