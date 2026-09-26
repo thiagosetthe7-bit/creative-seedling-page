@@ -28,7 +28,7 @@ export const CANONICAL_SECTORS: Record<string, Set<number>> = {
   ZERO:new Set([0]),
 };
 
-export type AvaliadorResultado = "GREEN" | "RED" | "NO_BET" | "INVALID" | "INOPERANTE";
+export type AvaliadorResultado = "GREEN" | "RED" | "NO_BET" | "NA" | "INVALID" | "INOPERANTE";
 export interface AvaliadorBoot { ok: boolean; errors: string[]; }
 
 function conjuntoCanonico(dimensao: string, valor: string): Set<number> | null {
@@ -64,7 +64,27 @@ function avaliarCanonico(dimensao: string, valor: string, numero: number, estado
 
 export function avaliar(dimensao: string, valor: string, numero: number, estado: "APOSTA_ATIVA"|"OBSERVACAO" = "APOSTA_ATIVA"): AvaliadorResultado {
   if (avaliadorBoot.ok === false) return "INOPERANTE";
-  return avaliarCanonico(dimensao, valor, numero, estado);
+  if (estado === "OBSERVACAO") return "NA";
+  return avaliarCanonico(dimensao, valor, numero, "APOSTA_ATIVA");
+}
+
+/** Único ponto de decisão consumido pelo resolver: entrada já normalizada + próximo número. */
+export function avaliarEntrada(
+  entradaNormalizada: { categoria: string; valor: string } | null,
+  numero: number,
+  estado: "APOSTA_ATIVA" | "OBSERVACAO" = "APOSTA_ATIVA",
+): AvaliadorResultado {
+  if (avaliadorBoot.ok === false) return "INOPERANTE";
+  if (!entradaNormalizada) return "INVALID";
+  if (estado === "OBSERVACAO") return "NA";
+  const dimensao = entradaNormalizada.categoria === "pi" ? "PI"
+    : entradaNormalizada.categoria === "cor" ? "COR"
+    : entradaNormalizada.categoria === "ab" ? "AB"
+    : entradaNormalizada.categoria === "coluna" ? "COLUNA"
+    : entradaNormalizada.categoria === "duzia" ? "DUZIA"
+    : entradaNormalizada.categoria === "secao" ? "SECAO"
+    : entradaNormalizada.categoria.toUpperCase();
+  return avaliarCanonico(dimensao, entradaNormalizada.valor, numero, "APOSTA_ATIVA");
 }
 
 export function autoTestAvaliador(): AvaliadorBoot {
@@ -101,7 +121,7 @@ type Altura = "ALTO" | "BAIXO";
 export type StatusSinal = "PENDENTE" | "WIN" | "RED" | "PARTIAL" | "CANCELADO";
 export type TipoAlerta = "ENTRY_SIGNAL" | "WARNING" | "PAUSE" | "VALIDATION";
 export type PrioridadeAlerta = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
-export type ResultadoAuditoria = "GREEN" | "RED" | "PARTIAL" | "AWAITING" | "NO_BET" | "INVALID";
+export type ResultadoAuditoria = "GREEN" | "RED" | "PARTIAL" | "AWAITING" | "NO_BET" | "NA" | "INVALID";
 export type RegimeClassificado = "LIMPA" | "HOSTIL";
 export type MotivoHostil = "ZERO" | "RAJADA" | "SATURACAO" | "MIGRACAO_BR_BT" | "nenhum";
 
@@ -660,7 +680,7 @@ export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
     // gale1Stake pode ser 0 antes de uma dobra e isso NÃO transforma a entrada ativa em
     // "sem aposta". Só sinais explicitamente rebaixados ficam fora da auditoria.
     if (sinal.observacaoHostil) {
-      return { ...sinal, status:"CANCELADO", auditResult:"NO_BET", auditColor:"#6c757d", auditMessage:"n/a — OBSERVAÇÃO / stake 0", auditTimestamp:atual.timestamp, auditSpinId:atual.id, auditNumero:null, auditClasse:classeNumero(atual.numero), auditResultPayload:{target_signal_id:sinal.id,previous_bip_row_index:sinal.rodada,current_number:null,verdict:"NO_BET",reason:"OBSERVAÇÃO/stake 0 não participa da auditoria.",ui_update:{row_color:"#6c757d",badge_text:"n/a",panel_status:"NO_BET"}}};
+      return { ...sinal, status:"CANCELADO", auditResult:"NA", auditColor:"#6c757d", auditMessage:"n/a — OBSERVAÇÃO / stake 0", auditTimestamp:atual.timestamp, auditSpinId:atual.id, auditNumero:null, auditClasse:classeNumero(atual.numero), auditResultPayload:{target_signal_id:sinal.id,previous_bip_row_index:sinal.rodada,current_number:null,verdict:"NA",reason:"OBSERVAÇÃO/stake 0 não participa da auditoria.",ui_update:{row_color:"#6c757d",badge_text:"n/a",panel_status:"NA"}}};
     }
     const c = classificar(atual.numero);
 
@@ -740,7 +760,10 @@ export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
       : entrada.categoria === "duzia" ? "DUZIA"
       : entrada.categoria === "secao" ? "SECAO"
       : entrada.categoria.toUpperCase();
-    const veredito = avaliar(dimensaoCanonica, entrada.valor, atual.numero, "APOSTA_ATIVA");
+    const veredito = avaliarEntrada(entrada, atual.numero, "APOSTA_ATIVA");
+    if (veredito === "NA") {
+      return { ...sinal, status:"CANCELADO", auditResult:"NA", auditColor:"#6c757d", auditMessage:"n/a — OBSERVAÇÃO / stake 0", auditTimestamp:atual.timestamp, auditSpinId:atual.id, auditNumero:null, auditClasse:classeNumero(atual.numero), auditResultPayload:{target_signal_id:sinal.id,previous_bip_row_index:sinal.rodada,current_number:null,verdict:"NA",reason:"OBSERVAÇÃO/stake 0 não participa da auditoria.",ui_update:{row_color:"#6c757d",badge_text:"n/a",panel_status:"NA"}}};
+    }
     if (veredito === "INOPERANTE") {
       return { ...sinal, status:"CANCELADO", auditResult:"INVALID", auditColor:"#f59e0b", auditMessage:"⚠️ AVALIADOR INOPERANTE — resultados suspensos, não opere", auditTimestamp:atual.timestamp, auditSpinId:atual.id, auditNumero:null, auditClasse:classeNumero(atual.numero), auditResultPayload:{target_signal_id:sinal.id,previous_bip_row_index:sinal.rodada,current_number:null,verdict:"INVALID",reason:"Auto-teste do avaliador falhou.",ui_update:{row_color:"#f59e0b",badge_text:"-",panel_status:"INOPERANTE"}}};
     }
