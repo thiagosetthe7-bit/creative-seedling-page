@@ -54,7 +54,7 @@ export function normalizarEntrada(entradaBruta: string): EntradaNormalizada | nu
     .replace(/[\u0300-\u036f]/g, "")
     .toUpperCase()
     .replace(/^\s*(ENTRAR\\s+EM\\s+|ENTRADA\\s*:\\s*|SINAL\\s*:\\s*|APUESTA\\s*:\\s*|BET\\s*:\\s*)/, "")
-    .replace(/\\s+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 
   const mapaExplicito: Record<string, EntradaNormalizada> = {
