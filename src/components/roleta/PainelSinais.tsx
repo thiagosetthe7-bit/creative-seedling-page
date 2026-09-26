@@ -110,7 +110,7 @@ export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
   return (
     <section className="rounded-lg border border-border bg-card">
       <div className="border-b border-border bg-sinal/15 px-3 py-2"><div className={selfTest.ok ? "mb-2 text-[10px] font-black text-emerald-400" : "mb-2 rounded bg-red-500/20 px-2 py-1 text-[10px] font-black text-red-400"}>{selfTest.ok ? "🟢 SELF-TEST 10/10" : `🔴 SELF-TEST FALHOU ${selfTest.errors.length}/10 — ${selfTest.errors.join("; ")}`}</div>{inoperante && <div className="mb-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-2 text-xs font-black text-amber-300">⚠️ AVALIADOR INOPERANTE — resultados suspensos, não opere</div>}
-        {sinais.some((s) => s.type === "ENTRY_SIGNAL" && s.numeroSeguinte !== null && ["AWAITING","NO_BET"].includes(s.auditResult) && !s.observacaoHostil) && (
+        {sinais.some((s) => s.type === "ENTRY_SIGNAL" && s.numeroSeguinte !== null && ["AWAITING","INVALID"].includes(s.auditResult) && !s.observacaoHostil) && (
           <div className="mb-2 rounded border border-red-500/50 bg-red-500/10 px-2 py-2 text-xs font-black text-red-400">
             ⚠️ FALHA DE RESOLUÇÃO: alerta ativo não resolveu mesmo com número seguinte presente. Ver normalizador.
           </div>
@@ -128,7 +128,7 @@ export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
             <button type="button" className="w-full text-left" onClick={() => setAberto(aberto === s.id ? null : s.id)}>
               <div className="flex items-center justify-between gap-2"><span className="font-black">▸ {s.title}</span><span className="rounded px-2 py-0.5 text-[10px] font-black text-white" style={{ backgroundColor: s.colorCode }}>{PRIORIDADE[s.priority]}</span></div>
               <div className="mt-1 font-semibold">{s.message}</div>
-              <div className="mt-0.5 text-muted-foreground">{s.bip === "timer" ? "BT" : "BR"} · entrada: {s.mainAction} · resultado: {s.auditNumero ?? "—"} · {s.auditResult === "NO_BET" ? "⏸ SEM APOSTA" : s.auditResult === "GREEN" ? "✅ GREEN" : s.auditResult === "RED" ? "❌ RED" : s.auditResult === "INVALID" ? "⚠️ -" : s.auditResult === "PARTIAL" ? "🟡 PARTIAL" : "⏳ AGUARDANDO RESULTADO"}</div>
+              <div className="mt-0.5 text-muted-foreground">{s.bip === "timer" ? "BT" : "BR"} · entrada: {s.mainAction} · resultado: {s.auditNumero ?? "—"} · {s.auditResult === "NO_BET" ? "⏸ SEM APOSTA" : s.auditResult === "NA" ? "n/a" : s.auditResult === "GREEN" ? "✅ GREEN" : s.auditResult === "RED" ? "❌ RED" : s.auditResult === "INVALID" ? "⚠️ -" : s.auditResult === "PARTIAL" ? "🟡 PARTIAL" : "⏳ AGUARDANDO RESULTADO"}</div>
             </button>
             {s.type === "ENTRY_SIGNAL" && !s.observacaoHostil && s.confidence >= 78 && (
               <div className="mt-2 grid grid-cols-2 gap-2">
@@ -141,7 +141,7 @@ export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
               <div><b>Gatilho:</b> {s.sequenceContext ?? s.message}</div>
               <div><b>Entrada:</b> {s.mainAction} · <b>Stake:</b> {s.gale1Stake ? s.gale1Stake.toLocaleString("pt-BR",{style:"currency",currency:"BRL"}) : "—"}</div>
               <div><b>Portão:</b> {s.observacaoHostil ? "👁 OBSERVAÇÃO" : s.gale1Liberado ? "🔓 GALE 1 LIBERADO" : `🔒 GALE 1 BLOQUEADO (${s.motivoHostil})`}</div>
-              <div><b>Resultado:</b> {s.auditResult === "INVALID" ? "-" : s.auditResult === "NO_BET" ? "n/a" : s.auditResult}</div>
+              <div><b>Resultado:</b> {s.auditResult === "INVALID" ? "-" : s.auditResult === "NO_BET" ? "⏸ SEM APOSTA" : s.auditResult === "NA" ? "n/a" : s.auditResult}</div>
               {s.type === "ENTRY_SIGNAL" && !s.observacaoHostil && s.confidence >= 78 && <div className="grid grid-cols-2 gap-2 pt-2">
                 <button type="button" data-alert-action="G" data-alert-id={s.id} className="rounded bg-emerald-500 px-2 py-2 font-black">G · GREEN</button>
                 <button type="button" disabled={!s.gale1Liberado} data-alert-action="G1" data-alert-id={s.id} className="rounded bg-amber-400 px-2 py-2 font-black disabled:opacity-30">G1 · GALE 1</button>
