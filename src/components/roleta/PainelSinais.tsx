@@ -29,6 +29,7 @@ export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
   const [selfTest, setSelfTest] = useState<{ok:boolean;errors:string[]}>(() => autoTestResolver());
   const containerRef = useRef<HTMLUListElement | null>(null);
   const inoperante = sinais.some((s) => s.auditMessage?.includes("AVALIADOR INOPERANTE")) || !selfTest.ok;
+  const modoTexto = inoperante ? "MODO INOPERANTE" : "MODO OPERANTE";
 
   useEffect(() => {
     const onTest = (e: Event) => setSelfTest((e as CustomEvent<{ok:boolean;errors:string[]}>).detail);
@@ -109,7 +110,16 @@ export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
 
   return (
     <section className="rounded-lg border border-border bg-card">
-      <div className="border-b border-border bg-sinal/15 px-3 py-2"><div className={selfTest.ok ? "mb-2 text-[10px] font-black text-emerald-400" : "mb-2 rounded bg-red-500/20 px-2 py-1 text-[10px] font-black text-red-400"}>{selfTest.ok ? "🟢 SELF-TEST 10/10" : `🔴 SELF-TEST FALHOU ${selfTest.errors.length}/10 — ${selfTest.errors.join("; ")}`}</div>{inoperante && <div className="mb-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-2 text-xs font-black text-amber-300">⚠️ AVALIADOR INOPERANTE — resultados suspensos, não opere</div>}
+      <div className="border-b border-border bg-sinal/15 px-3 py-2">
+        <div className="mb-2 flex flex-wrap items-center gap-2 text-[10px] font-black">
+          <span className={selfTest.ok ? "rounded bg-emerald-500/20 px-2 py-1 text-emerald-400" : "rounded bg-red-500/20 px-2 py-1 text-red-400"}>
+            {selfTest.ok ? "🟢 SELF-TEST 10/10" : `🔴 SELF-TEST FALHOU — ${selfTest.errors.join("; ")}`}
+          </span>
+          <span className={inoperante ? "rounded bg-red-500/20 px-2 py-1 text-red-400" : "rounded bg-emerald-500/20 px-2 py-1 text-emerald-400"}>
+            {inoperante ? "MODO INOPERANTE" : "MODO OPERANTE"}
+          </span>
+        </div>
+        {inoperante && <div className="mb-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-2 text-xs font-black text-amber-300">⚠️ AVALIADOR INOPERANTE — resultados suspensos, não opere</div>}
         {sinais.some((s) => s.type === "ENTRY_SIGNAL" && s.numeroSeguinte !== null && ["AWAITING","INVALID"].includes(s.auditResult) && !s.observacaoHostil) && (
           <div className="mb-2 rounded border border-red-500/50 bg-red-500/10 px-2 py-2 text-xs font-black text-red-400">
             ⚠️ FALHA DE RESOLUÇÃO: alerta ativo não resolveu mesmo com número seguinte presente. Ver normalizador.
