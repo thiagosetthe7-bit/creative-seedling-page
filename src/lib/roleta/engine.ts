@@ -42,16 +42,62 @@ function conjuntoCanonico(dimensao: string, valor: string): Set<number> | null {
   return null;
 }
 
-export function normalizarEntradaAvaliador(entrada: string) {
-  const texto = String(entrada ?? "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toUpperCase()
-    .replace(/^\\s*(ENTRAR\\s+EM|ENTRADA\\s*:|SINAL\\s*:|APUESTA\\s+)/, "").replace(/\\s+/g," ").trim();
-  const aliases: Record<string,[string,string]> = {
-    IMPAR:["PI","IMPAR"], PAR:["PI","PAR"], VERMELHO:["COR","VERMELHO"], PRETO:["COR","PRETO"], VERDE:["COR","VERDE"],
-    ALTO:["AB","ALTO"], BAIXO:["AB","BAIXO"], C1:["COLUNA","C1"], C2:["COLUNA","C2"], C3:["COLUNA","C3"],
-    D1:["DUZIA","D1"], D2:["DUZIA","D2"], D3:["DUZIA","D3"], ZERO:["SECAO","ZERO"], TIER:["SECAO","TIER"],
-    VOISINS:["SECAO","VOISINS"], ORFAOS:["SECAO","ORFAOS"], "ORFÃOS":["SECAO","ORFAOS"]
+export type EntradaNormalizada = {
+  dimensao: "COR" | "PARIDADE" | "ALTURA" | "COLUNA" | "DUZIA" | "SECAO" | "CATALOGO";
+  valor: string;
+  categoria: CategoriaId;
+};
+
+export function normalizarEntrada(entradaBruta: string): EntradaNormalizada | null {
+  const stringNormalizada = String(entradaBruta ?? "")
+    .normalize("NFD")
+    .replace(/[\\u0300-\\u036f]/g, "")
+    .toUpperCase()
+    .replace(/^\\s*(ENTRAR\\s+EM\\s+|ENTRADA\\s*:\\s*|SINAL\\s*:\\s*|APUESTA\\s*:\\s*|BET\\s*:\\s*)/, "")
+    .replace(/\\s+/g, " ")
+    .trim();
+
+  const mapaExplicito: Record<string, EntradaNormalizada> = {
+    VERMELHO: { dimensao: "COR", valor: "VERMELHO", categoria: "cor" },
+    PRETO: { dimensao: "COR", valor: "PRETO", categoria: "cor" },
+    PAR: { dimensao: "PARIDADE", valor: "PAR", categoria: "pi" },
+    IMPAR: { dimensao: "PARIDADE", valor: "IMPAR", categoria: "pi" },
+    ALTO: { dimensao: "ALTURA", valor: "ALTO", categoria: "ab" },
+    BAIXO: { dimensao: "ALTURA", valor: "BAIXO", categoria: "ab" },
+    C1: { dimensao: "COLUNA", valor: "C1", categoria: "coluna" },
+    C2: { dimensao: "COLUNA", valor: "C2", categoria: "coluna" },
+    C3: { dimensao: "COLUNA", valor: "C3", categoria: "coluna" },
+    D1: { dimensao: "DUZIA", valor: "D1", categoria: "duzia" },
+    D2: { dimensao: "DUZIA", valor: "D2", categoria: "duzia" },
+    D3: { dimensao: "DUZIA", valor: "D3", categoria: "duzia" },
   };
-  return aliases[texto] ?? null;
+
+  const resultado = mapaExplicito[stringNormalizada];
+  if (resultado) return resultado;
+
+  const catalogo: Array<[string, CategoriaId]> = [
+    ["JUNTO", "tipo"], ["SEPARADO", "tipo"], ["TERMINAL", "terminal"], ["CAVALO", "cavalo"],
+    ["SECAO", "secao"], ["VIZINHOS 0", "g010"], ["0/10", "g010"],
+    ["VIZINHOS 22", "g2234"], ["VIZINHOS 34", "g2234"], ["22/34", "g2234"],
+    ["ESPELHO", "g010"], ["LADO", "secao"], ["RUA", "secao"], ["LINHA", "secao"],
+  ];
+  const catalogoExato = catalogo.find(([label]) => stringNormalizada === label);
+  if (catalogoExato) {
+    return { dimensao: "CATALOGO", valor: catalogoExato[0], categoria: catalogoExato[1] };
+  }
+  for (const [prefixo, categoria] of catalogo) {
+    if (stringNormalizada.startsWith(prefixo + " ")) {
+      return { dimensao: "CATALOGO", valor: stringNormalizada, categoria };
+    }
+  }
+
+  console.error("NORMALIZADOR REJEITOU:", entradaBruta, "->", stringNormalizada);
+  return null;
+}
+
+/** Compatibilidade com chamadas anteriores: o formato interno continua categorizado. */
+export function normalizarEntradaAvaliador(entrada: string) {
+  return normalizarEntrada(entrada);
 }
 
 function avaliarCanonico(dimensao: string, valor: string, numero: number, estado: "APOSTA_ATIVA"|"OBSERVACAO" = "APOSTA_ATIVA"): AvaliadorResultado {
@@ -119,6 +165,23 @@ export function autoTestAvaliador(): AvaliadorBoot {
 }
 
 export const avaliadorBoot: AvaliadorBoot = autoTestAvaliador();
+
+const NORMALIZADOR_BOOT_CASES = [
+  "ENTRAR EM VERMELHO", "VERMELHO", "PRETO", "PAR", "IMPAR", "ÍMPAR",
+  "ALTO", "BAIXO", "C1", "C2", "C3", "D1", "D2", "D3",
+] as const;
+
+export function logDiagnosticoNormalizador() {
+  if (typeof window === "undefined") return;
+  console.log("TESTE NORMALIZADOR:");
+  NORMALIZADOR_BOOT_CASES.forEach((str) => {
+    console.log(`  "${str}" ->`, normalizarEntrada(str));
+  });
+}
+
+if (typeof window !== "undefined") {
+  logDiagnosticoNormalizador();
+}
 
 export interface Spin {
   id: string;
@@ -524,40 +587,6 @@ function classificarRegime(spins: Spin[], bips: MapaBips, index: number) {
   return { regimeClassificado: motivo === "nenhum" ? "LIMPA" as const : "HOSTIL" as const, motivoHostil: motivo as MotivoHostil };
 }
 
-function normalizarEntrada(entrada: string) {
-  let texto = String(entrada ?? "")
-    .normalize("NFD")
-    .replace(/[\\u0300-\\u036f]/g, "")
-    .toUpperCase()
-    .replace(/^\\s*(ENTRAR\\s+EM|ENTRADA\\s*:|SINAL\\s*:|APUESTA\\s+)/, "")
-    .replace(/\\s+/g, " ")
-    .trim();
-
-  const aliases: Array<[string, string, CategoriaId]> = [
-    ["IMPAR", "IMPAR", "pi"], ["PAR", "PAR", "pi"],
-    ["VERMELHO", "VERMELHO", "cor"], ["PRETO", "PRETO", "cor"], ["VERDE", "VERDE", "cor"],
-    ["ALTO", "ALTO", "ab"], ["BAIXO", "BAIXO", "ab"],
-    ["C1", "C1", "coluna"], ["C2", "C2", "coluna"], ["C3", "C3", "coluna"],
-    ["D1", "D1", "duzia"], ["D2", "D2", "duzia"], ["D3", "D3", "duzia"],
-    ["JUNTO", "JUNTO", "tipo"], ["SEPARADO", "SEPARADO", "tipo"],
-  ];
-
-  const exact = aliases.find(([label]) => texto === label);
-  if (exact) return { categoria: exact[2], valor: exact[1] };
-
-  const categoriaAliases: Array<[string, CategoriaId]> = [
-    ["TERMINAL", "terminal"], ["CAVALO", "cavalo"], ["TIPO", "tipo"],
-    ["SECAO", "secao"], ["VIZINHOS 0", "g010"], ["0/10", "g010"],
-    ["VIZINHOS 22", "g2234"], ["VIZINHOS 34", "g2234"], ["22/34", "g2234"],
-    ["ESPELHO", "g010"], ["LADO", "secao"], ["RUA", "secao"], ["LINHA", "secao"],
-  ];
-  for (const [prefix, categoria] of categoriaAliases) {
-    if (texto.startsWith(prefix + " ")) return { categoria, valor: texto };
-  }
-
-  return null;
-}
-
 function entradaCanonicaDoSinal(sinal: Sinal) {
   const raw = sinal.mainAction;
   const normalizada = normalizarEntrada(raw);
@@ -651,9 +680,25 @@ export function autoTestResolver(): { ok: boolean; errors: string[] } {
   if (!resolved || resolved.auditResult !== "GREEN" || resolved.auditNumero !== 12) errors.push("resolverPendentes não resolveu o próximo giro");
 
   // T10 do pipeline: o normalizador precisa reconhecer todas as entradas operacionais.
-  const aliases = ["ENTRAR EM VERMELHO","VERMELHO","PRETO","PAR","IMPAR","ÍMPAR","ALTO","BAIXO","C1","C2","C3","D1","D2","D3"];
+  const aliases = [...NORMALIZADOR_BOOT_CASES];
   for (const raw of aliases) {
-    if (!normalizarEntrada(raw)) errors.push("normalizador rejeitou: " + raw);
+    const normalizado = normalizarEntrada(raw);
+    if (!normalizado) errors.push(`normalizador rejeitou "${raw}"`);
+  }
+
+  if (typeof window !== "undefined") {
+    console.log("SELF-TEST RESULTADO:");
+    const selfTestCases: Array<[string, number, AvaliadorResultado]> = [
+      ["VERMELHO", 12, "GREEN"], ["VERMELHO", 1, "GREEN"], ["IMPAR", 33, "GREEN"],
+      ["PAR", 4, "GREEN"], ["ALTO", 36, "GREEN"], ["BAIXO", 2, "GREEN"],
+      ["PRETO", 2, "GREEN"], ["C3", 33, "GREEN"],
+      ["VERMELHO", 28, "RED"], ["PAR", 33, "RED"],
+    ];
+    selfTestCases.forEach(([entrada, numero, esperado], i) => {
+      const normalizado = normalizarEntrada(entrada);
+      const resultado = avaliarEntrada(normalizado, numero, "APOSTA_ATIVA");
+      console.log(`  Caso ${i + 1}: "${entrada}" + ${numero} -> ${resultado} (esperado: ${esperado})`);
+    });
   }
 
   return { ok: errors.length === 0 && avaliadorBoot.ok, errors: [...avaliadorBoot.errors, ...errors] };
@@ -772,13 +817,6 @@ export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
         },
       };
     }
-    const dimensaoCanonica = entrada.categoria === "pi" ? "PI"
-      : entrada.categoria === "cor" ? "COR"
-      : entrada.categoria === "ab" ? "AB"
-      : entrada.categoria === "coluna" ? "COLUNA"
-      : entrada.categoria === "duzia" ? "DUZIA"
-      : entrada.categoria === "secao" ? "SECAO"
-      : entrada.categoria.toUpperCase();
     const veredito = avaliarEntrada(entrada, atual.numero, "APOSTA_ATIVA");
     if (veredito === "NA") {
       return { ...sinal, status:"CANCELADO", auditResult:"NA", auditColor:"#6c757d", auditMessage:"n/a — OBSERVAÇÃO / stake 0", auditTimestamp:atual.timestamp, auditSpinId:atual.id, auditNumero:null, auditClasse:classeNumero(atual.numero), auditResultPayload:{target_signal_id:sinal.id,previous_bip_row_index:sinal.rodada,current_number:null,verdict:"NA",reason:"OBSERVAÇÃO/stake 0 não participa da auditoria.",ui_update:{row_color:"#6c757d",badge_text:"n/a",panel_status:"NA"}}};
