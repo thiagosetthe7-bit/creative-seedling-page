@@ -51,9 +51,9 @@ export type EntradaNormalizada = {
 export function normalizarEntrada(entradaBruta: string): EntradaNormalizada | null {
   const stringNormalizada = String(entradaBruta ?? "")
     .normalize("NFD")
-    .replace(/[\\u0300-\\u036f]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toUpperCase()
-    .replace(/^\\s*(ENTRAR\\s+EM\\s+|ENTRADA\\s*:\\s*|SINAL\\s*:\\s*|APUESTA\\s*:\\s*|BET\\s*:\\s*)/, "")
+    .replace(/^\s*(ENTRAR\\s+EM\\s+|ENTRADA\\s*:\\s*|SINAL\\s*:\\s*|APUESTA\\s*:\\s*|BET\\s*:\\s*)/, "")
     .replace(/\\s+/g, " ")
     .trim();
 
@@ -686,9 +686,9 @@ export function autoTestResolver(): { ok: boolean; errors: string[] } {
     if (!normalizado) {
       const limpo = String(raw ?? "")
         .normalize("NFD")
-        .replace(/[\\u0300-\\u036f]/g, "")
+        .replace(/[\u0300-\u036f]/g, "")
         .toUpperCase()
-        .replace(/^\\s*(ENTRAR\\s+EM\\s+|ENTRADA\\s*:\\s*|SINAL\\s*:\\s*|APUESTA\\s*:\\s*|BET\\s*:\\s*)/, "")
+        .replace(/^\s*(ENTRAR\\s+EM\\s+|ENTRADA\\s*:\\s*|SINAL\\s*:\\s*|APUESTA\\s*:\\s*|BET\\s*:\\s*)/, "")
         .replace(/\\s+/g, " ")
         .trim();
       errors.push(`normalizador rejeitou '${raw}' (normalizado: '${limpo}')`);
