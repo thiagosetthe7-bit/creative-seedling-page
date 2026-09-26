@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { analisarBips, auditarSinais, calcularEstatisticas, type Sinal } from "./engine";
+import { analisarBips, resolverPendentes, calcularEstatisticas, autoTestResolver, type Sinal } from "./engine";
 import { acoes, useEstado } from "./store";
 
 export function useSinais() {
@@ -8,7 +8,7 @@ export function useSinais() {
 
   const resultado = useMemo(() => {
     const brutos = analisarBips(estado.spins, estado.bips);
-    const auditados = auditarSinais(brutos, estado.spins);
+    const auditados = resolverPendentes(brutos, estado.spins);
     const sinais: Sinal[] = auditados.map((s) => {
       const persistido = estado.auditoriaLog[s.id];
       if (persistido && persistido.status !== "AGUARDANDO_RESULTADO") {
@@ -29,6 +29,11 @@ export function useSinais() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // W5: pipeline real no boot. O resultado é exposto ao UI sem alterar estratégias.
+    const boot = autoTestResolver();
+    window.dispatchEvent(new CustomEvent("roleta:self-test", { detail: boot }));
+    if (!boot.ok) window.dispatchEvent(new CustomEvent("roleta:resolver-failure", { detail: boot.errors }));
+
 
     // Backfill automático: sempre que um próximo giro real já existir, o
     // resultado calculado pelo avaliador único deixa de ser AGUARDANDO.
