@@ -197,11 +197,14 @@ export function GerenciadorBanca() {
       if (typeof detail?.isWin === "boolean") registerResult(detail.isWin);
     };
     const galeHandler = () => registerGale1Green();
+    const failureGaleHandler = () => registerGale1Failure();
     window.addEventListener("roleta:banca-result", handler);
     window.addEventListener("roleta:banca-gale1", galeHandler);
+    window.addEventListener("roleta:banca-falha-gale1", failureGaleHandler);
     return () => {
       window.removeEventListener("roleta:banca-result", handler);
       window.removeEventListener("roleta:banca-gale1", galeHandler);
+      window.removeEventListener("roleta:banca-falha-gale1", failureGaleHandler);
     };
   }, [state, latestOperationalSignal]);
 
@@ -250,6 +253,37 @@ export function GerenciadorBanca() {
         },
         ...s.history,
       ],
+    }));
+  }
+
+  function registerGale1Failure() {
+    if (state.martingaleLevel !== 2) return;
+    const stake = calculateSmartStake({ ...state, martingaleLevel: 2 }, latestOperationalSignal);
+    const loss = stake * 2;
+    const bankAfter = state.currentBank - loss - (state.accumulatedLoss || 0);
+    registrarResultadoGale1Calibracao(true, true);
+    setState((s) => ({
+      ...s,
+      currentBank: bankAfter,
+      accumulatedLoss: 0,
+      martingaleLevel: 1,
+      history: [{
+        id: s.history.length + 1,
+        strategy: latestOperationalSignal?.title ?? s.nextStrategyName,
+        stake,
+        result: -loss,
+        bankAfter,
+        isWin: false,
+        signalId: latestOperationalSignal?.id,
+        regimeClassificado: latestOperationalSignal?.regimeClassificado,
+        motivoHostil: latestOperationalSignal?.motivoHostil,
+        gale1Liberado: true,
+        gale1Usado: true,
+        gale1Resultado: "RED",
+        desfechoSequencia: "FALHA_GALE1",
+        unidadesLiquidasSequencia: -3,
+        recordedAt: Date.now(),
+      }, ...s.history],
     }));
   }
 
