@@ -145,7 +145,9 @@ export const acoes = {
       if (tipo) bips[spin.id] = tipo;
       const pendentes = { ...e.pendentes };
       if (tipo) delete pendentes[numero];
-      return { ...e, spins: [...e.spins, spin], bips, pendentes };
+      const novoEstado = { ...e, spins: [...e.spins, spin], bips, pendentes };
+      if (typeof window !== "undefined") queueMicrotask(() => window.dispatchEvent(new CustomEvent("roleta:catalogo-atualizado")));
+      return novoEstado;
     });
   },
   adicionarVarios(numeros: number[]) {
@@ -160,7 +162,9 @@ export const acoes = {
         }
         return spin;
       });
-      return { ...e, spins: [...e.spins, ...novos], bips, pendentes };
+      const novoEstado = { ...e, spins: [...e.spins, ...novos], bips, pendentes };
+      if (typeof window !== "undefined") queueMicrotask(() => window.dispatchEvent(new CustomEvent("roleta:catalogo-atualizado")));
+      return novoEstado;
     });
   },
   desfazer() {
