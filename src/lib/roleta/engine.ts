@@ -53,7 +53,7 @@ export function normalizarEntrada(entradaBruta: string): EntradaNormalizada | nu
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toUpperCase()
-    .replace(/^\s*(ENTRAR\\s+EM\\s+|ENTRADA\\s*:\\s*|SINAL\\s*:\\s*|APUESTA\\s*:\\s*|BET\\s*:\\s*)/, "")
+    .replace(/^\s*(ENTRAR\s+EM\s+|ENTRADA\s*:\s*|SINAL\s*:\s*|APUESTA\s*:\s*|BET\s*:\s*)/, "")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -688,8 +688,8 @@ export function autoTestResolver(): { ok: boolean; errors: string[] } {
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .toUpperCase()
-        .replace(/^\s*(ENTRAR\\s+EM\\s+|ENTRADA\\s*:\\s*|SINAL\\s*:\\s*|APUESTA\\s*:\\s*|BET\\s*:\\s*)/, "")
-        .replace(/\\s+/g, " ")
+        .replace(/^\s*(ENTRAR\s+EM\s+|ENTRADA\s*:\s*|SINAL\s*:\s*|APUESTA\s*:\s*|BET\s*:\s*)/, "")
+        .replace(/\s+/g, " ")
         .trim();
       errors.push(`normalizador rejeitou '${raw}' (normalizado: '${limpo}')`);
     }
