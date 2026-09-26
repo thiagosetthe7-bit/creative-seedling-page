@@ -683,7 +683,16 @@ export function autoTestResolver(): { ok: boolean; errors: string[] } {
   const aliases = [...NORMALIZADOR_BOOT_CASES];
   for (const raw of aliases) {
     const normalizado = normalizarEntrada(raw);
-    if (!normalizado) errors.push(`normalizador rejeitou "${raw}"`);
+    if (!normalizado) {
+      const limpo = String(raw ?? "")
+        .normalize("NFD")
+        .replace(/[\\u0300-\\u036f]/g, "")
+        .toUpperCase()
+        .replace(/^\\s*(ENTRAR\\s+EM\\s+|ENTRADA\\s*:\\s*|SINAL\\s*:\\s*|APUESTA\\s*:\\s*|BET\\s*:\\s*)/, "")
+        .replace(/\\s+/g, " ")
+        .trim();
+      errors.push(`normalizador rejeitou '${raw}' (normalizado: '${limpo}')`);
+    }
   }
 
   if (typeof window !== "undefined") {
