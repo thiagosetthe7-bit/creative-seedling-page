@@ -637,6 +637,13 @@ export function autoTestResolver(): { ok: boolean; errors: string[] } {
     observacaoHostil:false, gale1Stake:1 } as Sinal;
   const resolved = resolverPendentes([sint], [s1,s2])[0];
   if (!resolved || resolved.auditResult !== "GREEN" || resolved.auditNumero !== 12) errors.push("resolverPendentes não resolveu o próximo giro");
+
+  // T10 do pipeline: o normalizador precisa reconhecer todas as entradas operacionais.
+  const aliases = ["ENTRAR EM VERMELHO","VERMELHO","PRETO","PAR","IMPAR","ÍMPAR","ALTO","BAIXO","C1","C2","C3","D1","D2","D3"];
+  for (const raw of aliases) {
+    if (!normalizarEntrada(raw)) errors.push("normalizador rejeitou: " + raw);
+  }
+
   return { ok: errors.length === 0 && avaliadorBoot.ok, errors: [...avaliadorBoot.errors, ...errors] };
 }
 
