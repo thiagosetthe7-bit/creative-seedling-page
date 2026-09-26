@@ -1,4 +1,5 @@
 import { gerarLogAuditoriaCSV, type Sinal } from "@/lib/roleta/engine";
+import { acoes } from "@/lib/roleta/store";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const PRIORIDADE: Record<Sinal["priority"], string> = {
@@ -47,11 +48,15 @@ export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
       const sinal = sinais.find((s) => s.id === id);
       if (!sinal) return;
       if (action === "G") {
+        acoes.marcarVisto(id);
         window.dispatchEvent(new CustomEvent("roleta:banca-result", { detail: { isWin: true, signalId: id, source: "alert-row" } }));
+        window.dispatchEvent(new CustomEvent("roleta:fechar-popup", { detail: { signalId: id } }));
         button.classList.add("ring-2");
         setTimeout(() => button.classList.remove("ring-2"), 250);
       } else if (action === "G1" && sinal.gale1Liberado) {
+        acoes.marcarVisto(id);
         window.dispatchEvent(new CustomEvent("roleta:banca-gale1", { detail: { signalId: id, source: "alert-row" } }));
+        window.dispatchEvent(new CustomEvent("roleta:fechar-popup", { detail: { signalId: id } }));
         button.classList.add("ring-2");
         setTimeout(() => button.classList.remove("ring-2"), 250);
       }
@@ -105,8 +110,8 @@ export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
               <div><b>Portão:</b> {s.observacaoHostil ? "👁 OBSERVAÇÃO" : s.gale1Liberado ? "🔓 GALE 1 LIBERADO" : `🔒 GALE 1 BLOQUEADO (${s.motivoHostil})`}</div>
               <div><b>Resultado:</b> {s.auditResult === "INVALID" ? "-" : s.auditResult === "NO_BET" ? "n/a" : s.auditResult}</div>
               {s.type === "ENTRY_SIGNAL" && !s.observacaoHostil && s.confidence >= 78 && <div className="grid grid-cols-2 gap-2 pt-2">
-                <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("roleta:banca-result", { detail: { isWin: true } }))} className="rounded bg-emerald-500 px-2 py-2 font-black">G · GREEN</button>
-                <button type="button" disabled={!s.gale1Liberado} onClick={() => window.dispatchEvent(new CustomEvent("roleta:banca-gale1"))} className="rounded bg-amber-400 px-2 py-2 font-black disabled:opacity-30">G1 · GALE 1</button>
+                <button type="button" data-alert-action="G" data-alert-id={s.id} className="rounded bg-emerald-500 px-2 py-2 font-black">G · GREEN</button>
+                <button type="button" disabled={!s.gale1Liberado} data-alert-action="G1" data-alert-id={s.id} className="rounded bg-amber-400 px-2 py-2 font-black disabled:opacity-30">G1 · GALE 1</button>
               </div>}
             </div>}
           </li>
