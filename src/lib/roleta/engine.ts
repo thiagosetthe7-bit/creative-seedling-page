@@ -619,7 +619,10 @@ export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
       return { ...sinal, status: "CANCELADO", auditResult: "INVALID", auditColor: "#f59e0b", auditMessage: "⚠️ AVALIADOR INOPERANTE — resultados suspensos, não opere", auditTimestamp: atual.timestamp, auditSpinId: atual.id, auditNumero: null,
         auditResultPayload: { target_signal_id:sinal.id, previous_bip_row_index:sinal.rodada, current_number:null, verdict:"INVALID", reason:"Auto-teste do avaliador falhou: "+avaliadorBoot.errors.join("; "), ui_update:{row_color:"#f59e0b",badge_text:"-",panel_status:"INOPERANTE"} } };
     }
-    if (sinal.observacaoHostil || sinal.gale1Stake === 0 && sinal.type === "ENTRY_SIGNAL" && sinal.confidence >= 78) {
+    // OBSERVAÇÃO é definida pelo estado estratégico, nunca pelo valor de gale1Stake.
+    // gale1Stake pode ser 0 antes de uma dobra e isso NÃO transforma a entrada ativa em
+    // "sem aposta". Só sinais explicitamente rebaixados ficam fora da auditoria.
+    if (sinal.observacaoHostil) {
       return { ...sinal, status:"CANCELADO", auditResult:"NO_BET", auditColor:"#6c757d", auditMessage:"n/a — OBSERVAÇÃO / stake 0", auditTimestamp:atual.timestamp, auditSpinId:atual.id, auditNumero:null, auditClasse:classeNumero(atual.numero), auditResultPayload:{target_signal_id:sinal.id,previous_bip_row_index:sinal.rodada,current_number:null,verdict:"NO_BET",reason:"OBSERVAÇÃO/stake 0 não participa da auditoria.",ui_update:{row_color:"#6c757d",badge_text:"n/a",panel_status:"NO_BET"}}};
     }
     const c = classificar(atual.numero);
@@ -670,9 +673,9 @@ export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
       };
     }
 
-    // Regra de ouro: GREEN somente quando o número sorteado pertence ao conjunto da entrada.
-    const pertence = entradaPertenceAoNumero(sinal, atual.numero);
-    if (pertence === null) {
+    // Único juiz: toda aposta ativa é resolvida pela função canônica avaliar().
+    const entrada = entradaCanonicaDoSinal(sinal);
+    if (!entrada) {
       return {
         ...sinal,
         status: "CANCELADO",
@@ -693,8 +696,40 @@ export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
         },
       };
     }
-    result = pertence ? "GREEN" : "RED";
-    reason = pertence
+    const dimensaoCanonica = entrada.categoria === "pi" ? "PI"
+      : entrada.categoria === "cor" ? "COR"
+      : entrada.categoria === "ab" ? "AB"
+      : entrada.categoria === "coluna" ? "COLUNA"
+      : entrada.categoria === "duzia" ? "DUZIA"
+      : entrada.categoria === "secao" ? "SECAO"
+      : entrada.categoria.toUpperCase();
+    const veredito = avaliar(dimensaoCanonica, entrada.valor, atual.numero, "APOSTA_ATIVA");
+    if (veredito === "INOPERANTE") {
+      return { ...sinal, status:"CANCELADO", auditResult:"INVALID", auditColor:"#f59e0b", auditMessage:"⚠️ AVALIADOR INOPERANTE — resultados suspensos, não opere", auditTimestamp:atual.timestamp, auditSpinId:atual.id, auditNumero:null, auditClasse:classeNumero(atual.numero), auditResultPayload:{target_signal_id:sinal.id,previous_bip_row_index:sinal.rodada,current_number:null,verdict:"INVALID",reason:"Auto-teste do avaliador falhou.",ui_update:{row_color:"#f59e0b",badge_text:"-",panel_status:"INOPERANTE"}}};
+    }
+    if (veredito === "INVALID") {
+      return {
+        ...sinal,
+        status: "CANCELADO",
+        auditResult: "INVALID",
+        auditColor: "#f59e0b",
+        auditMessage: "⚠️ ENTRADA NÃO RECONHECIDA",
+        auditTimestamp: atual.timestamp,
+        auditSpinId: atual.id,
+        auditNumero: null,
+        auditClasse: classeNumero(atual.numero),
+        auditResultPayload: {
+          target_signal_id: sinal.id,
+          previous_bip_row_index: sinal.rodada,
+          current_number: null,
+          verdict: "INVALID",
+          reason: "A entrada não pôde ser normalizada para uma dimensão e valor canônicos.",
+          ui_update: { row_color: "#f59e0b", badge_text: "⚠️ ENTRADA NÃO RECONHECIDA", panel_status: "INVALID" },
+        },
+      };
+    }
+    result = veredito === "GREEN" ? "GREEN" : "RED";
+    reason = result === "GREEN"
       ? `Entrada ${sinal.mainAction} contém o número ${atual.numero}.`
       : `Número ${atual.numero} não pertence à entrada ${sinal.mainAction}.`;
 
