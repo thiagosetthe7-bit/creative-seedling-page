@@ -84,7 +84,20 @@ export function avaliarEntrada(
     : entradaNormalizada.categoria === "duzia" ? "DUZIA"
     : entradaNormalizada.categoria === "secao" ? "SECAO"
     : entradaNormalizada.categoria.toUpperCase();
-  return avaliarCanonico(dimensao, entradaNormalizada.valor, numero, "APOSTA_ATIVA");
+  const canonicas = ["PI", "COR", "AB", "COLUNA", "DUZIA", "SECAO"];
+  if (canonicas.includes(dimensao)) {
+    return avaliarCanonico(dimensao, entradaNormalizada.valor, numero, "APOSTA_ATIVA");
+  }
+
+  // Dimensões de catálogo continuam sendo resolvidas pela classificação da linha,
+  // nunca por um conjunto inventado para a tela.
+  if (numero === 0) return "NO_BET";
+  const classificacao = classificar(numero) as Record<string, string>;
+  const valor = String(entradaNormalizada.valor).toUpperCase();
+  const categoria = entradaNormalizada.categoria;
+  const atual = classificacao[categoria];
+  if (atual === undefined) return "INVALID";
+  return String(atual).toUpperCase() === valor ? "GREEN" : "RED";
 }
 
 export function autoTestAvaliador(): AvaliadorBoot {
@@ -600,8 +613,7 @@ function classeNumero(numero: number) {
  * Auditoria automática do giro seguinte.
  *
  * Cada sinal nasce no giro do BIP e é resolvido assim que o próximo número
- * é catalogado. Um sinal ainda sem giro seguinte permanece PENDENTE; depois
- * de dois giros sem resolução possível, torna-se NEUTRAL.
+ * é catalogado. Sem próximo giro real, permanece AWAITING.
  */
 /** Resolver explícito: o próximo giro existente NUNCA pode permanecer aguardando. */
 export function resolverPendentes(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
