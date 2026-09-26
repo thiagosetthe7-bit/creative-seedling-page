@@ -1,4 +1,4 @@
-import { gerarLogAuditoriaCSV, type Sinal } from "@/lib/roleta/engine";
+import { autoTestResolver, gerarLogAuditoriaCSV, type Sinal } from "@/lib/roleta/engine";
 import { acoes } from "@/lib/roleta/store";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -26,7 +26,7 @@ export function StatusTag({ status }: { status: string }) {
 
 export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
   const [aberto, setAberto] = useState<string | null>(null);
-  const [selfTest, setSelfTest] = useState<{ok:boolean;errors:string[]}>({ ok:true, errors:[] });
+  const [selfTest, setSelfTest] = useState<{ok:boolean;errors:string[]}>(() => autoTestResolver());
   const containerRef = useRef<HTMLUListElement | null>(null);
   const inoperante = sinais.some((s) => s.auditMessage?.includes("AVALIADOR INOPERANTE")) || !selfTest.ok;
 
@@ -41,6 +41,11 @@ export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
     if (!el) return;
     const onClick = (event: Event) => {
       const target = event.target as HTMLElement;
+      const selfTestButton = target.closest<HTMLButtonElement>("[data-alert-self-test]");
+      if (selfTestButton) {
+        window.dispatchEvent(new CustomEvent("roleta:delegation-self-test", { detail: true }));
+        return;
+      }
       const button = target.closest<HTMLButtonElement>("[data-alert-action][data-alert-id]");
       if (!button || button.disabled) return;
       const id = button.dataset.alertId;
@@ -62,7 +67,30 @@ export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
       }
     };
     el.addEventListener("click", onClick);
-    return () => el.removeEventListener("click", onClick);
+    const onDelegationTest = () => setSelfTest((current) => current.ok ? current : current);
+    window.addEventListener("roleta:delegation-self-test", onDelegationTest);
+
+    const probe = document.createElement("button");
+    probe.type = "button";
+    probe.dataset.alertSelfTest = "1";
+    probe.hidden = true;
+    el.appendChild(probe);
+    let delegationPassed = false;
+    const markPassed = () => { delegationPassed = true; };
+    window.addEventListener("roleta:delegation-self-test", markPassed);
+    probe.click();
+    const timer = window.setTimeout(() => {
+      if (!delegationPassed) setSelfTest((current) => ({ ok:false, errors:[...current.errors, "G/G1 event delegation"] }));
+      probe.remove();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("roleta:delegation-self-test", onDelegationTest);
+      window.removeEventListener("roleta:delegation-self-test", markPassed);
+      el.removeEventListener("click", onClick);
+      probe.remove();
+    };
   }, [sinais]);
 
   const ultimos = [...sinais].reverse().slice(0, 16);
@@ -82,6 +110,11 @@ export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
   return (
     <section className="rounded-lg border border-border bg-card">
       <div className="border-b border-border bg-sinal/15 px-3 py-2"><div className={selfTest.ok ? "mb-2 text-[10px] font-black text-emerald-400" : "mb-2 rounded bg-red-500/20 px-2 py-1 text-[10px] font-black text-red-400"}>{selfTest.ok ? "🟢 SELF-TEST 10/10" : `🔴 SELF-TEST FALHOU ${selfTest.errors.length}/10 — ${selfTest.errors.join("; ")}`}</div>{inoperante && <div className="mb-2 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-2 text-xs font-black text-amber-300">⚠️ AVALIADOR INOPERANTE — resultados suspensos, não opere</div>}
+        {sinais.some((s) => s.type === "ENTRY_SIGNAL" && s.numeroSeguinte !== null && ["AWAITING","NO_BET"].includes(s.auditResult) && !s.observacaoHostil) && (
+          <div className="mb-2 rounded border border-red-500/50 bg-red-500/10 px-2 py-2 text-xs font-black text-red-400">
+            ⚠️ FALHA DE RESOLUÇÃO: alerta ativo não resolveu mesmo com número seguinte presente. Ver normalizador.
+          </div>
+        )}
         <div className="flex items-center justify-between gap-2"><h2 className="text-xs font-black tracking-widest text-sinal">ALERTAS BIP</h2><button type="button" onClick={exportarCSV} className="rounded border border-border px-2 py-1 text-[10px] font-bold text-muted-foreground hover:text-foreground">EXPORTAR CSV</button></div>
       </div>
       <ul ref={containerRef} className="max-h-[520px] divide-y divide-border overflow-auto">
