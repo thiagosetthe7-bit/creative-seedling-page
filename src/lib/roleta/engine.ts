@@ -646,9 +646,181 @@ function classeNumero(numero: number) {
  */
 /** Resolver explícito: o próximo giro existente NUNCA pode permanecer aguardando. */
 export function resolverPendentes(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
-  return auditarSinais(sinais, spinsEntrada);
+  const spins = spinsEntrada.map(comRodadas);
+
+  return sinais.map((sinal) => {
+    // Sinal já resolvido: nunca recalcular nem sobrescrever o histórico.
+    if (sinal.auditResult === "GREEN" || sinal.auditResult === "RED" || sinal.auditResult === "PARTIAL") {
+      return sinal;
+    }
+
+    const origemIndex = spins.findIndex((spin) => spin.id === sinal.spinId);
+    if (origemIndex < 0) return sinal;
+
+    // O resultado só existe quando o próximo giro REAL foi catalogado.
+    const proximo = spins[origemIndex + 1];
+    if (!proximo) {
+      return {
+        ...sinal,
+        auditResult: "AWAITING",
+        auditNumero: null,
+        auditSpinId: null,
+        auditTimestamp: null,
+        auditResultPayload: {
+          ...sinal.auditResultPayload,
+          current_number: null,
+          verdict: "AWAITING",
+          reason: "Sinal pendente: aguardando o próximo giro real.",
+          ui_update: {
+            row_color: "#6c757d",
+            badge_text: "⏳ AGUARDANDO",
+            panel_status: "AWAITING",
+          },
+        },
+      };
+    }
+
+    // Observação/pausa/zero não são apostas e não devem ser transformados em GREEN/RED.
+    if (sinal.observacaoHostil) {
+      return {
+        ...sinal,
+        status: "CANCELADO",
+        auditResult: "NA",
+        auditNumero: null,
+        auditSpinId: proximo.id,
+        auditTimestamp: proximo.timestamp,
+        auditResultPayload: {
+          ...sinal.auditResultPayload,
+          current_number: null,
+          verdict: "NA",
+          reason: "OBSERVAÇÃO/stake 0 não participa da auditoria.",
+          ui_update: { row_color: "#6c757d", badge_text: "n/a", panel_status: "NA" },
+        },
+      };
+    }
+
+    if (sinal.type === "PAUSE" || proximo.numero === 0) {
+      return {
+        ...sinal,
+        status: "CANCELADO",
+        auditResult: "NO_BET",
+        auditNumero: null,
+        auditSpinId: sinal.type === "PAUSE" ? null : proximo.id,
+        auditTimestamp: sinal.type === "PAUSE" ? null : proximo.timestamp,
+        auditResultPayload: {
+          ...sinal.auditResultPayload,
+          current_number: null,
+          verdict: "NO_BET",
+          reason: sinal.type === "PAUSE"
+            ? "PAUSA/BLOQUEIO: nenhum resultado de aposta deve ser contabilizado."
+            : "ZERO: giro não pontua e não é consumido como resultado de aposta.",
+          ui_update: { row_color: "#6c757d", badge_text: "⏸ SEM APOSTA", panel_status: "NO_BET" },
+        },
+      };
+    }
+
+    const entrada = entradaCanonicaDoSinal(sinal);
+    if (!entrada) {
+      return {
+        ...sinal,
+        status: "CANCELADO",
+        auditResult: "INVALID",
+        auditNumero: null,
+        auditSpinId: proximo.id,
+        auditTimestamp: proximo.timestamp,
+        auditMessage: "⚠️ ENTRADA NÃO RECONHECIDA",
+        auditResultPayload: {
+          ...sinal.auditResultPayload,
+          current_number: null,
+          verdict: "INVALID",
+          reason: "A entrada não pôde ser normalizada para uma dimensão e valor canônicos.",
+          ui_update: {
+            row_color: "#f59e0b",
+            badge_text: "⚠️ ENTRADA NÃO RECONHECIDA",
+            panel_status: "INVALID",
+          },
+        },
+      };
+    }
+
+    // ÚNICO JUIZ: toda aposta ativa passa pelo avaliador canônico.
+    const veredito = avaliarEntrada(entrada, proximo.numero, "APOSTA_ATIVA");
+
+    if (veredito === "INOPERANTE") {
+      return {
+        ...sinal,
+        status: "CANCELADO",
+        auditResult: "INVALID",
+        auditNumero: null,
+        auditSpinId: proximo.id,
+        auditTimestamp: proximo.timestamp,
+        auditMessage: "⚠️ AVALIADOR INOPERANTE — resultados suspensos, não opere",
+        auditResultPayload: {
+          ...sinal.auditResultPayload,
+          current_number: null,
+          verdict: "INVALID",
+          reason: "Auto-teste do avaliador falhou.",
+          ui_update: { row_color: "#f59e0b", badge_text: "-", panel_status: "INOPERANTE" },
+        },
+      };
+    }
+
+    if (veredito === "INVALID" || veredito === "NA" || veredito === "NO_BET") {
+      return {
+        ...sinal,
+        status: "CANCELADO",
+        auditResult: veredito === "NA" ? "NA" : "NO_BET",
+        auditNumero: null,
+        auditSpinId: proximo.id,
+        auditTimestamp: proximo.timestamp,
+        auditResultPayload: {
+          ...sinal.auditResultPayload,
+          current_number: null,
+          verdict: veredito === "NA" ? "NA" : "NO_BET",
+          reason: veredito === "NA"
+            ? "OBSERVAÇÃO/stake 0 não participa da auditoria."
+            : "Resultado não é uma aposta pontuável.",
+          ui_update: {
+            row_color: "#6c757d",
+            badge_text: veredito === "NA" ? "n/a" : "⏸ SEM APOSTA",
+            panel_status: veredito === "NA" ? "NA" : "NO_BET",
+          },
+        },
+      };
+    }
+
+    const resultado: ResultadoAuditoria = veredito === "GREEN" ? "GREEN" : "RED";
+    const c = classificar(proximo.numero);
+    const descricao = proximo.numero === 0 ? "ZERO" : `${c.ab}, ${c.coluna}, ${c.duzia}`;
+
+    return {
+      ...sinal,
+      status: resultado === "GREEN" ? "WIN" : "RED",
+      auditResult: resultado,
+      auditColor: resultado === "GREEN" ? "#28a745" : "#dc3545",
+      auditMessage: `Resultado: ${proximo.numero} (${descricao})`,
+      auditTimestamp: proximo.timestamp,
+      auditSpinId: proximo.id,
+      auditNumero: proximo.numero,
+      auditClasse: descricao,
+      auditResultPayload: {
+        ...sinal.auditResultPayload,
+        current_number: proximo.numero,
+        verdict: resultado,
+        reason: resultado === "GREEN"
+          ? `Entrada ${sinal.mainAction} contém o número ${proximo.numero}.`
+          : `Número ${proximo.numero} não pertence à entrada ${sinal.mainAction}.`,
+        ui_update: {
+          row_color: resultado === "GREEN" ? "#28a745" : "#dc3545",
+          badge_text: resultado === "GREEN" ? "✅ GREEN" : "❌ RED",
+          panel_status: resultado,
+        },
+      },
+    };
+  });
 }
 
+/** Compatibilidade: chamadas antigas continuam usando exatamente o mesmo resolver. */
 /** Smoke-test do pipeline real de resolução usado no boot e após cada catálogo. */
 export function autoTestResolver(): { ok: boolean; errors: string[] } {
   const errors: string[] = [];
