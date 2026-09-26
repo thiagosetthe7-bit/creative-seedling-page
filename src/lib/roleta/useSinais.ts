@@ -28,57 +28,59 @@ export function useSinais() {
   }, [estado]);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && !window.localStorage.getItem(REPROCESS_KEY)) {
-      const historico = Object.values(estado.auditoriaLog);
-      for (const s of resultado.sinais) {
-        const antigo = estado.auditoriaLog[s.id];
-        if (!antigo) continue;
-        if (s.auditResult === "GREEN" || s.auditResult === "RED") {
-          acoes.reprocessarAuditoria({
+    if (typeof window === "undefined") return;
+
+    // Backfill automático: sempre que um próximo giro real já existir, o
+    // resultado calculado pelo avaliador único deixa de ser AGUARDANDO.
+    // A varredura é idempotente e também corrige registros antigos presos.
+    for (const s of resultado.sinais) {
+      const persistido = estado.auditoriaLog[s.id];
+
+      if (s.auditResult === "GREEN" || s.auditResult === "RED") {
+        if (!persistido || persistido.status === "AGUARDANDO_RESULTADO") {
+          acoes.registrarResultadoAutomatico({
             signalId: s.id,
             strategy: s.title,
             entry: s.mainAction,
-            result: s.auditNumero ?? antigo.result,
+            result: s.auditNumero ?? 0,
             outcome: s.auditResult,
             status: s.auditResult,
-            recordedAt: antigo.recordedAt,
-            resultTimestamp: s.auditTimestamp ?? antigo.resultTimestamp,
-          });
-        } else if (s.auditResult === "NO_BET" && (antigo.outcome === "GREEN" || antigo.outcome === "RED" || antigo.outcome === "DADO_PERDIDO")) {
-          acoes.reprocessarAuditoria({
-            signalId: s.id,
-            strategy: s.title,
-            entry: s.mainAction,
-            result: 0,
-            outcome: "NO_BET",
-            status: "NO_BET",
-            recordedAt: antigo.recordedAt,
-            resultTimestamp: s.auditTimestamp ?? antigo.resultTimestamp,
+            recordedAt: persistido?.recordedAt ?? Date.now(),
+            resultTimestamp: s.auditTimestamp ?? Date.now(),
           });
         }
-      }
-      window.localStorage.setItem(REPROCESS_KEY, "1");
-      void historico;
-    }
-
-    for (const s of resultado.sinais) {
-      const existente = estado.auditoriaLog[s.id];
-      if (existente && existente.status !== "AGUARDANDO_RESULTADO") continue;
-
-      if (s.auditResult === "NO_BET") {
         continue;
-      } else if (!existente) {
-        acoes.registrarAuditorias([{
+      }
+
+      if (s.auditResult === "NO_BET" && persistido && persistido.status === "AGUARDANDO_RESULTADO") {
+        acoes.reprocessarAuditoria({
           signalId: s.id,
           strategy: s.title,
           entry: s.mainAction,
           result: 0,
-          outcome: "RED",
-          status: "AGUARDANDO_RESULTADO",
-          recordedAt: Date.now(),
-        }]);
+          outcome: "NO_BET",
+          status: "NO_BET",
+          recordedAt: persistido.recordedAt,
+          resultTimestamp: s.auditTimestamp ?? Date.now(),
+        });
       }
     }
+
+    // Sinais novos continuam AGUARDANDO somente quando o próximo giro ainda
+    // não foi catalogado.
+    const novos = resultado.sinais
+      .filter((s) => !estado.auditoriaLog[s.id] && s.auditResult === "AWAITING")
+      .map((s) => ({
+        signalId: s.id,
+        strategy: s.title,
+        entry: s.mainAction,
+        result: 0,
+        outcome: "RED" as const,
+        status: "AGUARDANDO_RESULTADO" as const,
+        recordedAt: Date.now(),
+      }));
+
+    if (novos.length) acoes.registrarAuditorias(novos);
   }, [resultado.sinais, estado.auditoriaLog]);
 
   return resultado;
