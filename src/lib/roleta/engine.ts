@@ -11,6 +11,7 @@
  */
 
 import { CATEGORIAS, classificar, type CategoriaId, type Classificacao } from "./classificacao";
+import { avaliarEntrada as avaliarEntradaV8, normalizarEntrada as normalizarEntradaV8 } from "../avaliador";
 import type { TipoBip } from "./store";
 
 export const CANONICAL_RED = new Set<number>([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
@@ -49,52 +50,24 @@ export type EntradaNormalizada = {
 };
 
 export function normalizarEntrada(entradaBruta: string): EntradaNormalizada | null {
-  const stringNormalizada = String(entradaBruta ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toUpperCase()
-    .replace(/^\s*(ENTRAR\s+EM\s+|ENTRADA\s*:\s*|SINAL\s*:\s*|APUESTA\s*:\s*|BET\s*:\s*)/, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  const mapaExplicito: Record<string, EntradaNormalizada> = {
-    VERMELHO: { dimensao: "COR", valor: "VERMELHO", categoria: "cor" },
-    PRETO: { dimensao: "COR", valor: "PRETO", categoria: "cor" },
-    PAR: { dimensao: "PARIDADE", valor: "PAR", categoria: "pi" },
-    IMPAR: { dimensao: "PARIDADE", valor: "IMPAR", categoria: "pi" },
-    ALTO: { dimensao: "ALTURA", valor: "ALTO", categoria: "ab" },
-    BAIXO: { dimensao: "ALTURA", valor: "BAIXO", categoria: "ab" },
-    C1: { dimensao: "COLUNA", valor: "C1", categoria: "coluna" },
-    C2: { dimensao: "COLUNA", valor: "C2", categoria: "coluna" },
-    C3: { dimensao: "COLUNA", valor: "C3", categoria: "coluna" },
-    D1: { dimensao: "DUZIA", valor: "D1", categoria: "duzia" },
-    D2: { dimensao: "DUZIA", valor: "D2", categoria: "duzia" },
-    D3: { dimensao: "DUZIA", valor: "D3", categoria: "duzia" },
-  };
-
-  const resultado = mapaExplicito[stringNormalizada];
-  if (resultado) return resultado;
-
-  const catalogo: Array<[string, CategoriaId]> = [
-    ["JUNTO", "tipo"], ["SEPARADO", "tipo"], ["TERMINAL", "terminal"], ["CAVALO", "cavalo"],
-    ["SECAO", "secao"], ["VIZINHOS 0", "g010"], ["0/10", "g010"],
-    ["VIZINHOS 22", "g2234"], ["VIZINHOS 34", "g2234"], ["22/34", "g2234"],
-    ["ESPELHO", "g010"], ["LADO", "secao"], ["RUA", "secao"], ["LINHA", "secao"],
-  ];
-  const catalogoExato = catalogo.find(([label]) => stringNormalizada === label);
-  if (catalogoExato) {
-    return { dimensao: "CATALOGO", valor: catalogoExato[0], categoria: catalogoExato[1] };
-  }
-  for (const [prefixo, categoria] of catalogo) {
-    if (stringNormalizada.startsWith(prefixo + " ")) {
-      return { dimensao: "CATALOGO", valor: stringNormalizada, categoria };
-    }
-  }
-
-  console.error("NORMALIZADOR REJEITOU:", entradaBruta, "->", stringNormalizada);
+  const limpa = normalizarEntradaV8(entradaBruta);
+  const mapa = avaliarEntradaV8 ? {
+    VERMELHO: { dimensao: "COR" as const, valor: "VERMELHO", categoria: "cor" as CategoriaId },
+    PRETO: { dimensao: "COR" as const, valor: "PRETO", categoria: "cor" as CategoriaId },
+    PAR: { dimensao: "PARIDADE" as const, valor: "PAR", categoria: "pi" as CategoriaId },
+    IMPAR: { dimensao: "PARIDADE" as const, valor: "IMPAR", categoria: "pi" as CategoriaId },
+    ALTO: { dimensao: "ALTURA" as const, valor: "ALTO", categoria: "ab" as CategoriaId },
+    BAIXO: { dimensao: "ALTURA" as const, valor: "BAIXO", categoria: "ab" as CategoriaId },
+    C1: { dimensao: "COLUNA" as const, valor: "C1", categoria: "coluna" as CategoriaId },
+    C2: { dimensao: "COLUNA" as const, valor: "C2", categoria: "coluna" as CategoriaId },
+    C3: { dimensao: "COLUNA" as const, valor: "C3", categoria: "coluna" as CategoriaId },
+    D1: { dimensao: "DUZIA" as const, valor: "D1", categoria: "duzia" as CategoriaId },
+    D2: { dimensao: "DUZIA" as const, valor: "D2", categoria: "duzia" as CategoriaId },
+    D3: { dimensao: "DUZIA" as const, valor: "D3", categoria: "duzia" as CategoriaId },
+  } : null;
+  if (mapa && limpa in mapa) return mapa[limpa as keyof typeof mapa];
   return null;
 }
-
 /** Compatibilidade com chamadas anteriores: o formato interno continua categorizado. */
 export function normalizarEntradaAvaliador(entrada: string) {
   return normalizarEntrada(entrada);
@@ -120,32 +93,27 @@ export function avaliarEntrada(
   numero: number,
   estado: "APOSTA_ATIVA" | "OBSERVACAO" = "APOSTA_ATIVA",
 ): AvaliadorResultado {
-  if (avaliadorBoot.ok === false) return "INOPERANTE";
-  if (!entradaNormalizada) return "INVALID";
   if (estado === "OBSERVACAO") return "NA";
-  const dimensao = entradaNormalizada.categoria === "pi" ? "PI"
-    : entradaNormalizada.categoria === "cor" ? "COR"
-    : entradaNormalizada.categoria === "ab" ? "AB"
-    : entradaNormalizada.categoria === "coluna" ? "COLUNA"
-    : entradaNormalizada.categoria === "duzia" ? "DUZIA"
-    : entradaNormalizada.categoria === "secao" ? "SECAO"
-    : entradaNormalizada.categoria.toUpperCase();
-  const canonicas = ["PI", "COR", "AB", "COLUNA", "DUZIA", "SECAO"];
-  if (canonicas.includes(dimensao)) {
-    return avaliarCanonico(dimensao, entradaNormalizada.valor, numero, "APOSTA_ATIVA");
+  if (!entradaNormalizada) return "INVALID";
+
+  const categoria = String(entradaNormalizada.categoria).toLowerCase();
+  const valor = String(entradaNormalizada.valor).toUpperCase();
+
+  if (["cor", "pi", "ab", "coluna", "duzia"].includes(categoria)) {
+    const bruta = categoria === "cor" || categoria === "pi" || categoria === "ab"
+      ? valor
+      : valor;
+    const resultado = avaliarEntradaV8(bruta, numero);
+    if (resultado === null) return numero === 0 ? "NO_BET" : "INVALID";
+    return resultado;
   }
 
-  // Dimensões de catálogo continuam sendo resolvidas pela classificação da linha,
-  // nunca por um conjunto inventado para a tela.
   if (numero === 0) return "NO_BET";
   const classificacao = classificar(numero) as Record<string, string>;
-  const valor = String(entradaNormalizada.valor).toUpperCase();
-  const categoria = entradaNormalizada.categoria;
   const atual = classificacao[categoria];
   if (atual === undefined) return "INVALID";
   return String(atual).toUpperCase() === valor ? "GREEN" : "RED";
 }
-
 export function autoTestAvaliador(): AvaliadorBoot {
   const errors:string[]=[];
   const guard=(name:string,s:Set<number>|undefined,size:number)=>{ if(!s || s.size!==size) errors.push(name); };
