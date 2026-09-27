@@ -1,9 +1,10 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { analisarBips, resolverPendentes, calcularEstatisticas, autoTestResolver, type Sinal } from "./engine";
 import { acoes, useEstado } from "./store";
 
 export function useSinais() {
   const estado = useEstado();
+  const [resolverTick, setResolverTick] = useState(0);
 
   const resultado = useMemo(() => {
     const brutos = analisarBips(estado.spins, estado.bips);
@@ -35,14 +36,18 @@ export function useSinais() {
       naoVistos: sinais.filter((s) => !estado.vistos.includes(s.id)),
       confirmados: estado.confirmados,
     };
-  }, [estado]);
+  }, [estado, resolverTick]);
 
-  // Ponto de chamada obrigatório: imediatamente após qualquer nova catalogação.
+  // Reprocessa no boot, após cada nova catalogação, após override e após reprocessamento.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const onCatalogo = () => window.dispatchEvent(new CustomEvent("roleta:resolver-run"));
-    window.addEventListener("roleta:catalogo-atualizado", onCatalogo);
-    return () => window.removeEventListener("roleta:catalogo-atualizado", onCatalogo);
+    const rerun = () => setResolverTick((v) => v + 1);
+    window.addEventListener("roleta:catalogo-atualizado", rerun);
+    window.addEventListener("roleta:resolver-run", rerun);
+    return () => {
+      window.removeEventListener("roleta:catalogo-atualizado", rerun);
+      window.removeEventListener("roleta:resolver-run", rerun);
+    };
   }, []);
 
   // Boot: self-test real + backfill idempotente do histórico.
