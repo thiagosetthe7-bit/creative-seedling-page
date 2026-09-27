@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { analisarBips, resolverPendentes, calcularEstatisticas, autoTestResolver, type Sinal } from "./engine";
+import { analisarBips, calcularEstatisticas, autoTestResolver, type Sinal } from "./engine";
+import { aplicarResultados, type Alerta } from "../resolver";
 import { acoes, useEstado } from "./store";
 
 export function useSinais() {
@@ -8,7 +9,37 @@ export function useSinais() {
 
   const resultado = useMemo(() => {
     const brutos = analisarBips(estado.spins, estado.bips);
-    const auditados = resolverPendentes(brutos, estado.spins);
+    const alertasBase: Alerta[] = brutos
+      .filter((s) => s.type === "ENTRY_SIGNAL")
+      .map((s) => ({
+        id: s.id,
+        entrada: s.mainAction,
+        estrategia: s.title,
+        indiceSinal: Math.max(0, (s.rodada || 1) - 1),
+        regime: s.regimeClassificado,
+        resultado: null,
+        numeroResultado: null,
+        numeroGale: null,
+        desfecho: null,
+        bancaAplicada: false,
+      }));
+    const resolvidos = aplicarResultados(alertasBase, estado.spins.map((s) => s.numero), estado.banca.unidade);
+    const porId = new Map(resolvidos.alertas.map((a) => [a.id, a]));
+    const auditados = brutos.map((s) => {
+      const a = porId.get(s.id);
+      if (!a || a.desfecho == null) return s;
+      const resultado = a.resultado === "GREEN" && a.desfecho === "GREEN_DIRETO" ? "GREEN" :
+        a.desfecho === "GREEN_GALE1" ? "GREEN" : "RED";
+      return {
+        ...s,
+        auditResult: resultado as Sinal["auditResult"],
+        auditNumero: a.numeroResultado,
+        auditTimestamp: Date.now(),
+        desfechoSequencia: a.desfecho === "FALHA_GIRO1" ? "FALHA_GIRO1" : a.desfecho === "FALHA_GALE" ? "FALHA_GALE1" : a.desfecho,
+        gale1Usado: a.desfecho === "GREEN_GALE1" || a.desfecho === "FALHA_GALE",
+        gale1Resultado: a.desfecho === "GREEN_GALE1" ? "GREEN" : a.desfecho === "FALHA_GALE" ? "RED" : "n/a",
+      };
+    });
 
     const sinais: Sinal[] = auditados.map((s) => {
       const persistido = estado.auditoriaLog[s.id];
@@ -35,6 +66,7 @@ export function useSinais() {
       estatisticas: calcularEstatisticas(sinais),
       naoVistos: sinais.filter((s) => !estado.vistos.includes(s.id)),
       confirmados: estado.confirmados,
+      deltaBancaResolvido: resolvidos.delta,
     };
   }, [estado, resolverTick]);
 
