@@ -51,7 +51,7 @@ export type EntradaNormalizada = {
 
 export function normalizarEntrada(entradaBruta: string): EntradaNormalizada | null {
   const limpa = normalizarEntradaV8(entradaBruta);
-  const mapa = avaliarEntradaV8 ? {
+  const mapa = {
     VERMELHO: { dimensao: "COR" as const, valor: "VERMELHO", categoria: "cor" as CategoriaId },
     PRETO: { dimensao: "COR" as const, valor: "PRETO", categoria: "cor" as CategoriaId },
     PAR: { dimensao: "PARIDADE" as const, valor: "PAR", categoria: "pi" as CategoriaId },
@@ -64,8 +64,22 @@ export function normalizarEntrada(entradaBruta: string): EntradaNormalizada | nu
     D1: { dimensao: "DUZIA" as const, valor: "D1", categoria: "duzia" as CategoriaId },
     D2: { dimensao: "DUZIA" as const, valor: "D2", categoria: "duzia" as CategoriaId },
     D3: { dimensao: "DUZIA" as const, valor: "D3", categoria: "duzia" as CategoriaId },
-  } : null;
-  if (mapa && limpa in mapa) return mapa[limpa as keyof typeof mapa];
+  };
+  if (limpa in mapa) return mapa[limpa as keyof typeof mapa];
+
+  const catalogo: Array<[string, CategoriaId]> = [
+    ["JUNTO", "tipo"], ["SEPARADO", "tipo"], ["TERMINAL", "terminal"], ["CAVALO", "cavalo"],
+    ["SECAO", "secao"], ["VIZINHOS 0", "g010"], ["0/10", "g010"],
+    ["VIZINHOS 22", "g2234"], ["VIZINHOS 34", "g2234"], ["22/34", "g2234"],
+    ["ESPELHO", "g010"], ["LADO", "secao"], ["RUA", "secao"], ["LINHA", "secao"],
+  ];
+  const exato = catalogo.find(([label]) => limpa === label);
+  if (exato) return { dimensao: "CATALOGO", valor: exato[0], categoria: exato[1] };
+  for (const [prefixo, categoria] of catalogo) {
+    if (limpa.startsWith(prefixo + " ")) {
+      return { dimensao: "CATALOGO", valor: limpa, categoria };
+    }
+  }
   return null;
 }
 /** Compatibilidade com chamadas anteriores: o formato interno continua categorizado. */
