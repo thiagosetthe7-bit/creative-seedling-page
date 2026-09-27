@@ -10,10 +10,7 @@ export interface Alerta {
 }
 
 function avaliar(entrada:string, numero:number): 'GREEN'|'RED'|null {
-  const m=normalizarEntrada(entrada);
-  return avaliarEntradaBase(m ? ({...m, categoria:
-    m.dimensao==='COR'?'cor':m.dimensao==='PARIDADE'?'pi':m.dimensao==='ALTURA'?'ab':
-    m.dimensao==='COLUNA'?'coluna':'duzia'}) : null, numero) as 'GREEN'|'RED'|null;
+  return avaliarEntradaBase(entrada, numero);
 }
 
 export function aplicarResultados(alertas:Alerta[], cat:number[], stakeBase:number){
