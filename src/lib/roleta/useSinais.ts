@@ -21,7 +21,7 @@ export function useSinais() {
         numeroResultado: null,
         numeroGale: null,
         desfecho: null,
-        bancaAplicada: false,
+        bancaAplicada: Boolean(estado.auditoriaLog[s.id] && ["GREEN","RED","PARTIAL"].includes(estado.auditoriaLog[s.id]!.status)),
       }));
     const resolvidos = aplicarResultados(alertasBase, estado.spins.map((s) => s.numero), estado.banca.unidade);
     const porId = new Map(resolvidos.alertas.map((a) => [a.id, a]));
@@ -69,6 +69,13 @@ export function useSinais() {
       deltaBancaResolvido: resolvidos.delta,
     };
   }, [estado, resolverTick]);
+
+  // Aplica o delta de banca somente uma vez: o auditoriaLog persistido funciona como idempotência.
+  useEffect(() => {
+    if (resultado.deltaBancaResolvido) {
+      acoes.atualizarBanca({ unidade: estado.banca.unidade + resultado.deltaBancaResolvido });
+    }
+  }, [resultado.deltaBancaResolvido, estado.banca.unidade]);
 
   // Reprocessa no boot, após cada nova catalogação, após override e após reprocessamento.
   useEffect(() => {
