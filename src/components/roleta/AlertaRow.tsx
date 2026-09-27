@@ -27,8 +27,8 @@ export function AlertaRow({ alerta: a, stakeBase, onDesfecho }: Props) {
           <span className="alerta-botoes">
             <button type="button" onClick={() => onDesfecho(a.id, "GREEN_DIRETO")}>✅ GREEN</button>
             <button type="button" onClick={() => onDesfecho(a.id, "GREEN_GALE1")}>🔁 GALE 1</button>
-            <button type="button" onClick={() => onDesfecho(a.id, "FALHA_GIRO1")}>❌ PERDI</button>
-            <button type="button" onClick={() => onDesfecho(a.id, "FALHA_GALE1")}>− GALE</button>
+            <button type="button" onClick={() => onDesfecho(a.id, "FALHA")}>❌ PERDI</button>
+            <button type="button" onClick={() => onDesfecho(a.id, "FALHA")}>− GALE</button>
           </span>
         )}
       </div>
