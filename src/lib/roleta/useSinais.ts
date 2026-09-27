@@ -73,7 +73,7 @@ export function useSinais() {
   // Aplica o delta de banca somente uma vez: o auditoriaLog persistido funciona como idempotência.
   useEffect(() => {
     if (resultado.deltaBancaResolvido) {
-      acoes.atualizarBanca({ unidade: estado.banca.unidade + resultado.deltaBancaResolvido });
+      acoes.atualizarBanca({ saldo: (estado.banca.saldo ?? estado.banca.inicial) + resultado.deltaBancaResolvido });
     }
   }, [resultado.deltaBancaResolvido, estado.banca.unidade]);
 
