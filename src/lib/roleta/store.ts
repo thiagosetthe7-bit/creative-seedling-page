@@ -32,7 +32,7 @@ export interface EstadoApp {
   cancelados: string[];
   /** sinais já exibidos em pop-up (evita reabrir) */
   vistos: string[];
-  banca: { inicial: number; unidade: number };
+  banca: { inicial: number; unidade: number; saldo?: number };
   /**
    * Marcações de bip por RODADA (chave = spin.id).
    * Cada registro catalogado tem seu próprio BT/BR, mesmo que o número se repita.
@@ -59,7 +59,7 @@ const inicial: EstadoApp = {
   confirmados: [],
   cancelados: [],
   vistos: [],
-  banca: { inicial: 1000, unidade: 10 },
+  banca: { inicial: 1000, unidade: 10, saldo: 1000 },
   bips: {},
   pendentes: {},
   auditoriaLog: {},
