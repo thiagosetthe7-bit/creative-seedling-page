@@ -502,7 +502,8 @@ export function GerenciadorBanca() {
               <Metric label="ZEROS" value={String(retornoPosZero.totalZeros)} />
               <Metric label="AVALIADOS" value={String(retornoPosZero.avaliados)} />
               <Metric label="MATCHES" value={String(retornoPosZero.matches)} />
-              <Metric label="RETORNO" value={retornoPosZero.avaliados ? pct(retornoPosZero.taxaRetorno) : "aguardando"} hint={retornoPosZero.candidatoInstalavel ? "CANDIDATO INSTALÁVEL · avisar, não instalar" : "Meta: N≥10 zeros e retorno ≥70%"} />
+              <Metric label="RETORNO-PÓS-ZERO" value={`${retornoPosZero.matches}/${retornoPosZero.avaliados}`} hint={retornoPosZero.avaliados ? pct(retornoPosZero.taxaRetorno) : "aguardando giro depois do ZERO"} />
+              <Metric label="CANDIDATO" value={retornoPosZero.candidatoInstalavel ? "AVISAR" : "NÃO"} hint={retornoPosZero.candidatoInstalavel ? "≥10 zeros + ≥70% · não instalar sozinho" : "Meta: N≥10 zeros e retorno ≥70%"} />
             </div>
             <div className="mt-3 max-h-48 overflow-auto text-xs">
               {retornoPosZero.registros.slice(-20).map((r, i) => (
