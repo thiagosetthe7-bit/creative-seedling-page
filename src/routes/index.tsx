@@ -31,9 +31,9 @@ export const Route = createFileRoute("/")({
 });
 
 function popupStats(sinais: Sinal[], estrategia?: string): StatsPadrao {
-  const alvo = estrategia?.replace(/^👁\\s*OBSERVAÇÃO\\s*·\\s*/i, "") ?? "";
+  const alvo = estrategia?.replace(/^👁\s*OBSERVAÇÃO\s*·\s*/i, "") ?? "";
   const desfechos = sinais
-    .filter((s) => s.title.replace(/^👁\\s*OBSERVAÇÃO\\s*·\\s*/i, "") === alvo)
+    .filter((s) => s.title.replace(/^👁\s*OBSERVAÇÃO\s*·\s*/i, "") === alvo)
     .map((s) => {
       if (s.desfechoSequencia === "GREEN_DIRETO") return "GREEN_DIRETO" as const;
       if (s.desfechoSequencia === "GREEN_GALE1") return "GREEN_GALE1" as const;
