@@ -1266,25 +1266,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     const bipIsolado = bip === "rolando" && !bipAnterior;
     const brSeparado = bip === "rolando" && bipIsolado && origem === "TIER" && atual.classificacao.tipo === "SEPARADO" && !alturaSaturada;
     const btQuebra = bip === "timer" && !mesmaCor && !sequenciaLonga && atual.classificacao.secao === cA.secao && bipAnterior2 !== "timer";
-    if (false) {\n      // Legacy 2-2-1/2-1-1 paths intentionally disabled; v10 uses detectarTriggers().\n    } else {
-        acao = "ENTRAR EM " + oscilacao221.alvo;
-        cobertura = oscilacao221.alvo;
-      }
-      titulo = "OSCILAÇÃO 2-2-1 · 84%";
-    } else if (retorno211 && (atual.classificacao[retorno211.categoria] === retorno211.alvo)) {
-      categoriaAuditoria = retorno211.categoria;
-      conf = 80;
-      nota = "RETORNO 2-1-1 CONFIRMADO";
-      if (retorno211.categoria === "ab") {
-        acao = "ENTRAR EM " + retorno211.alvo;
-        cobertura = retorno211.alvo === "ALTO" ? "C2+C3" : "D1+D2";
-      } else {
-        acao = "ENTRAR EM " + retorno211.alvo;
-        cobertura = retorno211.alvo;
-      }
-      titulo = "RETORNO 2-1-1 · 81%";
-    } else {
-      if (brSeparado) {
+    // v10: 2-2-1 e 2-1-1 legados foram substituídos pelos padrões generalizados.\n      if (brSeparado) {
         titulo = "BR SEPARADO · REPETE ALTURA";
         acao = "ENTRAR EM " + alturaAlvo;
         conf = mesmaParidade ? 86 : 86;
