@@ -78,3 +78,16 @@ export function detectarTriggers(nums: number[]): Trigger[] {
 
   return out;
 }
+
+
+import type { Desfecho } from './resolver';
+export interface StatsPadrao { n: number; greens: number }
+export function medirPadrao(desfechos: Desfecho[]): StatsPadrao {
+  const resolvidos = desfechos.filter(d => d != null);
+  return { n: resolvidos.length, greens: resolvidos.filter(d => d === 'GREEN_DIRETO' || d === 'GREEN_GALE1').length };
+}
+export function rotuloConfianca(s: StatsPadrao): string {
+  if (s.n < 20) return `medindo… (${s.n} sinais)`;
+  const pct = Math.round((s.greens / s.n) * 100);
+  return `${pct}% em ${s.n} sinais (medido ao vivo)`;
+}
