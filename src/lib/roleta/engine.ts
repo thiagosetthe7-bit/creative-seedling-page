@@ -1273,7 +1273,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
         cobertura = alturaAlvo === "ALTO" ? "C2+C3" : "D1+D2";
         nota = mesmaParidade ? "BR Separado + Parity" : "BR Separado";
       } else if (btQuebra) {
-        titulo = "BT QUEBRA COR · INVERSÃO · 81%";
+        titulo = "BT QUEBRA COR · INVERSÃO";
         acao = "ENTRAR EM " + alturaOposta(cA.ab);
         conf = 81;
         cobertura = acao.includes("ALTO") ? "D2+D3" : "D1+D2";
@@ -1283,7 +1283,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
         conf = 82;
         acao = "ENTRAR EM " + geometrica.alvo;
         cobertura = geometrica.alvo;
-        titulo = "SEQUÊNCIA GEOMÉTRICA 5x · 82%";
+        titulo = "SEQUÊNCIA GEOMÉTRICA 5x";
         nota = geometrica.context;
       } else {
         continue;
@@ -1412,7 +1412,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     s.sessionPreference = conf > 0 ? sessaoPreferencial(bip, ctx, anterior, sequenciaLonga) : null;
     s.sequenceContext = ctx.context;
     const confirmador = brSeparado && mesmaParidade ? "✔️ Paridade Confirmada" : btQuebra && !mesmaCor ? "✔️ Cor Confirmada" : null;
-    s.footerNote = nota ? `${nota} | Conf: ${conf}%` : (confirmador ? `${confirmador} | Conf: ${conf}%` : `Conf: ${conf}%`);
+    s.footerNote = nota ? nota : (confirmador ? confirmador : null);
     s.auditExpectedHeight = categoriaAuditoria === "ab" ? (acao.includes("ALTO") ? "ALTO" : acao.includes("BAIXO") ? "BAIXO" : alturaAlvo) : null;
     s.auditExpectedCoverage = cobertura ? [cobertura] : [];
     sinais.push(s);
