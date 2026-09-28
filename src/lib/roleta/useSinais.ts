@@ -32,7 +32,7 @@ export function useSinais() {
       if (r.desfecho == null && r.resultado === "RED") {
         return {
           ...s, auditResult: "RED", auditNumero: r.numeroResultado, auditTimestamp: s.timestamp,
-          desfechoSequencia: "FALHA_GIRO1", gale1Usado: false, gale1Resultado: "n/a",
+          desfechoSequencia: "n/a", gale1Usado: false, gale1Resultado: "n/a",
           auditMessage: "Primeiro giro perdido · aguardando GALE 1.",
         };
       }
