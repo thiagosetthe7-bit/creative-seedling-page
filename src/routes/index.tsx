@@ -45,14 +45,14 @@ function popupStats(sinais: Sinal[], estrategia?: string) {
 function Catalogacao() {
   const estado = useEstado();
   const { sinais, naoVistos } = useSinais();
-  const statsPopup = popupStats(sinais, popup?.title);
-
   const popup = estado.config.alertasAtivos
     ? [...naoVistos].sort((a, b) => {
         const peso = (p: string) => p === "CRITICAL" ? 0 : p === "HIGH" ? 1 : p === "MEDIUM" ? 2 : 3;
         return peso(a.priority) - peso(b.priority) || b.rodada - a.rodada;
       })[0] ?? null
     : null;
+
+  const statsPopup = popupStats(sinais, popup?.title);
 
   return (
     <AppShell>
