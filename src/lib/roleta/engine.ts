@@ -1209,9 +1209,10 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     const mesmaCor = atual.numero !== 0 && atual.classificacao.cor === cA.cor;
     const mesmaParidade = atual.numero !== 0 && atual.classificacao.pi === cA.pi;
 
-    // v10 — padrões generalizados têm prioridade sobre os gatilhos legados removidos.
-    const oscilacao221 = detectarOscilacao221(spins, i);
-    const retorno211 = detectarRetorno211(spins, i);
+    // v10 — padrões generalizados Aⁿ-Bᵐ-A têm prioridade sobre os gatilhos legados.
+    const padroesAtuais = detectarTriggers(spins.slice(0, i + 1).map((s) => s.numero))
+      .filter((t) => t.indiceSinal === i && t.alvo === i + 1);
+    const padraoAtual = padroesAtuais[0] ?? null;
     const geometrica = detectarSequenciaGeometrica(spins, i);
     const origem = cA.secao;
     const sequenciaLonga = seqLonga(spins, i);
@@ -1309,10 +1310,9 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       ? cobertura !== null && permitidas.includes(cobertura)
       : cobertura !== null;
 
-    const strategy = titulo.startsWith("OSCILAÇÃO") ? "OSCILACAO_221"
+    const strategy = padraoAtual ? "PADRAO_GENERALIZADO"
       : titulo.startsWith("BR SEPARADO") ? "BR_SEPARADO"
       : titulo.startsWith("BT QUEBRA") ? "BT_QUEBRA_COR"
-      : titulo.startsWith("RETORNO") ? "RETORNO_211"
       : titulo.startsWith("SEQUÊNCIA") ? "SEQUENCIA_GEOMETRICA_5X" : "OUTRA";
 
     let observacaoHostil = false;
@@ -1322,7 +1322,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       observacaoHostil = true;
       observacaoMotivo = "BIP/Tipo/Altura fora da condição";
     }
-    if (regime.regimeClassificado === "HOSTIL" && (strategy === "OSCILACAO_221" || strategy === "RETORNO_211")) {
+    if (regime.regimeClassificado === "HOSTIL" && (strategy === "OSCILACAO_221" || strategy === "RETORNO_211" || strategy === "PADRAO_GENERALIZADO")) {
       observacaoHostil = true;
       observacaoMotivo = regime.quique ? "QUIQUE: retorno/oscilação aguardam spin+2" : "regime hostil";
     }
@@ -1330,11 +1330,11 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       observacaoHostil = true;
       observacaoMotivo = regime.quique ? "QUIQUE: BR Separado exige janela LIMPA" : "BR Separado exige janela LIMPA";
     }
-    if (segundoBipRajada && (strategy === "BR_SEPARADO" || strategy === "OSCILACAO_221" || strategy === "RETORNO_211")) {
+    if (segundoBipRajada && (strategy === "BR_SEPARADO" || strategy === "OSCILACAO_221" || strategy === "RETORNO_211" || strategy === "PADRAO_GENERALIZADO")) {
       observacaoHostil = true;
       observacaoMotivo = "F1: 2º BIP de rajada · observação";
     }
-    if (faixaLean && (strategy === "BR_SEPARADO" || strategy === "OSCILACAO_221" || strategy === "RETORNO_211")) {
+    if (faixaLean && (strategy === "BR_SEPARADO" || strategy === "OSCILACAO_221" || strategy === "RETORNO_211" || strategy === "PADRAO_GENERALIZADO")) {
       observacaoHostil = true;
       observacaoMotivo = "F2: faixa LEAN 60–70% · observação";
     }
@@ -1393,28 +1393,6 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     s.auditExpectedHeight = categoriaAuditoria === "ab" ? (acao.includes("ALTO") ? "ALTO" : acao.includes("BAIXO") ? "BAIXO" : alturaAlvo) : null;
     s.auditExpectedCoverage = cobertura ? [cobertura] : [];
     sinais.push(s);
-  }
-
-  // v10: padrões generalizados Aⁿ-Bᵐ-A, com filtros de zero/saturação.
-  const padroes = detectarTriggers(spins.slice(0, i + 1).map(s => s.numero));
-  const padraoAtual = padroes.filter(t => t.indiceSinal === i && t.alvo === i + 1);
-  for (const t of padraoAtual) {
-    const dimCategoria: CategoriaId = t.dim === "COR" ? "cor" : t.dim === "PAR" ? "pi" : "ab";
-    const atualValue = t.entrada;
-    const sinalPadrao = sinalBase(
-      `${atual.id}-padrao-${t.dim}-${t.mB}`, dimCategoria, t.dim,
-      `ENTRAR EM ${atualValue}`, atual, anterior, proximo, bip,
-      "ENTRY_SIGNAL", PALETA_BIP.repeticao,
-      `${t.tipo === "OSCILACAO" ? "OSCILAÇÃO" : "RETORNO"} ${t.nA}-${t.mB}-1 · ${t.dim}`,
-      "", "HIGH", 0,
-    );
-    sinalPadrao.mainAction = `ENTRAR EM ${atualValue}`;
-    sinalPadrao.regimeClassificado = "LIMPA";
-    sinalPadrao.motivoHostil = "nenhum";
-    sinalPadrao.observacaoHostil = false;
-    sinalPadrao.gale1Liberado = true;
-    sinalPadrao.footerNote = "Padrão generalizado · confiança medida ao vivo";
-    sinais.push(sinalPadrao);
   }
 
   return sinais.sort(
