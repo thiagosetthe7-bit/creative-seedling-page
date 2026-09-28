@@ -1267,7 +1267,6 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       } else {
         continue;
       }
-    }
 
     // v6.6+ — inteligência pós-BIP: bônus somente como modificador, nunca como gatilho.
     const bipValido = bip === "timer" || bip === "rolando";
