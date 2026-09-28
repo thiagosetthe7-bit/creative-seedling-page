@@ -1,4 +1,5 @@
 import { acoes } from "@/lib/roleta/store";
+import { linhaEntrada, rotuloAlerta } from "@/lib/labels";
 import { calculateSmartStake, type BancaState } from "./GerenciadorBanca";
 import type { Sinal } from "@/lib/roleta/engine";
 
@@ -22,8 +23,8 @@ export function PopupSinal({ sinal }: { sinal: Sinal }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
       <div className="w-full max-w-lg overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
         <section className="px-6 py-6 text-center" style={{ backgroundColor: sinal.colorCode }}>
-          <div className="text-sm font-black tracking-widest text-white">{sinal.title}</div>
-          <div className="mt-3 text-3xl font-black text-white">{sinal.mainAction}</div>
+          <div className="text-sm font-black tracking-widest text-white">{rotuloAlerta({ estrategia: sinal.title.replace(/^👁\s*OBSERVAÇÃO\s*·\s*/i, "") })}</div>
+          <div className="mt-3 text-3xl font-black text-white">{linhaEntrada({ entrada: sinal.mainAction })}</div>
         </section>
 
         <section className="space-y-3 p-5">
