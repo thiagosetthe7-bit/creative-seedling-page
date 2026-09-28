@@ -1266,14 +1266,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     const bipIsolado = bip === "rolando" && !bipAnterior;
     const brSeparado = bip === "rolando" && bipIsolado && origem === "TIER" && atual.classificacao.tipo === "SEPARADO" && !alturaSaturada;
     const btQuebra = bip === "timer" && !mesmaCor && !sequenciaLonga && atual.classificacao.secao === cA.secao && bipAnterior2 !== "timer";
-    if (oscilacao221 && (atual.classificacao[oscilacao221.categoria] === oscilacao221.alvo)) {
-      categoriaAuditoria = oscilacao221.categoria;
-      conf = 83;
-      nota = "OSCILAÇÃO 2-2-1 CONFIRMADA";
-      if (oscilacao221.categoria === "ab") {
-        acao = "ENTRAR EM " + oscilacao221.alvo;
-        cobertura = oscilacao221.alvo === "ALTO" ? "C2+C3" : "D1+D2";
-      } else {
+    if (false) {\n      // Legacy 2-2-1/2-1-1 paths intentionally disabled; v10 uses detectarTriggers().\n    } else {
         acao = "ENTRAR EM " + oscilacao221.alvo;
         cobertura = oscilacao221.alvo;
       }
