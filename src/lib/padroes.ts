@@ -104,7 +104,7 @@ export function autoTestPadroes(): PadroesBoot {
   if (!ret.some(t => t.tipo === 'RETORNO' && t.entrada === 'PAR' && t.mB === 1)) {
     errors.push('T-v10 RETORNO PAR,PAR,IMPAR não detectado');
   }
-  if (detectarTriggers([1,3,2,4,0]).length !== 0) {
+  if (detectarTriggers([1,0,3,2,4]).length !== 0) {
     errors.push('T-v10 zero recente não bloqueou');
   }
   if (detectarTriggers([1,3,5,7,9,11,13,15,17,19,21,23]).length !== 0) {
