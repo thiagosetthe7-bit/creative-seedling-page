@@ -150,7 +150,7 @@ function loadPersistence(): PersistenciaBanca {
       const bank = Number(s.currentBank ?? s.bank ?? s.initialBank ?? 100);
       const initial = Number(s.initialBank ?? s.bank ?? 100);
       const history = Array.isArray(s.history) ? s.history : [];
-      const migrated = normalizeWallet({
+      const migrated = normalizeWallet(({
         id: "carteira-migrada",
         nome: "Carteira Migrada",
         bancaInicial: initial,
@@ -162,7 +162,7 @@ function loadPersistence(): PersistenciaBanca {
         wins: history.filter((h) => h.isWin).length,
         losses: history.filter((h) => !h.isWin).length,
         processedSignals: s.processedSignals,
-      });
+      }) as Parameters<typeof normalizeWallet>[0]);
       return { version: 2, carteiras: [migrated], carteiraAtivaId: migrated.id };
     }
   } catch {
@@ -189,7 +189,7 @@ function terminalOutcome(s: Sinal): "GREEN" | "RED" | null {
 
 function sequenceUnits(s: Sinal): number {
   if (s.desfechoSequencia === "GREEN_GALE1" || s.desfechoSequencia === "GREEN_DIRETO") return 1;
-  if (s.desfechoSequencia === "FALHA_GALE1" || s.desfechoSequencia === "FALHA_GALE") return -3;
+  if (s.desfechoSequencia === "FALHA_GALE1") return -3;
   if (s.desfechoSequencia === "FALHA_GIRO1") return -1;
   return s.auditResult === "GREEN" ? 1 : s.auditResult === "RED" ? -1 : 0;
 }
@@ -328,7 +328,7 @@ export function GerenciadorBanca() {
 
   useEffect(() => {
     if (!persist.carteiraAtivaId && persist.carteiras[0]) {
-      setPersist((p) => ({ ...p, carteiraAtivaId: p.carteiras[0].id }));
+      setPersist((p) => ({ ...p, carteiraAtivaId: p.carteiras[0]?.id ?? p.carteiraAtivaId }));
     }
   }, [persist.carteiraAtivaId, persist.carteiras]);
 
@@ -431,7 +431,7 @@ export function GerenciadorBanca() {
   const point = (arr: number[], i: number) => {
     const denom = Math.max(1, maxSeries - minSeries);
     const x = pad + (i / Math.max(1, days - 1)) * (chartW - pad * 2);
-    const y = chartH - pad - ((arr[i] - minSeries) / denom) * (chartH - pad * 2);
+    const y = chartH - pad - (((arr[i] ?? 0) - minSeries) / denom) * (chartH - pad * 2);
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   };
   const poly = (arr: number[]) => arr.map((v, i) => Number.isFinite(v) ? point(arr, i) : "").filter(Boolean).join(" ");
@@ -557,7 +557,7 @@ export function GerenciadorBanca() {
           </Section>
 
           <Section title={`TABELA DIA-A-DIA · ${scenario}`}>
-            <div className="max-h-96 overflow-auto"><table className="w-full text-xs"><thead className="sticky top-0 bg-card"><tr className="border-b border-border text-left text-[10px]"><th className="p-2">DIA</th><th>BANCA</th><th>META</th><th>ACUMULADO</th></tr></thead><tbody>{Array.from({length:days},(_,i)=>{const v=series[i];const b=i===0?sim.start:v;return <tr key={i} className="border-b border-border/40"><td className="p-2">{i+1}</td><td>{Number.isFinite(b)?brl(b):"—"}</td><td>{brl(sim.start*Math.pow(1+meta/100,i+1)-sim.start*Math.pow(1+meta/100,i))}</td><td>{Number.isFinite(b)?brl(b-sim.start):"—"}</td></tr>})}</tbody></table></div>
+            <div className="max-h-96 overflow-auto"><table className="w-full text-xs"><thead className="sticky top-0 bg-card"><tr className="border-b border-border text-left text-[10px]"><th className="p-2">DIA</th><th>BANCA</th><th>META</th><th>ACUMULADO</th></tr></thead><tbody>{Array.from({length:days},(_,i)=>{const v=series[i];const b=i===0?sim.start:v;return <tr key={i} className="border-b border-border/40"><td className="p-2">{i+1}</td><td>{b!==undefined&&Number.isFinite(b)?brl(b):"—"}</td><td>{brl(sim.start*Math.pow(1+meta/100,i+1)-sim.start*Math.pow(1+meta/100,i))}</td><td>{b!==undefined&&Number.isFinite(b)?brl(b-sim.start):"—"}</td></tr>})}</tbody></table></div>
           </Section>
         </div>
       )}

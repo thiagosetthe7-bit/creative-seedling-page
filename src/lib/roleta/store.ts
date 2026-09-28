@@ -101,7 +101,7 @@ function carregar(): EstadoApp {
       const carregado = migrar({ ...inicial, ...(JSON.parse(bruto) as EstadoApp) });
       const auditoriaLog = Object.fromEntries(
         Object.entries(carregado.auditoriaLog ?? {}).map(([id, registro]) => {
-          const legado = registro as RegistroAuditoria & { status?: string; outcome?: string };
+          const legado = registro as unknown as { status: string; outcome: string };
           if (legado.status === "DADO_PERDIDO" || legado.outcome === "DADO_PERDIDO") {
             return [id, { ...registro, status: "AGUARDANDO_RESULTADO", outcome: "AGUARDANDO_RESULTADO" as const }];
           }

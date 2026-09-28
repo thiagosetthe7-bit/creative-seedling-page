@@ -73,7 +73,7 @@ export function useSinais() {
         auditResult: final,
         auditNumero: a.numeroResultado,
         auditTimestamp: s.timestamp,
-        desfechoSequencia: a.desfecho === "FALHA_GALE" ? "FALHA_GALE1" : a.desfecho,
+        desfechoSequencia: a.desfecho === "FALHA_GALE" ? "FALHA_GALE1" : (a.desfecho ?? "n/a"),
         gale1Usado: a.desfecho === "GREEN_GALE1" || a.desfecho === "FALHA_GALE",
         gale1Resultado: a.desfecho === "GREEN_GALE1" ? "GREEN" : a.desfecho === "FALHA_GALE" ? "RED" : "n/a",
         gale1Stake: a.numeroGale ?? 0,
