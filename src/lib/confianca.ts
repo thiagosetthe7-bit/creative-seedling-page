@@ -7,7 +7,7 @@ export function mensagemPopup(o:{
   rebaixadoPorRegime:boolean; galeLiberado:boolean;
 }){
   const confianca = rotuloConfianca(o.stats);
-  const medido = o.stats.n > 0;
+  const medido = o.stats.n >= 20;
   const apostar = medido && o.regime === 'LIMPA' && !o.rebaixadoPorRegime;
 
   const decisao = apostar
