@@ -65,26 +65,10 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/bips'
-    | '/configuracoes'
-    | '/dashboard'
-    | '/sinais'
+  fullPaths: '/' | '/bips' | '/configuracoes' | '/dashboard' | '/sinais'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/bips'
-    | '/configuracoes'
-    | '/dashboard'
-    | '/sinais'
-  id:
-    | '__root__'
-    | '/'
-    | '/bips'
-    | '/configuracoes'
-    | '/dashboard'
-    | '/sinais'
+  to: '/' | '/bips' | '/configuracoes' | '/dashboard' | '/sinais'
+  id: '__root__' | '/' | '/bips' | '/configuracoes' | '/dashboard' | '/sinais'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {

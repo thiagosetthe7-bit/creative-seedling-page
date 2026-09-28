@@ -1267,7 +1267,6 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       } else {
         continue;
       }
-    }
 
     // v6.6+ — inteligência pós-BIP: bônus somente como modificador, nunca como gatilho.
     const bipValido = bip === "timer" || bip === "rolando";
@@ -1311,7 +1310,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       ? cobertura !== null && permitidas.includes(cobertura)
       : cobertura !== null;
 
-    const strategy = padraoAtual ? "PADRAO_GENERALIZADO"
+    const strategy: string = padraoAtual ? "PADRAO_GENERALIZADO"
       : titulo.startsWith("BR SEPARADO") ? "BR_SEPARADO"
       : titulo.startsWith("BT QUEBRA") ? "BT_QUEBRA_COR"
       : titulo.startsWith("SEQUÊNCIA") ? "SEQUENCIA_GEOMETRICA_5X" : "OUTRA";
@@ -1344,7 +1343,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       observacaoMotivo = "troca brusca de seção";
     }
 
-    if (bip === "rolando" && !geometrica && !oscilacao221 && !retorno211 &&
+    if (bip === "rolando" && !geometrica &&
         (!bipIsolado || origem !== "TIER" || atual.classificacao.tipo !== "SEPARADO" || alturaSaturada)) {
       titulo = "BR SEPARADO · REPETE ALTURA";
       acao = "ENTRAR EM " + alturaAlvo;
