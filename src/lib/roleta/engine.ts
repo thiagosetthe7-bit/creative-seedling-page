@@ -10,7 +10,7 @@
  * permanece exportada para compatibilidade com o histórico de testes do projeto.
  */
 
-import { CATEGORIAS, classificar, type CategoriaId, type Classificacao } from "./classificacao";
+import { CATEGORIAS, classificar, type CategoriaId, type Classificacao } from "./classificacao";\nimport { detectarTriggers } from "../padroes";
 import { avaliarEntrada as avaliarEntradaV8, normalizarEntrada as normalizarEntradaV8 } from "../avaliador";
 import type { TipoBip } from "./store";
 
@@ -1441,6 +1441,28 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     s.auditExpectedHeight = categoriaAuditoria === "ab" ? (acao.includes("ALTO") ? "ALTO" : acao.includes("BAIXO") ? "BAIXO" : alturaAlvo) : null;
     s.auditExpectedCoverage = cobertura ? [cobertura] : [];
     sinais.push(s);
+  }
+
+  // v10: padrões generalizados Aⁿ-Bᵐ-A, com filtros de zero/saturação.
+  const padroes = detectarTriggers(spins.slice(0, i + 1).map(s => s.numero));
+  const padraoAtual = padroes.filter(t => t.indiceSinal === i && t.alvo === i + 1);
+  for (const t of padraoAtual) {
+    const dimCategoria: CategoriaId = t.dim === "COR" ? "cor" : t.dim === "PAR" ? "pi" : "ab";
+    const atualValue = t.entrada;
+    const sinalPadrao = sinalBase(
+      `${atual.id}-padrao-${t.dim}-${t.mB}`, dimCategoria, t.dim,
+      `ENTRAR EM ${atualValue}`, atual, anterior, proximo, bip,
+      "ENTRY_SIGNAL", PALETA_BIP.repeticao,
+      `${t.tipo === "OSCILACAO" ? "OSCILAÇÃO" : "RETORNO"} ${t.nA}-${t.mB}-1 · ${t.dim}`,
+      "", "HIGH", 0,
+    );
+    sinalPadrao.mainAction = `ENTRAR EM ${atualValue}`;
+    sinalPadrao.regimeClassificado = "LIMPA";
+    sinalPadrao.motivoHostil = "nenhum";
+    sinalPadrao.observacaoHostil = false;
+    sinalPadrao.gale1Liberado = true;
+    sinalPadrao.footerNote = "Padrão generalizado · confiança medida ao vivo";
+    sinais.push(sinalPadrao);
   }
 
   return sinais.sort(
