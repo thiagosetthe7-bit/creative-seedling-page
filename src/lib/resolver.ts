@@ -1,9 +1,11 @@
-import { avaliarEntrada } from './avaliador';
-import { normalizarEntrada } from './roleta/engine';
+import { avaliarEntrada, normalizarEntrada } from './avaliador';
 
 export type Desfecho='GREEN_DIRETO'|'GREEN_GALE1'|'FALHA_GIRO1'|'FALHA_GALE'|null;
 export interface AlertaBase{ id:string; entrada:string; estrategia:string;
   indiceSinal:number; regime:'LIMPA'|'HOSTIL'; }
+export interface Alerta extends AlertaBase{
+  resultado?:'GREEN'|'RED'|null; numeroResultado?:number|null; numeroGale?:number|null;
+  desfecho?:Desfecho; }
 
 // FUNÇÃO PURA: resultado/desfecho derivados exclusivamente da catalogação.
 export function computarDesfecho(a:AlertaBase, cat:number[]){
