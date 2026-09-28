@@ -2,24 +2,16 @@ import type { Alerta } from "@/lib/resolver";
 
 const curta = (e: string) => e.replace(/^(ENTRAR EM|ENTRADA:)\s*/i, "");
 
-export function AlertaRow({ a, onOverride }: {
-  a: Alerta;
-  onOverride: (id: string, d: "GREEN_DIRETO" | "GREEN_GALE1" | "FALHA") => void;
-}) {
-  const res =
-    a.numeroResultado == null
-      ? "aguardando…"
-      : a.numeroResultado === 0
-        ? "0 · ⏸ sem aposta"
-        : `${a.numeroResultado} → ${a.resultado === "GREEN" ? "✅ GREEN" : "❌ RED"}`;
+function formatResultado(a: Alerta) {
+  if (a.numeroResultado == null) return "aguardando…";
+  if (a.numeroResultado === 0) return "0 · ⏸ sem aposta";
+  const primeiro = `${a.numeroResultado} → ${a.resultado === "GREEN" ? "✅ GREEN" : "❌ RED"}`;
+  if (a.resultado === "GREEN" || a.regime === "HOSTIL") return primeiro;
+  if (a.numeroGale == null) return `${primeiro} · aguardando G1…`;
+  return `${primeiro} · GALE 1: ${a.numeroGale} → ${a.resultado === "GREEN" ? "✅ GREEN/G1" : "❌ RED/G1"}`;
+}
 
-  const gale =
-    a.desfecho === "GREEN_GALE1"
-      ? ` · GALE 1: ${a.numeroGale} → ✅ GREEN NO GALE 1`
-      : a.desfecho === "FALHA" && a.numeroGale != null
-        ? ` · GALE 1: ${a.numeroGale} → ❌ PERDA`
-        : "";
-
+export function AlertaRow({ a }: { a: Alerta }) {
   return (
     <div className="alerta-row">
       <div className="l1">
@@ -28,12 +20,7 @@ export function AlertaRow({ a, onOverride }: {
         {a.regime === "HOSTIL" && <span className="pill-hostil">⚠ hostil</span>}
       </div>
       <div className="l2">
-        <span>resultado: {res}{gale}</span>
-        <span className="botoes">
-          <button type="button" className="btn-green" onClick={() => onOverride(a.id, "GREEN_DIRETO")}>GREEN</button>
-          <button type="button" className="btn-gale" onClick={() => onOverride(a.id, "GREEN_GALE1")}>GALE 1</button>
-          <button type="button" className="btn-perdi" onClick={() => onOverride(a.id, "FALHA")}>PERDI</button>
-        </span>
+        <span>resultado: {formatResultado(a)}</span>
       </div>
     </div>
   );
