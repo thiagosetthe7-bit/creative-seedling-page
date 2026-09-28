@@ -172,7 +172,11 @@ function loadPersistence(): PersistenciaBanca {
 }
 
 function getSignalStake(wallet: Carteira) {
-  const raw = wallet.bancaReal * (PERFIL_PCT[wallet.perfil] / 10);
+  const pnl = wallet.bancaReal - wallet.bancaInicial;
+  const winLimit = wallet.bancaInicial * (wallet.stopWin / 100);
+  const lossLimit = wallet.bancaInicial * (wallet.stopLoss / 100);
+  if (pnl >= winLimit || pnl <= -lossLimit || wallet.bancaReal <= 0) return 0;
+  const raw = wallet.bancaReal * PERFIL_PCT[wallet.perfil];
   return Math.max(0.5, Math.round(raw * 2) / 2);
 }
 
@@ -256,10 +260,12 @@ function calculateStats(wallets: Carteira[]) {
   let running = 0;
   let peak = 0;
   let maxDD = 0;
+  let currentDD = 0;
   for (const h of [...rows].sort((a, b) => a.recordedAt - b.recordedAt)) {
     running += h.result;
     peak = Math.max(peak, running);
-    maxDD = Math.max(maxDD, peak - running);
+    currentDD = Math.max(0, peak - running);
+    maxDD = Math.max(maxDD, currentDD);
   }
   const days = new Map<string, number>();
   for (const h of rows) days.set(dateKey(h.recordedAt), (days.get(dateKey(h.recordedAt)) ?? 0) + h.result);
@@ -272,7 +278,7 @@ function calculateStats(wallets: Carteira[]) {
     recoveryRate: redGiro1Limpa ? (recuperados / redGiro1Limpa) * 100 : 0,
     byStrategy,
     maxDD,
-    currentDD: maxDD,
+    currentDD,
     bestDay: dayValues.length ? Math.max(...dayValues) : 0,
     worstDay: dayValues.length ? Math.min(...dayValues) : 0,
   };
