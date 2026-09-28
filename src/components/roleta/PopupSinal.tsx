@@ -1,6 +1,5 @@
 import { mensagemPopup } from "@/lib/confianca";
 import { acoes } from "@/lib/roleta/store";
-import { calculateSmartStake, type BancaState } from "./GerenciadorBanca";
 import type { Sinal } from "@/lib/roleta/engine";
 
 type PopupStats = { pct: number; n: number };
@@ -13,16 +12,6 @@ export function PopupSinal({
   stats: PopupStats;
 }) {
   const isPause = sinal.type === "PAUSE";
-  let stake = 0;
-
-  if (typeof window !== "undefined") {
-    try {
-      const raw = window.localStorage.getItem("roleta-gerenciador-banca-v2");
-      if (raw) stake = calculateSmartStake(JSON.parse(raw) as BancaState);
-    } catch {
-      stake = 0;
-    }
-  }
 
   const fechar = () => acoes.marcarVisto(sinal.id);
   const confirmar = () => acoes.confirmar(sinal.id);
@@ -34,7 +23,6 @@ export function PopupSinal({
     motivoHostil: sinal.motivoHostil,
     rebaixadoPorRegime: Boolean(sinal.observacaoHostil),
     galeLiberado: Boolean(sinal.gale1Liberado),
-    stake,
   });
   const L = m.linhas;
   const podeConfirmar = !isPause && sinal.type === "ENTRY_SIGNAL" &&
