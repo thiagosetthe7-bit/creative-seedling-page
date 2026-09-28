@@ -8,7 +8,7 @@ function formatResultado(a: Alerta) {
   const primeiro = `${a.numeroResultado} → ${a.resultado === "GREEN" ? "✅ GREEN" : "❌ RED"}`;
   if (a.resultado === "GREEN" || a.regime === "HOSTIL") return primeiro;
   if (a.numeroGale == null) return `${primeiro} · aguardando G1…`;
-  return `${primeiro} · GALE 1: ${a.numeroGale} → ${a.resultado === "GREEN" ? "✅ GREEN/G1" : "❌ RED/G1"}`;
+  return `${primeiro} · GALE 1: ${a.numeroGale} → ${(a.resultado as string) === "GREEN" ? "✅ GREEN/G1" : "❌ RED/G1"}`;
 }
 
 export function AlertaRow({ a }: { a: Alerta }) {

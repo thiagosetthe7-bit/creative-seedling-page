@@ -123,7 +123,7 @@ export function avaliarEntrada(
   }
 
   if (numero === 0) return "NO_BET";
-  const classificacao = classificar(numero) as Record<string, string>;
+  const classificacao = classificar(numero) as unknown as Record<string, string>;
   const atual = classificacao[categoria];
   if (atual === undefined) return "INVALID";
   return String(atual).toUpperCase() === valor ? "GREEN" : "RED";

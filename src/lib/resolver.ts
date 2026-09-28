@@ -47,14 +47,14 @@ export function formatResultado(a:AlertaBase, cat:number[]){
 
 // Compatibilidade: alerta com resultado derivado + aplicação idempotente.
 export interface Alerta extends AlertaBase {
-  resultado: 'GREEN'|'RED'|null; numeroResultado: number|null;
+  resultado: "GREEN"|"RED"|null; numeroResultado: number|null;
   numeroGale: number|null; desfecho: Desfecho; bancaAplicada: boolean;
 }
 export function aplicarResultados(alertas:Alerta[], cat:number[], unidade:number){
   let delta=0;
   const out=alertas.map((a):Alerta=>{
     const r=computarDesfecho(a,cat);
-    const novo:Alerta={...a,resultado:r.resultado,numeroResultado:r.numeroResultado,numeroGale:r.numeroGale,desfecho:r.desfecho};
+    const novo:Alerta={...a,resultado:r.resultado as Alerta["resultado"],numeroResultado:r.numeroResultado,numeroGale:r.numeroGale,desfecho:r.desfecho};
     const final=r.desfecho==='GREEN_DIRETO'||r.desfecho==='GREEN_GALE1'||r.desfecho==='FALHA_GIRO1'||r.desfecho==='FALHA_GALE';
     if(final&&!a.bancaAplicada){
       const u=unidade||0;
