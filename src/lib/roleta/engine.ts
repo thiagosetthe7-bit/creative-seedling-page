@@ -10,7 +10,8 @@
  * permanece exportada para compatibilidade com o histórico de testes do projeto.
  */
 
-import { CATEGORIAS, classificar, type CategoriaId, type Classificacao } from "./classificacao";\nimport { detectarTriggers } from "../padroes";
+import { CATEGORIAS, classificar, type CategoriaId, type Classificacao } from "./classificacao";
+import { detectarTriggers } from "../padroes";
 import { avaliarEntrada as avaliarEntradaV8, normalizarEntrada as normalizarEntradaV8 } from "../avaliador";
 import type { TipoBip } from "./store";
 
