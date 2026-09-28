@@ -10,7 +10,7 @@ export const Route = createFileRoute("/configuracoes")({
       {
         name: "description",
         content:
-          "Configurações operacionais do BIP ANALYZER, incluindo alertas e parâmetros de banca.",
+          "Configurações operacionais do BIP ANALYZER.",
       },
       { property: "og:title", content: "Configurações — BIP ANALYZER" },
       { property: "og:description", content: "Parâmetros operacionais do BIP ANALYZER." },
@@ -29,58 +29,6 @@ function Configuracoes() {
       <h1 className="mb-3 text-lg font-black tracking-widest">CONFIGURAÇÕES</h1>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <section className="rounded-lg border border-border bg-card p-4">
-          <h2 className="mb-3 text-xs font-black tracking-widest text-muted-foreground">
-            MOTOR BIP
-          </h2>
-          <div className="rounded border border-border bg-muted/30 p-3 text-xs leading-relaxed">
-            <p className="font-bold">Ordem operacional:</p>
-            <p>BLOQUEIO &gt; ALTURA &gt; SESSÃO &gt; COLUNA/DÚZIA &gt; VALIDAÇÃO</p>
-            <p className="mt-2">Zero anterior e Double BT geram somente PAUSA OPERACIONAL.</p>
-            <p>BR com repetição de altura gera cobertura de coluna/dúzia.</p>
-            <p>BT com cor repetida usa ALTURA: REPETE (CONTRARIAN).</p>
-          </div>
-
-          <label className="mt-4 flex items-center gap-2 text-sm font-semibold">
-            <input
-              type="checkbox"
-              checked={config.alertasAtivos}
-              onChange={(e) => acoes.atualizarConfig({ alertasAtivos: e.target.checked })}
-            />
-            Alertas em pop-up ativados
-          </label>
-
-          <p className="mt-3 text-xs text-muted-foreground">
-            Os percentuais exibidos são confiança operacional do padrão, não probabilidade estatística.
-          </p>
-        </section>
-
-        <section className="rounded-lg border border-border bg-card p-4">
-          <h2 className="mb-3 text-xs font-black tracking-widest text-muted-foreground">BANCA</h2>
-          <div className="flex gap-4">
-            <label className="text-sm font-semibold">
-              Banca inicial
-              <input
-                type="number"
-                min={0}
-                value={banca.inicial}
-                onChange={(e) => acoes.atualizarBanca({ inicial: Number(e.target.value) || 0 })}
-                className="mt-1 block w-32 rounded border border-border bg-background px-2 py-1"
-              />
-            </label>
-            <label className="text-sm font-semibold">
-              Unidade por entrada
-              <input
-                type="number"
-                min={1}
-                value={banca.unidade}
-                onChange={(e) => acoes.atualizarBanca({ unidade: Number(e.target.value) || 1 })}
-                className="mt-1 block w-32 rounded border border-border bg-background px-2 py-1"
-              />
-            </label>
-          </div>
-        </section>
-
         <section className="rounded-lg border border-border bg-card p-4 lg:col-span-2">
           <h2 className="mb-3 text-xs font-black tracking-widest text-muted-foreground">
             CATEGORIAS LEGADAS
