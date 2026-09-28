@@ -886,6 +886,20 @@ export function autoTestRegimeV81(): { ok: boolean; errors: string[] } {
   const zLog = calcularRetornoPosZero(zSpins);
   if (zLog.totalZeros !== 1 || zLog.avaliados !== 1 || zLog.matches !== 1) errors.push("T-Q4: retorno-pós-zero não contou 1/1");
 
+  // T-Q2/T-Q3: 2-1-1 e 2-2-1 nunca podem virar entrada quando a janela está HOSTIL.
+  const hostis = [2, 4, 3, 2, 6, 8, 7, 6, 10, 12, 11, 10];
+  const hostilSpins = hostis.map((n, i) => make(n, "h" + (i + 1)));
+  const hostilBips: MapaBips = {};
+  hostilSpins.forEach((s, i) => { hostilBips[s.id] = i % 2 ? "rolando" : "timer"; });
+  const hostilSinais = analisarBips(hostilSpins, hostilBips);
+  const retornoHostil = hostilSinais.filter((s) => s.title.startsWith("RETORNO 2-1-1"));
+  const oscilacaoHostil = hostilSinais.filter((s) => s.title.startsWith("OSCILAÇÃO 2-2-1"));
+  if (retornoHostil.some((s) => !s.observacaoHostil || s.gale1Liberado)) errors.push("T-Q2: 2-1-1 em QUIQUE não ficou em observação");
+  if (oscilacaoHostil.some((s) => !s.observacaoHostil || s.gale1Liberado)) errors.push("T-Q2: 2-2-1 em QUIQUE não ficou em observação");
+  if (hostilSinais.filter((s) => s.regimeClassificado === "HOSTIL" && (s.title.startsWith("RETORNO") || s.title.startsWith("OSCILAÇÃO"))).some((s) => !s.observacaoHostil)) {
+    errors.push("T-Q3: retorno/oscilação gerou entrada em HOSTIL");
+  }
+
   return { ok: errors.length === 0, errors };
 }
 
