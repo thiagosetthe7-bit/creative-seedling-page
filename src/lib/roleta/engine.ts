@@ -181,7 +181,7 @@ export type TipoAlerta = "ENTRY_SIGNAL" | "WARNING" | "PAUSE" | "VALIDATION";
 export type PrioridadeAlerta = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 export type ResultadoAuditoria = "GREEN" | "RED" | "PARTIAL" | "AWAITING" | "NO_BET" | "NA" | "INVALID";
 export type RegimeClassificado = "LIMPA" | "HOSTIL";
-export type MotivoHostil = "ZERO" | "RAJADA" | "SATURACAO" | "MIGRACAO_BR_BT" | "nenhum";
+export type MotivoHostil = "ZERO" | "RAJADA" | "SATURACAO" | "QUIQUE" | "MIGRACAO_BR_BT" | "nenhum";
 
 export const PALETA_BIP = {
   repeticao: "#28a745",
@@ -886,9 +886,93 @@ export interface PortaoGale {
   zeroRecente: boolean;
   rajada: boolean;
   saturacao: boolean;
+  quique: boolean;
   janela: number;
   limiarSat: number;
   isolamentoExigido: number;
+}
+
+export interface RetornoPosZero {
+  zeroIndex: number;
+  setorAntes: string | null;
+  setorDepois: string | null;
+  match: boolean | null;
+}
+
+export function calcularRetornoPosZero(spinsEntrada: Spin[]): {
+  registros: RetornoPosZero[];
+  totalZeros: number;
+  avaliados: number;
+  matches: number;
+  taxaRetorno: number;
+  candidatoInstalavel: boolean;
+} {
+  const spins = spinsEntrada.map(comRodadas);
+  const registros: RetornoPosZero[] = [];
+  for (let i = 0; i < spins.length; i++) {
+    if (spins[i]!.numero !== 0) continue;
+    const antes = i > 0 ? spins[i - 1]!.classificacao.secao : null;
+    const depois = i + 1 < spins.length ? spins[i + 1]!.classificacao.secao : null;
+    registros.push({
+      zeroIndex: i,
+      setorAntes: antes,
+      setorDepois: depois,
+      match: antes != null && depois != null ? antes === depois : null,
+    });
+  }
+  const avaliados = registros.filter((r) => r.match !== null).length;
+  const matches = registros.filter((r) => r.match === true).length;
+  const taxaRetorno = avaliados ? (matches / avaliados) * 100 : 0;
+  return {
+    registros,
+    totalZeros: registros.length,
+    avaliados,
+    matches,
+    taxaRetorno,
+    candidatoInstalavel: avaliados >= 10 && taxaRetorno >= 70,
+  };
+}
+
+function contarAlternancias<T>(valores: Array<T | undefined | null>) {
+  let alternancias = 0;
+  let anterior: T | null = null;
+  for (const valor of valores) {
+    if (valor == null) continue;
+    if (anterior !== null && valor !== anterior) alternancias++;
+    anterior = valor;
+  }
+  return alternancias;
+}
+
+function detectarQuique(spins: Spin[], bips: MapaBips, index: number, janela = 12) {
+  const inicio = Math.max(0, index - janela + 1);
+  const w = spins.slice(inicio, index + 1);
+  const tipos = w.map((s) => bips[s.id]);
+  const alternanciaBip = contarAlternancias(tipos);
+  const secoes = w.filter((s) => s.numero !== 0).map((s) => s.classificacao.secao);
+  const alternanciaSecao = contarAlternancias(secoes);
+  const chaves = ["ab", "cor", "pi"] as const;
+  let saturacaoLean = false;
+  for (const key of chaves) {
+    const valores = w
+      .filter((s) => s.numero !== 0 && s.classificacao[key] !== "ZERO" && s.classificacao[key] !== "VERDE")
+      .map((s) => s.classificacao[key]);
+    if (!valores.length) continue;
+    const counts = new Map<string, number>();
+    for (const valor of valores) counts.set(valor, (counts.get(valor) ?? 0) + 1);
+    const maxShare = Math.max(...counts.values()) / valores.length;
+    if (maxShare >= 0.60 && maxShare <= 0.70) {
+      saturacaoLean = true;
+      break;
+    }
+  }
+  return {
+    ativo: alternanciaBip >= 3 || alternanciaSecao >= 3 || saturacaoLean,
+    alternanciaBip,
+    alternanciaSecao,
+    saturacaoLean,
+    janela: w.length,
+  };
 }
 
 interface CalibracaoPortaoGale {
@@ -978,11 +1062,18 @@ export function classificarRegimeJanela(spins: Spin[], bips: MapaBips, index: nu
   const saturacao = Object.values(counts).some((count) => count / n >= limiarEfetivo);
   const isolamentoAtual = contarBipsIsolados(spins, bips, index, janela);
   const isolamentoInsuficiente = calib.isolamento > 0 && isolamentoAtual < calib.isolamento;
-  const motivoHostil: MotivoHostil = zeroRecente ? "ZERO" : rajada ? "RAJADA" : saturacao || isolamentoInsuficiente ? "SATURACAO" : "nenhum";
+  const quique = detectarQuique(spins, bips, index, Math.min(12, janela));
+  const motivoHostil: MotivoHostil =
+    zeroRecente ? "ZERO"
+      : quique.ativo ? "QUIQUE"
+      : rajada ? "RAJADA"
+      : saturacao || isolamentoInsuficiente ? "SATURACAO"
+      : "nenhum";
   return {
     regimeClassificado: motivoHostil === "nenhum" ? "LIMPA" : "HOSTIL",
     motivoHostil, gale1Liberado: motivoHostil === "nenhum",
-    zeroRecente, rajada, saturacao, janela: w.length,
+    zeroRecente, rajada, saturacao, quique: quique.ativo,
+    janela: w.length,
     limiarSat: limiarEfetivo, isolamentoExigido: calib.isolamento,
   };
 }
@@ -1191,7 +1282,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     }
     if (regime.regimeClassificado === "HOSTIL" && (strategy === "OSCILACAO_221" || strategy === "RETORNO_211")) {
       observacaoHostil = true;
-      observacaoMotivo = "regime hostil";
+      observacaoMotivo = regime.quique ? "QUIQUE: retorno/oscilação aguardam spin+2" : "regime hostil";
     }
     if (strategy === "BT_QUEBRA_COR" && atual.classificacao.secao !== cA.secao) {
       observacaoHostil = true;
