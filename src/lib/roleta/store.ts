@@ -4,7 +4,7 @@ import { CATEGORIAS } from "./classificacao";
 import { criarSpin, type Spin } from "./engine";
 
 export type TipoBip = "timer" | "rolando";
-export type StatusAuditoriaPersistente = "AGUARDANDO_RESULTADO" | "GREEN" | "RED" | "PARTIAL" | "NO_BET" | "DADO_PERDIDO";
+export type StatusAuditoriaPersistente = "AGUARDANDO_RESULTADO" | "GREEN" | "RED" | "PARTIAL" | "NO_BET";
 
 export interface Configuracoes {
   minimo: number;
@@ -17,7 +17,7 @@ export interface RegistroAuditoria {
   strategy: string;
   entry: string;
   result: number;
-  outcome: "GREEN" | "RED" | "PARTIAL" | "NO_BET" | "DADO_PERDIDO";
+  outcome: "GREEN" | "RED" | "PARTIAL" | "NO_BET" | "AGUARDANDO_RESULTADO";
   status: StatusAuditoriaPersistente;
   resultTimestamp?: number | undefined;
   recordedAt: number;
@@ -97,7 +97,19 @@ function carregar(): EstadoApp {
   carregado = true;
   try {
     const bruto = window.localStorage.getItem(CHAVE);
-    if (bruto) estado = migrar({ ...inicial, ...(JSON.parse(bruto) as EstadoApp) });
+    if (bruto) {
+      const carregado = migrar({ ...inicial, ...(JSON.parse(bruto) as EstadoApp) });
+      const auditoriaLog = Object.fromEntries(
+        Object.entries(carregado.auditoriaLog ?? {}).map(([id, registro]) => {
+          const legado = registro as RegistroAuditoria & { status?: string; outcome?: string };
+          if (legado.status === "DADO_PERDIDO" || legado.outcome === "DADO_PERDIDO") {
+            return [id, { ...registro, status: "AGUARDANDO_RESULTADO", outcome: "AGUARDANDO_RESULTADO" as const }];
+          }
+          return [id, registro];
+        }),
+      );
+      estado = { ...carregado, auditoriaLog };
+    }
   } catch {
     /* ignora dados corrompidos */
   }
