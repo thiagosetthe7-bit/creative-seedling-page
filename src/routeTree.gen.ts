@@ -67,29 +67,23 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/banca'
     | '/bips'
     | '/configuracoes'
     | '/dashboard'
-    | '/simulador'
     | '/sinais'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/banca'
     | '/bips'
     | '/configuracoes'
     | '/dashboard'
-    | '/simulador'
     | '/sinais'
   id:
     | '__root__'
     | '/'
-    | '/banca'
     | '/bips'
     | '/configuracoes'
     | '/dashboard'
-    | '/simulador'
     | '/sinais'
   fileRoutesById: FileRoutesById
 }
