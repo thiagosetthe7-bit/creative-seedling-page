@@ -903,6 +903,42 @@ export function autoTestRegimeV81(): { ok: boolean; errors: string[] } {
   return { ok: errors.length === 0, errors };
 }
 
+export function autoTestRegimeV82(): { ok: boolean; errors: string[] } {
+  const errors: string[] = [];
+  const make = (numero: number, id: string) => ({
+    id, numero, timestamp: Number(id.replace(/\\D/g, "")) || 1, classificacao: classificar(numero),
+  });
+
+  // T-F3: 3+ alternâncias BT/BR nos últimos 8–10 BIPs => QUIQUE.
+  const quiqueNums = [2, 17, 4, 19, 6, 21, 8, 23, 10, 25];
+  const quiqueSpins = quiqueNums.map((n, i) => make(n, "q" + (i + 1)));
+  const quiqueBips: MapaBips = {};
+  quiqueSpins.forEach((s, i) => { quiqueBips[s.id] = i % 2 ? "rolando" : "timer"; });
+  const q = classificarRegimeJanela(quiqueSpins, quiqueBips, quiqueSpins.length - 1, 10, 0.70);
+  if (!q.quique || q.regimeClassificado !== "HOSTIL") errors.push("T-F3: BT/BR quique não ativou HOSTIL");
+
+  // T-F2: uma distribuição 65/35 em altura, com 12 giros válidos, ativa LEAN.
+  const leanNums = [2,4,6,8,10,12,14,16,18,20,22,24, 27,29,31,33,35];
+  const leanSpins = leanNums.map((n, i) => make(n, "l" + (i + 1)));
+  const leanBips: MapaBips = {};
+  leanSpins.forEach((s, i) => { leanBips[s.id] = i % 3 === 0 ? "timer" : "rolando"; });
+  const l = detectarQuique(leanSpins, leanBips, leanSpins.length - 1, 14);
+  if (!l.saturacaoLean) errors.push("T-F2: saturação LEAN 60–70% não detectada");
+
+  // T-F1: dois BIPs consecutivos tornam o segundo BIP não apostável para os 3 padrões.
+  const burstSpins = [2, 17, 4, 19, 6, 21, 8, 23, 10, 25].map((n, i) => make(n, "b" + (i + 1)));
+  const burstBips: MapaBips = {};
+  burstSpins.forEach((s, i) => { burstBips[s.id] = i === burstSpins.length - 1 || i === burstSpins.length - 2 ? "rolando" : "timer"; });
+  const burst = analisarBips(burstSpins, burstBips);
+  const blocked = burst.filter((s) =>
+    (s.title.startsWith("BR SEPARADO") || s.title.startsWith("OSCILAÇÃO") || s.title.startsWith("RETORNO")) &&
+    s.rodada === burstSpins.length
+  );
+  if (blocked.some((s) => !s.observacaoHostil || s.gale1Liberado)) errors.push("T-F1: segundo BIP de rajada ficou apostável");
+
+  return { ok: errors.length === 0, errors };
+}
+
 export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
   // Compatibilidade legada: o resolver definitivo é a única implementação.
   return resolverPendentes(sinais, spinsEntrada);
@@ -981,19 +1017,29 @@ function contarAlternancias<T>(valores: Array<T | undefined | null>) {
 }
 
 function detectarQuique(spins: Spin[], bips: MapaBips, index: number, janela = 12) {
-  const inicio = Math.max(0, index - janela + 1);
+  const inicio = Math.max(0, index - Math.max(10, janela) + 1);
   const w = spins.slice(inicio, index + 1);
-  const tipos = w.map((s) => bips[s.id]);
-  const alternanciaBip = contarAlternancias(tipos);
+
+  // F3: QUIQUE de TIPO usa os últimos 8–10 BIPs catalogados.
+  const bipTipos = w.map((s) => bips[s.id]).filter(Boolean) as TipoBip[];
+  const ultimosBips = bipTipos.slice(-10);
+  let alternanciaBip = 0;
+  for (let i = 1; i < ultimosBips.length; i++) {
+    if (ultimosBips[i] !== ultimosBips[i - 1]) alternanciaBip++;
+  }
+
   const secoes = w.filter((s) => s.numero !== 0).map((s) => s.classificacao.secao);
   const alternanciaSecao = contarAlternancias(secoes);
-  const chaves = ["ab", "cor", "pi"] as const;
+
+  // F2: faixa LEAN = 60–70% em qualquer binário (altura/cor/paridade),
+  // usando uma janela recente de 10–14 giros.
   let saturacaoLean = false;
-  for (const key of chaves) {
-    const valores = w
+  const leanJanela = w.slice(-14);
+  for (const key of ["ab", "cor", "pi"] as const) {
+    const valores = leanJanela
       .filter((s) => s.numero !== 0 && s.classificacao[key] !== "ZERO" && s.classificacao[key] !== "VERDE")
       .map((s) => s.classificacao[key]);
-    if (!valores.length) continue;
+    if (valores.length < 10) continue;
     const counts = new Map<string, number>();
     for (const valor of valores) counts.set(valor, (counts.get(valor) ?? 0) + 1);
     const maxShare = Math.max(...counts.values()) / valores.length;
@@ -1002,6 +1048,7 @@ function detectarQuique(spins: Spin[], bips: MapaBips, index: number, janela = 1
       break;
     }
   }
+
   return {
     ativo: alternanciaBip >= 3 || alternanciaSecao >= 3 || saturacaoLean,
     alternanciaBip,
@@ -1128,6 +1175,18 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     const cA = anterior.classificacao;
     const ctx = contextoSequencial(sequenciaBips(spins, bips, i), bip, anterior);
     const regime = classificarRegimeJanela(spins, bips, i, 14, 0.70);
+    const bipAnterior = i > 0 ? bips[spins[i - 1]!.id] : undefined;
+    // F1: o segundo BIP de qualquer rajada (BT ou BR) nunca é apostável
+    // para BR Separado / 2-2-1 / 2-1-1.
+    const segundoBipRajada = Boolean(bip && bipAnterior);
+    // F2: regime.quique também cobre LEAN 60–70%; manter flag explícita para
+    // diferenciar o motivo exibido no sinal.
+    const faixaLean = regime.quique && regime.motivoHostil !== "QUIQUE"
+      ? false
+      : (() => {
+          const lean = detectarQuique(spins, bips, i, 14);
+          return lean.saturacaoLean;
+        })();
 
     // BLOQUEIO — Double BT: dois bips no timer seguidos bloqueiam a operação.
     if (bip === "timer" && bips[anterior.id] === "timer") {
@@ -1207,7 +1266,6 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     const janela = spins.slice(Math.max(0, i - 13), i + 1);
     const naoZero = janela.filter((s) => s.numero !== 0);
     const alturaSaturada = naoZero.length > 0 && ["ALTO","BAIXO"].some((v) => naoZero.filter((s) => s.classificacao.ab === v).length / Math.max(1, regime.janela) >= 0.70);
-    const bipAnterior = i > 0 ? bips[spins[i - 1]!.id] : undefined;
     const bipAnterior2 = i > 1 ? bips[spins[i - 2]!.id] : undefined;
     const bipIsolado = bip === "rolando" && !bipAnterior;
     const brSeparado = bip === "rolando" && bipIsolado && origem === "TIER" && atual.classificacao.tipo === "SEPARADO" && !alturaSaturada;
@@ -1323,6 +1381,14 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     if (regime.regimeClassificado === "HOSTIL" && strategy === "BR_SEPARADO") {
       observacaoHostil = true;
       observacaoMotivo = regime.quique ? "QUIQUE: BR Separado exige janela LIMPA" : "BR Separado exige janela LIMPA";
+    }
+    if (segundoBipRajada && (strategy === "BR_SEPARADO" || strategy === "OSCILACAO_221" || strategy === "RETORNO_211")) {
+      observacaoHostil = true;
+      observacaoMotivo = "F1: 2º BIP de rajada · observação";
+    }
+    if (faixaLean && (strategy === "BR_SEPARADO" || strategy === "OSCILACAO_221" || strategy === "RETORNO_211")) {
+      observacaoHostil = true;
+      observacaoMotivo = "F2: faixa LEAN 60–70% · observação";
     }
     if (strategy === "BT_QUEBRA_COR" && atual.classificacao.secao !== cA.secao) {
       observacaoHostil = true;
