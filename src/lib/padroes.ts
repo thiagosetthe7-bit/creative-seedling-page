@@ -91,3 +91,24 @@ export function rotuloConfianca(s: StatsPadrao): string {
   const pct = Math.round((s.greens / s.n) * 100);
   return `${pct}% em ${s.n} sinais (medido ao vivo)`;
 }
+
+export interface PadroesBoot { ok: boolean; errors: string[] }
+
+export function autoTestPadroes(): PadroesBoot {
+  const errors: string[] = [];
+  const osc = detectarTriggers([1,3,2,4]).filter(t => t.dim === 'COR');
+  if (!osc.some(t => t.tipo === 'OSCILACAO' && t.entrada === 'VERMELHO' && t.mB === 2)) {
+    errors.push('T-v10 OSCILAÇÃO V,V,P,P não detectada');
+  }
+  const ret = detectarTriggers([2,4,5]).filter(t => t.dim === 'PAR');
+  if (!ret.some(t => t.tipo === 'RETORNO' && t.entrada === 'PAR' && t.mB === 1)) {
+    errors.push('T-v10 RETORNO PAR,PAR,IMPAR não detectado');
+  }
+  if (detectarTriggers([1,3,2,4,0]).length !== 0) {
+    errors.push('T-v10 zero recente não bloqueou');
+  }
+  if (detectarTriggers([1,3,5,7,9,11,13,15,17,19,21,23]).length !== 0) {
+    errors.push('T-v10 saturação não bloqueou');
+  }
+  return { ok: errors.length === 0, errors };
+}
