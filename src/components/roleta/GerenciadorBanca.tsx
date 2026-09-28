@@ -150,7 +150,7 @@ function loadPersistence(): PersistenciaBanca {
       const bank = Number(s.currentBank ?? s.bank ?? s.initialBank ?? 100);
       const initial = Number(s.initialBank ?? s.bank ?? 100);
       const history = Array.isArray(s.history) ? s.history : [];
-      const migrated = normalizeWallet({
+      const migrated = normalizeWallet(({
         id: "carteira-migrada",
         nome: "Carteira Migrada",
         bancaInicial: initial,
@@ -162,7 +162,7 @@ function loadPersistence(): PersistenciaBanca {
         wins: history.filter((h) => h.isWin).length,
         losses: history.filter((h) => !h.isWin).length,
         processedSignals: s.processedSignals,
-      });
+      }) as Parameters<typeof normalizeWallet>[0]);
       return { version: 2, carteiras: [migrated], carteiraAtivaId: migrated.id };
     }
   } catch {

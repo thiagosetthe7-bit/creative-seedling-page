@@ -10,7 +10,7 @@ export function PopupSinal({ sinal }: { sinal: Sinal }) {
   if (typeof window !== "undefined") {
     try {
       const raw = window.localStorage.getItem("roleta-gerenciador-banca-v2");
-      if (raw) stake = calculateSmartStake(JSON.parse(raw) as BancaState, sinal);
+      if (raw) stake = calculateSmartStake(JSON.parse(raw) as BancaState);
     } catch {
       stake = 0;
     }
