@@ -11,7 +11,7 @@ export function tier(s:Stats):'NAO_VALIDADO'|'FORTE'|'MODERADO'|'ABAIXO_PISO'{
 // stats vem do Relatórios/log: {pct, n} de sequências resolvidas por estratégia.
 export function mensagemPopup(o:{
   estrategia:string; stats:Stats; regime:'LIMPA'|'HOSTIL'; motivoHostil?:string;
-  rebaixadoPorRegime:boolean; galeLiberado:boolean; stake:number;
+  rebaixadoPorRegime:boolean; galeLiberado:boolean;
 }){
   const t = tier(o.stats);
   const valido = t==='FORTE'||t==='MODERADO';
@@ -24,7 +24,7 @@ export function mensagemPopup(o:{
     :                    `${o.stats.pct}% em ${o.stats.n} sinais · ABAIXO DO PISO`;
 
   const decisao = apostar
-    ? `✅ ENTRADA CONFIRMADA · apostar R$ ${o.stake.toFixed(2)}`
+    ? `✅ ENTRADA CONFIRMADA`
     : `⛔ NÃO APOSTAR · registrar apenas${o.regime==='HOSTIL' ? ` (janela hostil: ${o.motivoHostil})` : o.rebaixadoPorRegime ? ' (rebaixado pelo regime)' : ''}`;
 
   const gale = apostar
