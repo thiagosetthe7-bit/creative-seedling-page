@@ -1,5 +1,6 @@
 import { autoTestResolver, gerarLogAuditoriaCSV, type Sinal } from "@/lib/roleta/engine";
 import { acoes } from "@/lib/roleta/store";
+import { linhaEntrada, rotuloAlerta } from "@/lib/labels";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export function StatusTag({ status }: { status: string }) {
@@ -75,11 +76,11 @@ export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
         {lista.map((s) => (
           <li key={s.id} className="px-3 py-3 text-xs">
             <div className="flex items-center justify-between gap-2">
-              <strong>{s.title}</strong>
+              <strong>{rotuloAlerta({ estrategia: s.title.replace(/^👁\s*OBSERVAÇÃO\s*·\s*/i, "") })}</strong>
               <StatusTag status={s.auditResult === "GREEN" ? "GREEN" : s.auditResult === "RED" ? "RED" : s.auditResult} />
             </div>
 
-            <div className="mt-1 font-semibold">{s.mainAction}</div>
+            <div className="mt-1 font-semibold">{linhaEntrada({ entrada: s.mainAction })}</div>
             <div className="mt-1 text-muted-foreground">{resultadoVisual(s)}</div>
 
             {s.type === "ENTRY_SIGNAL" && s.confidence >= 78 && (
