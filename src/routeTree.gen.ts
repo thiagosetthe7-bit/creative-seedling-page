@@ -10,21 +10,14 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as BancaRouteImport } from './routes/banca'
 import { Route as BipsRouteImport } from './routes/bips'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as SimuladorRouteImport } from './routes/simulador'
 import { Route as SinaisRouteImport } from './routes/sinais'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BancaRoute = BancaRouteImport.update({
-  id: '/banca',
-  path: '/banca',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BipsRoute = BipsRouteImport.update({
@@ -42,11 +35,6 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SimuladorRoute = SimuladorRouteImport.update({
-  id: '/simulador',
-  path: '/simulador',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SinaisRoute = SinaisRouteImport.update({
   id: '/sinais',
   path: '/sinais',
@@ -55,30 +43,24 @@ const SinaisRoute = SinaisRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/banca': typeof BancaRoute
   '/bips': typeof BipsRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
-  '/simulador': typeof SimuladorRoute
   '/sinais': typeof SinaisRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/banca': typeof BancaRoute
   '/bips': typeof BipsRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
-  '/simulador': typeof SimuladorRoute
   '/sinais': typeof SinaisRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/banca': typeof BancaRoute
   '/bips': typeof BipsRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
-  '/simulador': typeof SimuladorRoute
   '/sinais': typeof SinaisRoute
 }
 export interface FileRouteTypes {
@@ -113,11 +95,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  BancaRoute: typeof BancaRoute
   BipsRoute: typeof BipsRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   DashboardRoute: typeof DashboardRoute
-  SimuladorRoute: typeof SimuladorRoute
   SinaisRoute: typeof SinaisRoute
 }
 
@@ -128,13 +108,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/banca': {
-      id: '/banca'
-      path: '/banca'
-      fullPath: '/banca'
-      preLoaderRoute: typeof BancaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/bips': {
@@ -158,13 +131,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/simulador': {
-      id: '/simulador'
-      path: '/simulador'
-      fullPath: '/simulador'
-      preLoaderRoute: typeof SimuladorRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/sinais': {
       id: '/sinais'
       path: '/sinais'
@@ -177,11 +143,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  BancaRoute: BancaRoute,
   BipsRoute: BipsRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
   DashboardRoute: DashboardRoute,
-  SimuladorRoute: SimuladorRoute,
   SinaisRoute: SinaisRoute,
 }
 export const routeTree = rootRouteImport
