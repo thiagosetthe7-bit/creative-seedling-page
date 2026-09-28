@@ -6,14 +6,6 @@ import { acoes, useEstado } from "./store";
 
 const DESFECHOS_FINAIS = new Set(["GREEN_DIRETO", "GREEN_GALE1", "FALHA_GIRO1", "FALHA_GALE"]);
 
-function resultadoFinal(a: Alerta) {
-  return a.desfecho === "GREEN_DIRETO" || a.desfecho === "GREEN_GALE1" ? "GREEN" as const : "RED" as const;
-}
-
-function eFinal(a: Alerta) {
-  return a.desfecho != null && DESFECHOS_FINAIS.has(a.desfecho);
-}
-
 export function useSinais() {
   const estado = useEstado();
   const [resolverTick, setResolverTick] = useState(0);
