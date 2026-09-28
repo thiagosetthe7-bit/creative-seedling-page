@@ -1,8 +1,7 @@
 import { mensagemPopup } from "@/lib/confianca";
 import { acoes } from "@/lib/roleta/store";
 import type { Sinal } from "@/lib/roleta/engine";
-
-type PopupStats = { pct: number; n: number };
+import type { StatsPadrao } from "@/lib/padroes";
 
 export function PopupSinal({
   sinal,
@@ -27,7 +26,7 @@ export function PopupSinal({
   const L = m.linhas;
   const podeConfirmar = !isPause && sinal.type === "ENTRY_SIGNAL" &&
     sinal.confidence >= 78 && sinal.gale1Liberado && !sinal.observacaoHostil &&
-    stats.n >= 20 && stats.pct >= 70;
+    stats.n >= 20;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
