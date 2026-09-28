@@ -1,5 +1,5 @@
 import { acoes } from "@/lib/roleta/store";
-import { calculateSmartStake, type BancaState, registerBancaResult, registerBancaGale1 } from "./GerenciadorBanca";
+import { calculateSmartStake, type BancaState } from "./GerenciadorBanca";
 import type { Sinal } from "@/lib/roleta/engine";
 
 export function PopupSinal({ sinal }: { sinal: Sinal }) {
@@ -16,6 +16,7 @@ export function PopupSinal({ sinal }: { sinal: Sinal }) {
   }
 
   const fechar = () => acoes.marcarVisto(sinal.id);
+  const confirmar = () => acoes.confirmar(sinal.id);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
@@ -26,12 +27,8 @@ export function PopupSinal({ sinal }: { sinal: Sinal }) {
         </section>
 
         <section className="space-y-3 p-5">
-          {sinal.type === "PAUSE" ? (
+          {isPause ? (
             <div className="rounded-lg bg-muted p-3 text-center text-base font-black">⏸ SEM APOSTA</div>
-          ) : sinal.observacaoHostil ? (
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-center text-sm font-black text-amber-300">
-              MODO OBSERVAÇÃO · STAKE 0
-            </div>
           ) : (
             <>
               {sinal.confidence >= 78 && (
@@ -42,22 +39,20 @@ export function PopupSinal({ sinal }: { sinal: Sinal }) {
               <div className={sinal.gale1Liberado
                 ? "rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-center text-sm font-black text-emerald-400"
                 : "rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-center text-sm font-black text-amber-300"}>
-                {sinal.gale1Liberado ? "GALE 1 LIBERADO" : "GALE 1 BLOQUEADO"}
+                {sinal.gale1Liberado ? "GALE 1 LIBERADO" : "GALE 1 BLOQUEADO · HOSTIL"}
               </div>
-              {sinal.confidence >= 78 && (
-                <div className="grid grid-cols-2 gap-2 border-t border-border pt-3">
-                  <button type="button" onClick={() => registerBancaResult(true)} className="rounded-lg bg-emerald-400 px-3 py-3 text-sm font-black text-black">G · GREEN</button>
-                  <button type="button" onClick={() => registerBancaGale1()} disabled={!sinal.gale1Liberado} className="rounded-lg bg-amber-400 px-3 py-3 text-sm font-black text-black disabled:cursor-not-allowed disabled:opacity-30">G1 · GALE 1</button>
-                </div>
-              )}
             </>
           )}
 
           <div className="flex gap-2 border-t border-border pt-3">
-            {sinal.confidence >= 78 && sinal.type === "ENTRY_SIGNAL" && !sinal.observacaoHostil && !isPause && (
-              <button type="button" onClick={() => acoes.confirmar(sinal.id)} className="flex-1 rounded bg-primary py-2 text-sm font-black text-primary-foreground">CONFIRMAR</button>
+            {!isPause && sinal.type === "ENTRY_SIGNAL" && sinal.confidence >= 78 && (
+              <button type="button" onClick={confirmar} className="flex-1 rounded bg-primary py-2 text-sm font-black text-primary-foreground">
+                CONFIRMAR
+              </button>
             )}
-            <button type="button" onClick={fechar} className="flex-1 rounded border border-border px-4 py-2 text-sm font-bold hover:bg-accent">FECHAR</button>
+            <button type="button" onClick={fechar} className="flex-1 rounded border border-border px-4 py-2 text-sm font-bold hover:bg-accent">
+              FECHAR
+            </button>
           </div>
         </section>
       </div>
