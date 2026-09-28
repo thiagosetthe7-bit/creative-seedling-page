@@ -1244,7 +1244,8 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     const bipIsolado = bip === "rolando" && !bipAnterior;
     const brSeparado = bip === "rolando" && bipIsolado && origem === "TIER" && atual.classificacao.tipo === "SEPARADO" && !alturaSaturada;
     const btQuebra = bip === "timer" && !mesmaCor && !sequenciaLonga && atual.classificacao.secao === cA.secao && bipAnterior2 !== "timer";
-    // v10: 2-2-1 e 2-1-1 legados foram substituídos pelos padrões generalizados.\n      if (brSeparado) {
+    // v10: 2-2-1 e 2-1-1 legados foram substituídos pelos padrões generalizados.
+      if (brSeparado) {
         titulo = "BR SEPARADO · REPETE ALTURA";
         acao = "ENTRAR EM " + alturaAlvo;
         conf = mesmaParidade ? 86 : 86;
