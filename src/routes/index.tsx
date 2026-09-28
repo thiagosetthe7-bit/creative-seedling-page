@@ -7,6 +7,7 @@ import { PopupSinal } from "@/components/roleta/PopupSinal";
 import { useSinais } from "@/lib/roleta/useSinais";
 import { useEstado } from "@/lib/roleta/store";
 import type { Sinal } from "@/lib/roleta/engine";
+import { medirPadrao, type StatsPadrao } from "@/lib/padroes";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -29,17 +30,18 @@ export const Route = createFileRoute("/")({
   component: Catalogacao,
 });
 
-function popupStats(sinais: Sinal[], estrategia?: string) {
-  const alvo = estrategia?.replace(/^👁\s*OBSERVAÇÃO\s*·\s*/i, "") ?? "";
-  const resolvidos = sinais.filter((s) =>
-    s.title.replace(/^👁\s*OBSERVAÇÃO\s*·\s*/i, "") === alvo &&
-    (s.status === "WIN" || s.status === "RED")
-  );
-  const wins = resolvidos.filter((s) => s.status === "WIN").length;
-  return {
-    pct: resolvidos.length ? Math.round((wins / resolvidos.length) * 1000) / 10 : 0,
-    n: resolvidos.length,
-  };
+function popupStats(sinais: Sinal[], estrategia?: string): StatsPadrao {
+  const alvo = estrategia?.replace(/^👁\\s*OBSERVAÇÃO\\s*·\\s*/i, "") ?? "";
+  const desfechos = sinais
+    .filter((s) => s.title.replace(/^👁\\s*OBSERVAÇÃO\\s*·\\s*/i, "") === alvo)
+    .map((s) => {
+      if (s.desfechoSequencia === "GREEN_DIRETO") return "GREEN_DIRETO" as const;
+      if (s.desfechoSequencia === "GREEN_GALE1") return "GREEN_GALE1" as const;
+      if (s.desfechoSequencia === "FALHA_GIRO1") return "FALHA_GIRO1" as const;
+      if (s.desfechoSequencia === "FALHA_GALE1") return "FALHA_GALE" as const;
+      return null;
+    });
+  return medirPadrao(desfechos);
 }
 
 function Catalogacao() {
