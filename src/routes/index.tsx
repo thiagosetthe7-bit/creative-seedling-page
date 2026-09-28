@@ -6,6 +6,7 @@ import { PainelSinais } from "@/components/roleta/PainelSinais";
 import { PopupSinal } from "@/components/roleta/PopupSinal";
 import { useSinais } from "@/lib/roleta/useSinais";
 import { useEstado } from "@/lib/roleta/store";
+import type { Sinal } from "@/lib/roleta/engine";
 
 export const Route = createFileRoute("/")({
   head: () => ({
