@@ -8,7 +8,7 @@ export function PopupSinal({
   stats,
 }: {
   sinal: Sinal;
-  stats: PopupStats;
+  stats: StatsPadrao;
 }) {
   const isPause = sinal.type === "PAUSE";
 
