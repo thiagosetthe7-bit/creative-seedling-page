@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useSinais } from "@/lib/roleta/useSinais";
-import type { Sinal } from "@/lib/roleta/engine";
+import { calcularRetornoPosZero, type Sinal } from "@/lib/roleta/engine";
+import { useEstado } from "@/lib/roleta/store";
 
 type Perfil = "conservador" | "equilibrado" | "agressivo";
 type WalletStatus = "ATIVA" | "ARQUIVADA";
@@ -312,6 +313,7 @@ export function calculateSmartStake(state: BancaState) {
 
 export function GerenciadorBanca() {
   const { sinais } = useSinais();
+  const estadoRoleta = useEstado();
   const [persist, setPersist] = useState<PersistenciaBanca>(() => loadPersistence());
   const [tab, setTab] = useState<Tab>("carteiras");
   const [filtro, setFiltro] = useState<WalletStatus | "TODAS">("ATIVA");
@@ -349,6 +351,7 @@ export function GerenciadorBanca() {
 
   const walletsVisible = persist.carteiras.filter((w) => filtro === "TODAS" || w.status === filtro);
   const stats = useMemo(() => calculateStats(persist.carteiras), [persist.carteiras]);
+  const retornoPosZero = useMemo(() => calcularRetornoPosZero(estadoRoleta.spins), [estadoRoleta.spins]);
   const ativos = persist.carteiras.filter((w) => w.status === "ATIVA");
   const arquivadas = persist.carteiras.filter((w) => w.status === "ARQUIVADA");
   const saldoConsolidado = ativos.reduce((s, w) => s + w.bancaReal, 0);
@@ -493,6 +496,23 @@ export function GerenciadorBanca() {
           </div>
           <Section title="ACERTO E EV">
             {stats.sequencias < 10 ? <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs font-bold">amostra pequena — ainda não há N=10 sequências para uma taxa confiável.</div> : <div className="grid gap-3 md:grid-cols-3"><Metric label="ACERTO POR SEQUÊNCIA" value={pct(stats.hitRate)} /><Metric label="EV MÉDIO" value={stats.ev.toFixed(3) + " unidades"} /><Metric label="RECUPERAÇÃO GALE" value={stats.redGiro1Limpa ? pct(stats.recoveryRate) : "amostra pequena"} /></div>}
+          </Section>
+          <Section title="RETORNO-PÓS-ZERO">
+            <div className="grid gap-3 md:grid-cols-4">
+              <Metric label="ZEROS" value={String(retornoPosZero.totalZeros)} />
+              <Metric label="AVALIADOS" value={String(retornoPosZero.avaliados)} />
+              <Metric label="MATCHES" value={String(retornoPosZero.matches)} />
+              <Metric label="RETORNO" value={retornoPosZero.avaliados ? pct(retornoPosZero.taxaRetorno) : "aguardando"} hint={retornoPosZero.candidatoInstalavel ? "CANDIDATO INSTALÁVEL · avisar, não instalar" : "Meta: N≥10 zeros e retorno ≥70%"} />
+            </div>
+            <div className="mt-3 max-h-48 overflow-auto text-xs">
+              {retornoPosZero.registros.slice(-20).map((r, i) => (
+                <div key={r.zeroIndex + "-" + i} className="flex justify-between border-b border-border/50 py-2">
+                  <span>ZERO · setor antes: {r.setorAntes ?? "—"} · setor depois: {r.setorDepois ?? "aguardando"}</span>
+                  <b>{r.match === null ? "⏳" : r.match ? "MATCH" : "SEM MATCH"}</b>
+                </div>
+              ))}
+              {!retornoPosZero.registros.length && <div className="text-muted-foreground">Nenhum ZERO catalogado nesta sessão.</div>}
+            </div>
           </Section>
           <Section title="POR ESTRATÉGIA">
             <div className="overflow-auto"><table className="w-full text-left text-xs"><thead><tr className="border-b border-border text-[10px] text-muted-foreground"><th className="p-2">ESTRATÉGIA</th><th>AMOSTRA</th><th>ACERTO</th><th>EV</th></tr></thead><tbody>{[...stats.byStrategy.entries()].map(([name, rows]) => { const wins = rows.filter(h => h.isWin).length; const ev = rows.length ? rows.reduce((s,h)=>s+(h.unidadesLiquidasSequencia??0),0)/rows.length : 0; return <tr key={name} className="border-b border-border/50"><td className="p-2 font-bold">{name}</td><td>{rows.length}</td><td>{rows.length < 10 ? "amostra pequena" : pct((wins/rows.length)*100)}</td><td>{rows.length < 10 ? "amostra pequena" : ev.toFixed(3)}</td></tr>; })}</tbody></table></div>
