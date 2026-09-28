@@ -48,9 +48,9 @@ export function detectarTriggers(nums: number[]): Trigger[] {
 
     if (runs.length < 2) continue;
 
-    const b = runs[runs.length - 1];
-    const a = runs[runs.length - 2];
-    const ultimo = seq[seq.length - 1].idx;
+    const b = runs[runs.length - 1]!;
+    const a = runs[runs.length - 2]!;
+    const ultimo = seq[seq.length - 1]!.idx;
 
     if (b.end !== ultimo) continue;
     if (b.len !== 1 && b.len !== 2) continue;
