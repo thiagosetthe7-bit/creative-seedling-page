@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { analisarBips, calcularEstatisticas, autoTestResolver, type Sinal } from "./engine";
 import { computarDesfecho, type AlertaBase } from "../resolver";
+import { autoTestPadroes } from "../padroes";
 import { acoes, useEstado } from "./store";
 
 const DESFECHOS_FINAIS = new Set(["GREEN_DIRETO", "GREEN_GALE1", "FALHA_GIRO1", "FALHA_GALE"]);
@@ -88,8 +89,10 @@ export function useSinais() {
     if (typeof window === "undefined") return;
 
     const boot = autoTestResolver();
-    window.dispatchEvent(new CustomEvent("roleta:self-test", { detail: boot }));
-    if (!boot.ok) window.dispatchEvent(new CustomEvent("roleta:resolver-failure", { detail: boot.errors }));
+    const padroesBoot = autoTestPadroes();
+    const combinedBoot = { ok: boot.ok && padroesBoot.ok, errors: [...boot.errors, ...padroesBoot.errors] };
+    window.dispatchEvent(new CustomEvent("roleta:self-test", { detail: combinedBoot }));
+    if (!combinedBoot.ok) window.dispatchEvent(new CustomEvent("roleta:resolver-failure", { detail: combinedBoot.errors }));
 
     for (const s of resultado.sinais) {
       const persistido = estado.auditoriaLog[s.id];
