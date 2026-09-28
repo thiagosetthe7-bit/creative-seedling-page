@@ -671,7 +671,7 @@ export function resolverPendentes(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[
           ...sinal.auditResultPayload,
           current_number: null,
           verdict: "NA",
-          reason: "OBSERVAÇÃO/stake 0 não participa da auditoria.",
+          reason: "OBSERVAÇÃO não participa da auditoria.",
           ui_update: { row_color: "#6c757d", badge_text: "n/a", panel_status: "NA" },
         },
       };
@@ -756,7 +756,7 @@ export function resolverPendentes(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[
           current_number: null,
           verdict: veredito === "NA" ? "NA" : "NO_BET",
           reason: veredito === "NA"
-            ? "OBSERVAÇÃO/stake 0 não participa da auditoria."
+            ? "OBSERVAÇÃO não participa da auditoria."
             : "Resultado não é uma aposta pontuável.",
           ui_update: {
             row_color: "#6c757d",
@@ -824,7 +824,7 @@ export function autoTestResolver(): { ok: boolean; errors: string[] } {
     auditTargetRow:1, auditResultPayload:{target_signal_id:"self-test-resolver",previous_bip_row_index:1,current_number:null,
     verdict:"AWAITING",reason:"",ui_update:{row_color:"",badge_text:"",panel_status:""}},
     auditExcludedSession:null, regimeClassificado:"LIMPA", motivoHostil:"nenhum", gale1Liberado:true,
-    gale1Usado:false, gale1Resultado:"n/a", desfechoSequencia:"n/a", unidadesLiquidasSequencia:0,
+    gale1Usado:false, gale1Resultado:"n/a", desfechoSequencia:"n/a",
     observacaoHostil:false } as Sinal;
   const resolved = resolverPendentes([sint], [s1,s2])[0];
   if (!resolved || resolved.auditResult !== "GREEN" || resolved.auditNumero !== 12) errors.push("resolverPendentes não resolveu o próximo giro");
