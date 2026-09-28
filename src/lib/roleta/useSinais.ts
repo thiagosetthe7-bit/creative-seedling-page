@@ -38,7 +38,7 @@ export function useSinais() {
         };
       });
 
-    const resolvidos = aplicarResultados(alertasBase, estado.spins.map((s) => s.numero), estado.banca.unidade);
+    const resolvidos = aplicarResultados(alertasBase, estado.spins.map((s) => s.numero));
     const porId = new Map(resolvidos.alertas.map((a) => [a.id, a]));
 
     const auditados: Sinal[] = brutos.map((s) => {
@@ -111,16 +111,8 @@ export function useSinais() {
       estatisticas: calcularEstatisticas(sinais),
       naoVistos: sinais.filter((s) => !estado.vistos.includes(s.id)),
       confirmados: estado.confirmados,
-      deltaBancaResolvido: resolvidos.delta,
     };
   }, [estado, resolverTick]);
-
-  useEffect(() => {
-    if (!resultado.deltaBancaResolvido) return;
-    acoes.atualizarBanca({
-      saldo: (estado.banca.saldo ?? estado.banca.inicial) + resultado.deltaBancaResolvido,
-    });
-  }, [resultado.deltaBancaResolvido, estado.banca.saldo, estado.banca.inicial]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
