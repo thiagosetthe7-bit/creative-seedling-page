@@ -28,9 +28,23 @@ export const Route = createFileRoute("/")({
   component: Catalogacao,
 });
 
+function popupStats(sinais: Sinal[], estrategia?: string) {
+  const alvo = estrategia?.replace(/^👁\s*OBSERVAÇÃO\s*·\s*/i, "") ?? "";
+  const resolvidos = sinais.filter((s) =>
+    s.title.replace(/^👁\s*OBSERVAÇÃO\s*·\s*/i, "") === alvo &&
+    (s.status === "WIN" || s.status === "RED")
+  );
+  const wins = resolvidos.filter((s) => s.status === "WIN").length;
+  return {
+    pct: resolvidos.length ? Math.round((wins / resolvidos.length) * 1000) / 10 : 0,
+    n: resolvidos.length,
+  };
+}
+
 function Catalogacao() {
   const estado = useEstado();
   const { sinais, naoVistos } = useSinais();
+  const statsPopup = popupStats(sinais, popup?.title);
 
   const popup = estado.config.alertasAtivos
     ? [...naoVistos].sort((a, b) => {
@@ -61,7 +75,7 @@ function Catalogacao() {
         <PainelSinais sinais={sinais} />
       </div>
 
-      {popup && <PopupSinal sinal={popup} />}
+      {popup && <PopupSinal sinal={popup} stats={statsPopup} />}
     </AppShell>
   );
 }
