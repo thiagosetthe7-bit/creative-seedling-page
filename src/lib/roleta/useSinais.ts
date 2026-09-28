@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { analisarBips, calcularEstatisticas, autoTestResolver, type Sinal } from "./engine";
-import { aplicarResultados, type Alerta } from "../resolver";
+import { computarDesfecho, type AlertaBase } from "../resolver";
 import { acoes, useEstado } from "./store";
 
 const DESFECHOS_FINAIS = new Set(["GREEN_DIRETO", "GREEN_GALE1", "FALHA_GIRO1", "FALHA_GALE"]);
@@ -19,99 +19,58 @@ export function useSinais() {
 
   const resultado = useMemo(() => {
     const brutos = analisarBips(estado.spins, estado.bips);
-    const alertasBase: Alerta[] = brutos
-      .filter((s) => s.type === "ENTRY_SIGNAL")
-      .map((s) => {
-        const persistido = estado.auditoriaLog[s.id];
-        const finalizado = persistido && ["GREEN", "RED", "PARTIAL"].includes(persistido.status);
+    const catalogacao = estado.spins.map((s) => s.numero);
+    const porId = new Map<string, ReturnType<typeof computarDesfecho>>();
+
+    for (const s of brutos.filter((x) => x.type === "ENTRY_SIGNAL")) {
+      const alerta: AlertaBase = {
+        id: s.id,
+        entrada: s.mainAction,
+        estrategia: s.title,
+        indiceSinal: Math.max(0, (s.rodada || 1) - 1),
+        regime: s.regimeClassificado,
+      };
+      porId.set(s.id, computarDesfecho(alerta, catalogacao));
+    }
+
+    const sinais: Sinal[] = brutos.map((s) => {
+      const r = porId.get(s.id);
+      if (!r) return s;
+      if (r.desfecho == null && r.resultado === "RED") {
         return {
-          id: s.id,
-          entrada: s.mainAction,
-          estrategia: s.title,
-          indiceSinal: Math.max(0, (s.rodada || 1) - 1),
-          regime: s.regimeClassificado,
-          resultado: finalizado ? (persistido!.outcome === "GREEN" ? "GREEN" : "RED") : null,
-          numeroResultado: finalizado ? persistido!.result : null,
-          numeroGale: null,
-          desfecho: null,
-          bancaAplicada: Boolean(finalizado),
-        };
-      });
-
-    const resolvidos = aplicarResultados(alertasBase, estado.spins.map((s) => s.numero));
-    const porId = new Map(resolvidos.alertas.map((a) => [a.id, a]));
-
-    const auditados: Sinal[] = brutos.map((s) => {
-      const a = porId.get(s.id);
-      if (!a) return s;
-
-      if (a.desfecho == null && a.resultado === "RED") {
-        return {
-          ...s,
-          auditResult: "RED",
-          auditNumero: a.numeroResultado,
-          auditTimestamp: s.timestamp,
-          desfechoSequencia: "FALHA_GIRO1",
-          gale1Usado: false,
-          gale1Resultado: "n/a",
+          ...s, auditResult: "RED", auditNumero: r.numeroResultado, auditTimestamp: s.timestamp,
+          desfechoSequencia: "FALHA_GIRO1", gale1Usado: false, gale1Resultado: "n/a",
           auditMessage: "Primeiro giro perdido · aguardando GALE 1.",
-          auditResultPayload: {
-            ...s.auditResultPayload,
-            current_number: a.numeroResultado,
-            verdict: "RED",
-            reason: "Primeiro giro não confirmou a entrada; GALE 1 ainda aguarda o próximo giro.",
-            ui_update: { row_color: "#dc3545", badge_text: "❌ RED · aguardando G1…", panel_status: "AWAITING_GALE1" },
-          },
         };
       }
-
-      if (!eFinal(a)) return s;
-
-      const final = resultadoFinal(a);
+      if (!r.desfecho || !["GREEN_DIRETO","GREEN_GALE1","FALHA_GIRO1","FALHA_GALE"].includes(r.desfecho)) return s;
+      const final = r.desfecho === "GREEN_DIRETO" || r.desfecho === "GREEN_GALE1" ? "GREEN" as const : "RED" as const;
       return {
         ...s,
         auditResult: final,
-        auditNumero: a.numeroResultado,
+        auditNumero: r.numeroResultado,
         auditTimestamp: s.timestamp,
-        desfechoSequencia: a.desfecho === "FALHA_GALE" ? "FALHA_GALE1" : (a.desfecho ?? "n/a"),
-        gale1Usado: a.desfecho === "GREEN_GALE1" || a.desfecho === "FALHA_GALE",
-        gale1Resultado: a.desfecho === "GREEN_GALE1" ? "GREEN" : a.desfecho === "FALHA_GALE" ? "RED" : "n/a",
-        gale1Stake: a.numeroGale ?? 0,
+        desfechoSequencia: r.desfecho === "FALHA_GALE" ? "FALHA_GALE1" : r.desfecho,
+        gale1Usado: r.desfecho === "GREEN_GALE1" || r.desfecho === "FALHA_GALE",
+        gale1Resultado: r.desfecho === "GREEN_GALE1" ? "GREEN" : r.desfecho === "FALHA_GALE" ? "RED" : "n/a",
         auditResultPayload: {
           ...s.auditResultPayload,
-          current_number: a.numeroResultado,
+          current_number: r.numeroResultado,
           verdict: final,
-          reason: final === "GREEN" ? "Resultado confirmado pelo resolver." : "Resultado final confirmado pelo resolver.",
-          ui_update: {
-            row_color: final === "GREEN" ? "#28a745" : "#dc3545",
-            badge_text: final === "GREEN" ? "✅ GREEN" : "❌ RED",
-            panel_status: final,
-          },
+          reason: "Resultado confirmado pelo resolver.",
+          ui_update: { row_color: final === "GREEN" ? "#28a745" : "#dc3545", badge_text: final === "GREEN" ? "✅ GREEN" : "❌ RED", panel_status: final },
         },
       };
     });
 
-    const sinais: Sinal[] = auditados.map((s) => {
-      const persistido = estado.auditoriaLog[s.id];
-      if (persistido && ["GREEN", "RED", "PARTIAL"].includes(persistido.status)) {
-        const outcome = persistido.outcome === "GREEN" ? "GREEN" : persistido.outcome === "PARTIAL" ? "PARTIAL" : "RED";
-        return {
-          ...s,
-          status: outcome === "GREEN" ? "WIN" : outcome === "PARTIAL" ? "PARTIAL" : "RED",
-          auditResult: outcome,
-          auditNumero: persistido.result,
-          auditTimestamp: persistido.resultTimestamp ?? persistido.recordedAt,
-        };
-      }
-      return s;
+    const persistidos = sinais.map((s) => {
+      const p = estado.auditoriaLog[s.id];
+      if (!p || !["GREEN","RED","PARTIAL"].includes(p.status)) return s;
+      const outcome = p.outcome === "GREEN" ? "GREEN" : p.outcome === "PARTIAL" ? "PARTIAL" : "RED";
+      return { ...s, status: outcome === "GREEN" ? "WIN" : outcome === "PARTIAL" ? "PARTIAL" : "RED", auditResult: outcome, auditNumero: p.result, auditTimestamp: p.resultTimestamp ?? p.recordedAt };
     });
 
-    return {
-      sinais,
-      estatisticas: calcularEstatisticas(sinais),
-      naoVistos: sinais.filter((s) => !estado.vistos.includes(s.id)),
-      confirmados: estado.confirmados,
-    };
+    return { sinais: persistidos, estatisticas: calcularEstatisticas(persistidos), naoVistos: persistidos.filter((s) => !estado.vistos.includes(s.id)), confirmados: estado.confirmados };
   }, [estado, resolverTick]);
 
   useEffect(() => {
