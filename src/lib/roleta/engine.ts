@@ -918,7 +918,7 @@ export function autoTestRegimeV82(): { ok: boolean; errors: string[] } {
   if (!q.quique || q.regimeClassificado !== "HOSTIL") errors.push("T-F3: BT/BR quique não ativou HOSTIL");
 
   // T-F2: uma distribuição 65/35 em altura, com 12 giros válidos, ativa LEAN.
-  const leanNums = [2,4,6,8,10,12,14,16,18,20,22,24, 27,29,31,33,35];
+  const leanNums = [2,4,6,8,10,12,14,16,18, 27,29,31,33,35];
   const leanSpins = leanNums.map((n, i) => make(n, "l" + (i + 1)));
   const leanBips: MapaBips = {};
   leanSpins.forEach((s, i) => { leanBips[s.id] = i % 3 === 0 ? "timer" : "rolando"; });
