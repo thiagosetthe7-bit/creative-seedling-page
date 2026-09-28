@@ -75,7 +75,11 @@ function migrar(bruto: EstadoApp): EstadoApp {
   if (!antigo || typeof antigo !== "object") return bruto;
   const chaves = Object.keys(antigo as Record<string, unknown>);
   const pareceNovo = chaves.every((k) => Number.isNaN(Number(k)));
-  const { banca: _legacyMoney, ...semModeloFinanceiro } = bruto as EstadoApp & { banca?: unknown };
+  const semModeloFinanceiro: EstadoApp = {
+    spins: bruto.spins ?? [], config: bruto.config ?? inicial.config, confirmados: bruto.confirmados ?? [],
+    cancelados: bruto.cancelados ?? [], vistos: bruto.vistos ?? [], bips: bruto.bips ?? {},
+    pendentes: bruto.pendentes ?? {}, auditoriaLog: bruto.auditoriaLog ?? {},
+  };
   if (pareceNovo) return semModeloFinanceiro;
 
   const bips: Record<string, TipoBip> = {};
