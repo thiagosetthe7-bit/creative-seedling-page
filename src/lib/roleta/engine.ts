@@ -1231,7 +1231,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     s.desfechoSequencia = "n/a";
     s.unidadesLiquidasSequencia = 0;
     if (s.observacaoHostil) {
-      s.title = "👁 OBSERVAÇÃO · " + s.title;
+      // Estado hostil permanece interno; o prefixo legado nunca é exibido.
       s.message = "Stake 0 · " + (observacaoMotivo || "condição de regime");
       s.footerNote = "👁 OBSERVAÇÃO | " + (observacaoMotivo || "regime hostil") + " | 🔒 GALE 1 BLOQUEADO";
     } else {
