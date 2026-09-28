@@ -1343,7 +1343,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       observacaoMotivo = "troca brusca de seção";
     }
 
-    if (bip === "rolando" && !geometrica && !oscilacao221 && !retorno211 &&
+    if (bip === "rolando" && !geometrica &&
         (!bipIsolado || origem !== "TIER" || atual.classificacao.tipo !== "SEPARADO" || alturaSaturada)) {
       titulo = "BR SEPARADO · REPETE ALTURA";
       acao = "ENTRAR EM " + alturaAlvo;
