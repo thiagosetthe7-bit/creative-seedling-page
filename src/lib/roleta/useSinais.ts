@@ -56,7 +56,7 @@ export function useSinais() {
       };
     });
 
-    const persistidos = sinais.map((s) => {
+    const persistidos: Sinal[] = sinais.map((s): Sinal => {
       const p = estado.auditoriaLog[s.id];
       if (!p || !["GREEN","RED","PARTIAL"].includes(p.status)) return s;
       const outcome = p.outcome === "GREEN" ? "GREEN" : p.outcome === "PARTIAL" ? "PARTIAL" : "RED";
