@@ -22,7 +22,7 @@ export const Route = createFileRoute("/configuracoes")({
 });
 
 function Configuracoes() {
-  const { config, banca } = useEstado();
+  const { config } = useEstado();
 
   return (
     <AppShell>
