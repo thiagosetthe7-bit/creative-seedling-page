@@ -25,7 +25,7 @@ export function mensagemPopup(o:{
 
   const decisao = apostar
     ? `✅ ENTRADA CONFIRMADA · apostar R$ ${o.stake.toFixed(2)}`
-    : `⛔ NÃO APOSTAR · registrar apenas${o.regime==='HOSTIL'?\` (janela hostil: ${o.motivoHostil})\`:o.rebaixadoPorRegime?' (rebaixado pelo regime)':''}`;
+    : `⛔ NÃO APOSTAR · registrar apenas${o.regime==='HOSTIL' ? ` (janela hostil: ${o.motivoHostil})` : o.rebaixadoPorRegime ? ' (rebaixado pelo regime)' : ''}`;
 
   const gale = apostar
     ? (o.galeLiberado ? '🔁 GALE 1: LIBERADO' : `🔒 GALE 1: BLOQUEADO (${o.motivoHostil||'regime'})`)
