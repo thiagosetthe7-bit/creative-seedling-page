@@ -1310,7 +1310,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       ? cobertura !== null && permitidas.includes(cobertura)
       : cobertura !== null;
 
-    const strategy = padraoAtual ? "PADRAO_GENERALIZADO"
+    const strategy: string = padraoAtual ? "PADRAO_GENERALIZADO"
       : titulo.startsWith("BR SEPARADO") ? "BR_SEPARADO"
       : titulo.startsWith("BT QUEBRA") ? "BT_QUEBRA_COR"
       : titulo.startsWith("SEQUÊNCIA") ? "SEQUENCIA_GEOMETRICA_5X" : "OUTRA";
