@@ -505,30 +505,6 @@ function coberturaUnica(ctx: ReturnType<typeof contextoSequencial>, bip: TipoBip
   return "D2 + D3";
 }
 
-function detectarOscilacao221(spins: Spin[], index: number) {
-  if (index < 4) return null;
-  const categorias: Array<keyof Classificacao> = ["pi", "ab", "cor"];
-  for (const categoria of categorias) {
-    const vals = spins.slice(index - 4, index).map((s) => s.classificacao[categoria]);
-    if (vals.length === 4 && vals[0] === vals[1] && vals[2] === vals[3] && vals[0] !== vals[2]) {
-      return { categoria, alvo: vals[0]!, context: "2-2-1 Confirmed", confidence: 83 };
-    }
-  }
-  return null;
-}
-
-function detectarRetorno211(spins: Spin[], index: number) {
-  if (index < 3) return null;
-  const categorias: Array<keyof Classificacao> = ["pi", "ab", "cor"];
-  for (const categoria of categorias) {
-    const vals = spins.slice(index - 3, index).map((s) => s.classificacao[categoria]);
-    if (vals.length === 3 && vals[0] === vals[1] && vals[0] !== vals[2]) {
-      return { categoria, alvo: vals[0]!, context: "2-1-1 Confirmed", confidence: 80 };
-    }
-  }
-  return null;
-}
-
 function detectarSequenciaGeometrica(spins: Spin[], index: number) {
   if (index < 5) return null;
   const last = spins.slice(index - 5, index);
@@ -1232,7 +1208,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     const mesmaCor = atual.numero !== 0 && atual.classificacao.cor === cA.cor;
     const mesmaParidade = atual.numero !== 0 && atual.classificacao.pi === cA.pi;
 
-    // v6.5 — auditor rígido: prioridade 2-2-1 > 2-1-1 > BR/BT > sequência geométrica.
+    // v10 — padrões generalizados têm prioridade sobre os gatilhos legados removidos.
     const oscilacao221 = detectarOscilacao221(spins, i);
     const retorno211 = detectarRetorno211(spins, i);
     const geometrica = detectarSequenciaGeometrica(spins, i);
@@ -1249,7 +1225,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     let nota = "";
     const alturaAlvo = (ctx.title === "INVERTE ALTURA" ? alturaOposta(cA.ab) : cA.ab) as Altura;
 
-    // Bloqueios v6.5: alternância A-B-A-B e retornos 3-1-1/4-1-1.
+    // Bloqueios de regime permanecem ativos; padrões restritos 2-2-1/2-1-1 foram removidos.
     if (alternanciaPerfeita) {
       continue;
     }
