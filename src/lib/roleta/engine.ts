@@ -250,9 +250,7 @@ export interface Sinal {
   gale1Usado: boolean;
   gale1Resultado: "GREEN" | "RED" | "n/a";
   desfechoSequencia: "GREEN_DIRETO" | "GREEN_GALE1" | "FALHA_GIRO1" | "FALHA_GALE1" | "n/a";
-  unidadesLiquidasSequencia: 0 | 1 | -1 | -3;
   observacaoHostil: boolean;
-  gale1Stake: number;
 }
 
 export interface OpcoesDeteccao {
@@ -401,9 +399,7 @@ function sinalBase(
     gale1Usado: false,
     gale1Resultado: "n/a",
     desfechoSequencia: "n/a",
-    unidadesLiquidasSequencia: 0,
     observacaoHostil: false,
-    gale1Stake: 0,
     auditTargetRow: atual.rodada ?? 0,
     auditResultPayload: {
       target_signal_id: id,
@@ -829,7 +825,7 @@ export function autoTestResolver(): { ok: boolean; errors: string[] } {
     verdict:"AWAITING",reason:"",ui_update:{row_color:"",badge_text:"",panel_status:""}},
     auditExcludedSession:null, regimeClassificado:"LIMPA", motivoHostil:"nenhum", gale1Liberado:true,
     gale1Usado:false, gale1Resultado:"n/a", desfechoSequencia:"n/a", unidadesLiquidasSequencia:0,
-    observacaoHostil:false, gale1Stake:1 } as Sinal;
+    observacaoHostil:false } as Sinal;
   const resolved = resolverPendentes([sint], [s1,s2])[0];
   if (!resolved || resolved.auditResult !== "GREEN" || resolved.auditNumero !== 12) errors.push("resolverPendentes não resolveu o próximo giro");
 
@@ -1426,10 +1422,9 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     s.gale1Usado = false;
     s.gale1Resultado = "n/a";
     s.desfechoSequencia = "n/a";
-    s.unidadesLiquidasSequencia = 0;
     if (s.observacaoHostil) {
       // Estado hostil permanece interno; o prefixo legado nunca é exibido.
-      s.message = "Stake 0 · " + (observacaoMotivo || "condição de regime");
+      s.message = observacaoMotivo || "condição de regime";
       s.footerNote = "👁 OBSERVAÇÃO | " + (observacaoMotivo || "regime hostil") + " | 🔒 GALE 1 BLOQUEADO";
     } else {
       s.message = regime.gale1Liberado
@@ -1530,7 +1525,7 @@ export function gerarLogAuditoriaCSV(sinais: Sinal[]): string {
   const esc = (v: unknown) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
   const header = [
     "Signal ID","Strategy Name","Suggested Entry","Actual Result Number","Outcome Status","Confidence","Timestamp",
-    "regime_classificado","motivo_hostil","gale1_librado","gale1_usado","gale1_resultado","desfecho_sequencia","unidades_liquidas_da_sequencia"
+    "regime_classificado","motivo_hostil","gale1_librado","gale1_usado","gale1_resultado","desfecho_sequencia"
   ];
   const rows = sinais
     .filter((s) => s.auditNumero !== null && ["GREEN","RED","PARTIAL"].includes(s.auditResult))
@@ -1539,7 +1534,7 @@ export function gerarLogAuditoriaCSV(sinais: Sinal[]): string {
       s.auditResult === "GREEN" ? "GREEN" : s.auditResult === "RED" ? "RED" : "PARTIAL",
       s.confidence, s.auditTimestamp ?? "",
       s.regimeClassificado, s.motivoHostil, s.gale1Liberado ? "S" : "N", s.gale1Usado ? "S" : "N",
-      s.gale1Resultado, s.desfechoSequencia, s.unidadesLiquidasSequencia
+      s.gale1Resultado, s.desfechoSequencia
     ]);
   return [header, ...rows].map((row) => row.map(esc).join(",")).join("\n");
 }
