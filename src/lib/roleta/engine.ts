@@ -867,6 +867,28 @@ export function autoTestResolver(): { ok: boolean; errors: string[] } {
   return { ok: errors.length === 0 && avaliadorBoot.ok, errors: [...avaliadorBoot.errors, ...errors] };
 }
 
+export function autoTestRegimeV81(): { ok: boolean; errors: string[] } {
+  const errors: string[] = [];
+  const make = (numero: number, id: string) => ({ id, numero, timestamp: Number(id.replace(/\\D/g, "")) || 1, classificacao: classificar(numero) });
+  const bips: MapaBips = {};
+  const base = [7, 22, 9, 24, 11, 26, 13, 28, 15, 30, 17, 32];
+  const spins = base.map((n, i) => {
+    const s = make(n, String(i + 1));
+    if (i > 0) bips[s.id] = i % 2 ? "rolando" : "timer";
+    return s;
+  });
+  bips[spins[0]!.id] = "timer";
+  const q = classificarRegimeJanela(spins, bips, spins.length - 1, 12, 0.70);
+  if (!q.quique || q.regimeClassificado !== "HOSTIL") errors.push("T-Q1: alternância BT/BR não ativou QUIQUE");
+
+  const z = [7, 0, 19, 28, 11, 24, 13, 26, 15, 30, 17, 32];
+  const zSpins = z.map((n, i) => make(n, "z" + (i + 1)));
+  const zLog = calcularRetornoPosZero(zSpins);
+  if (zLog.totalZeros !== 1 || zLog.avaliados !== 1 || zLog.matches !== 1) errors.push("T-Q4: retorno-pós-zero não contou 1/1");
+
+  return { ok: errors.length === 0, errors };
+}
+
 export function auditarSinais(sinais: Sinal[], spinsEntrada: Spin[]): Sinal[] {
   // Compatibilidade legada: o resolver definitivo é a única implementação.
   return resolverPendentes(sinais, spinsEntrada);
@@ -1283,6 +1305,10 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     if (regime.regimeClassificado === "HOSTIL" && (strategy === "OSCILACAO_221" || strategy === "RETORNO_211")) {
       observacaoHostil = true;
       observacaoMotivo = regime.quique ? "QUIQUE: retorno/oscilação aguardam spin+2" : "regime hostil";
+    }
+    if (regime.regimeClassificado === "HOSTIL" && strategy === "BR_SEPARADO") {
+      observacaoHostil = true;
+      observacaoMotivo = regime.quique ? "QUIQUE: BR Separado exige janela LIMPA" : "BR Separado exige janela LIMPA";
     }
     if (strategy === "BT_QUEBRA_COR" && atual.classificacao.secao !== cA.secao) {
       observacaoHostil = true;
