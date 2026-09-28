@@ -44,3 +44,25 @@ export function formatResultado(a:AlertaBase, cat:number[]){
   if(r.numeroGale==null) return `${first} · aguardando G1…`;
   return `${first} · ${r.numeroGale} → ${r.desfecho==='GREEN_GALE1'?'✅ GREEN/G1':'❌❌ RED/G1'}`;
 }
+
+// Compatibilidade: alerta com resultado derivado + aplicação idempotente.
+export interface Alerta extends AlertaBase {
+  resultado: 'GREEN'|'RED'|null; numeroResultado: number|null;
+  numeroGale: number|null; desfecho: Desfecho; bancaAplicada: boolean;
+}
+export function aplicarResultados(alertas:Alerta[], cat:number[], unidade:number){
+  let delta=0;
+  const out=alertas.map((a):Alerta=>{
+    const r=computarDesfecho(a,cat);
+    const novo:Alerta={...a,resultado:r.resultado,numeroResultado:r.numeroResultado,numeroGale:r.numeroGale,desfecho:r.desfecho};
+    const final=r.desfecho==='GREEN_DIRETO'||r.desfecho==='GREEN_GALE1'||r.desfecho==='FALHA_GIRO1'||r.desfecho==='FALHA_GALE';
+    if(final&&!a.bancaAplicada){
+      const u=unidade||0;
+      if(r.desfecho==='GREEN_DIRETO'||r.desfecho==='GREEN_GALE1') delta+=u;
+      else if(r.desfecho==='FALHA_GIRO1') delta-=u; else delta-=3*u;
+      novo.bancaAplicada=true;
+    }
+    return novo;
+  });
+  return {alertas:out,delta};
+}
