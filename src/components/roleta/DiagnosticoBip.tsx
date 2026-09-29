@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { analisarBips, agregar, gerarLogBipCSV, textoResumo, type RowBip } from "@/lib/loggerBip";
-import type { Spin } from "@/lib/roleta/engine";
 import type { EstadoApp } from "@/lib/roleta/store";
 
 export function DiagnosticoBip({ spins, bips }: Pick<EstadoApp, "spins"|"bips">) {
