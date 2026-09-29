@@ -4,6 +4,7 @@ import { EntradaNumeros } from "@/components/roleta/EntradaNumeros";
 import { TabelaCatalogacao } from "@/components/roleta/TabelaCatalogacao";
 import { PainelSinais } from "@/components/roleta/PainelSinais";
 import { PopupSinal } from "@/components/roleta/PopupSinal";
+import { DiagnosticoBip } from "@/components/roleta/DiagnosticoBip";
 import { useSinais } from "@/lib/roleta/useSinais";
 import { useEstado } from "@/lib/roleta/store";
 import type { Sinal } from "@/lib/roleta/engine";
@@ -74,6 +75,7 @@ function Catalogacao() {
         <div className="space-y-4">
           <EntradaNumeros total={estado.spins.length} />
           <TabelaCatalogacao spins={estado.spins} sinais={sinais} />
+          <DiagnosticoBip spins={estado.spins} bips={estado.bips} />
         </div>
         <PainelSinais sinais={sinais} />
       </div>
