@@ -2,6 +2,7 @@ import { useSyncExternalStore } from "react";
 import type { CategoriaId } from "./classificacao";
 import { CATEGORIAS } from "./classificacao";
 import { criarSpin, type Spin } from "./engine";
+import { analisarBips, gerarLogBipCSV, type RowBip } from "../loggerBip";
 
 export type TipoBip = "timer" | "rolando";
 export type StatusAuditoriaPersistente = "AGUARDANDO_RESULTADO" | "GREEN" | "RED" | "PARTIAL" | "NO_BET";
@@ -264,6 +265,13 @@ export const acoes = {
       if (atual && atual.status !== "AGUARDANDO_RESULTADO") return e;
       return { ...e, auditoriaLog: { ...e.auditoriaLog, [signalId]: { signalId, strategy: atual?.strategy ?? "Resultado manual", entry: atual?.entry ?? "", result, outcome, status: outcome, recordedAt: atual?.recordedAt ?? Date.now(), resultTimestamp: Date.now() } } };
     });
+  },
+  exportarLogBipCSV() {
+    const rows: RowBip[] = estado.spins.map((s) => ({
+      n: s.numero,
+      bip: estado.bips[s.id] === "timer" ? "BT" : estado.bips[s.id] === "rolando" ? "BR" : null,
+    }));
+    return gerarLogBipCSV(analisarBips(rows));
   },
   limparAuditoria() {
     definir((e) => ({ ...e, auditoriaLog: {} }));
