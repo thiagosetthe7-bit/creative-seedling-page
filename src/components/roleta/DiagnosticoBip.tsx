@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { analisarBips, agregar, gerarLogBipCSV, textoResumo, type RowBip } from "@/lib/loggerBip";
 import type { EstadoApp } from "@/lib/roleta/store";
 
@@ -11,6 +11,14 @@ export function DiagnosticoBip({ spins, bips }: Pick<EstadoApp, "spins"|"bips">)
     const eventos = analisarBips(rows);
     return { eventos, resumo: textoResumo(agregar(eventos)) };
   }, [spins, bips]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("roleta-bip-eventos-v1", JSON.stringify(eventos));
+    } catch {
+      // diagnóstico é observacional; indisponibilidade do storage não afeta o motor.
+    }
+  }, [eventos]);
 
   const exportar = () => {
     const blob = new Blob([gerarLogBipCSV(eventos)], { type: "text/csv;charset=utf-8" });
