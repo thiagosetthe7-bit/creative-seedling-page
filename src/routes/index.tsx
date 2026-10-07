@@ -9,6 +9,7 @@ import { useSinais } from "@/lib/roleta/useSinais";
 import { useEstado } from "@/lib/roleta/store";
 import type { Sinal } from "@/lib/roleta/engine";
 import { medirPadrao, type StatsPadrao } from "@/lib/padroes";
+import { baixarCSV, type SpinRow, type AlertaRow } from "@/lib/exportar";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -57,6 +58,38 @@ function Catalogacao() {
 
   const statsPopup = popupStats(sinais, popup?.title);
 
+  const exportarAuditoria = () => {
+    const spins: SpinRow[] = estado.spins.map((s, i) => ({
+      indice: i,
+      numero: s.numero,
+      bt: estado.bips[s.id] === "timer",
+      br: estado.bips[s.id] === "rolando",
+      terminal: s.classificacao.terminal,
+      cavalo: s.classificacao.cavalo,
+      alt: s.classificacao.ab,
+      duzia: s.classificacao.duzia,
+      coluna: s.classificacao.coluna,
+      pi: s.classificacao.pi,
+      tipo: s.classificacao.tipo,
+      secao: s.classificacao.secao,
+      v010: s.classificacao.g010,
+      v2234: s.classificacao.g2234,
+      cor: s.classificacao.cor,
+    }));
+    const alertas: AlertaRow[] = sinais.map((s) => ({
+      id: s.id,
+      estrategia: s.title,
+      entrada: s.mainAction.replace(/^ENTRAR EM\\s*/i, ""),
+      indiceSinal: Math.max(0, s.rodada - 1),
+      regime: s.regimeClassificado,
+      motivo: s.motivoHostil,
+      numeroResultado: s.auditNumero ?? s.numeroSeguinte,
+      numeroGale: null,
+      desfecho: s.desfechoSequencia,
+    }));
+    baixarCSV(spins, alertas);
+  };
+
   return (
     <AppShell>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
@@ -76,6 +109,7 @@ function Catalogacao() {
           <EntradaNumeros total={estado.spins.length} />
           <TabelaCatalogacao spins={estado.spins} sinais={sinais} />
           <DiagnosticoBip spins={estado.spins} bips={estado.bips} />
+          <button onClick={exportarAuditoria} className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs font-black tracking-widest hover:bg-accent">EXPORTAR AUDITORIA CSV</button>
         </div>
         <PainelSinais sinais={sinais} />
       </div>
