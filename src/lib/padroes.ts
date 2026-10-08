@@ -11,58 +11,62 @@ export interface Trigger {
   mB: number;
 }
 
-const val = (dim: Dim, n: number): string | null => {
+const VERM = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
+
+const val = (dim: string, n: number): string|null => {
   if (n === 0) return null;
-  if (dim === 'COR') {
-    return ([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36].includes(n))
-      ? 'VERMELHO'
-      : 'PRETO';
-  }
+  if (dim === 'COR') return VERM.has(n) ? 'V' : 'P';
   if (dim === 'PAR') return n % 2 === 0 ? 'PAR' : 'IMPAR';
   return n >= 19 ? 'ALTO' : 'BAIXO';
 };
 
-// Detecta Aⁿ-B-A: após corrida de B com m==1 (RETORNO) ou m==2 (OSCILAÇÃO),
-// prevê que o próximo giro retorna ao valor A da corrida anterior.
-export function detectarTriggers(nums: number[]): Trigger[] {
-  const out: Trigger[] = [];
+export const JANELA_ZERO = 8;
+export const MIN_A = 2;
+export const LIMIAR_SAT = 0.70;
 
-  for (const dim of ['COR', 'PAR', 'ALT'] as Dim[]) {
-    const seq: { idx: number; v: string }[] = [];
-    nums.forEach((n, i) => {
-      const v = val(dim, n);
-      if (v) seq.push({ idx: i, v });
+export function detectarTriggers(nums: number[], log?: string[]): Trigger[] {
+  const out: Trigger[] = [];
+  for (const dim of ['COR','PAR','ALT'] as Dim[]) {
+    const seq: {idx:number;v:string}[] = [];
+    nums.forEach((n,i) => {
+      const v = val(dim,n);
+      if (v) seq.push({idx:i,v});
     });
 
-    // Run-length encode.
-    const runs: { v: string; start: number; end: number; len: number }[] = [];
+    const runs: {v:string;end:number;len:number}[] = [];
     for (const s of seq) {
-      const last = runs[runs.length - 1];
-      if (last && last.v === s.v) {
-        last.end = s.idx;
-        last.len++;
+      const l = runs[runs.length - 1];
+      if (l && l.v === s.v) {
+        l.end = s.idx;
+        l.len++;
       } else {
-        runs.push({ v: s.v, start: s.idx, end: s.idx, len: 1 });
+        runs.push({v:s.v,end:s.idx,len:1});
       }
     }
 
     if (runs.length < 2) continue;
-
     const b = runs[runs.length - 1]!;
     const a = runs[runs.length - 2]!;
     const ultimo = seq[seq.length - 1]!.idx;
 
     if (b.end !== ultimo) continue;
     if (b.len !== 1 && b.len !== 2) continue;
+    if (a.len < MIN_A) continue;
 
-    // Filtros de regime no momento do disparo.
-    const janela = nums.slice(Math.max(0, ultimo - 11), ultimo + 1);
-    const zeroRecente = nums.slice(Math.max(0, ultimo - 7), ultimo + 1).includes(0);
-    const semZero = janela.filter(x => x !== 0);
-    const contagem = semZero.filter(x => val(dim, x) === b.v).length;
-    const saturado = semZero.length > 0 && contagem / semZero.length >= 0.70;
+    // A janela é contada em índices reais da catalogação: os últimos 8 giros,
+    // incluindo o giro atual. Zero em qualquer deles bloqueia o disparo.
+    const zeroRecente = nums
+      .slice(Math.max(0, ultimo - (JANELA_ZERO - 1)), ultimo + 1)
+      .includes(0);
 
-    if (zeroRecente || saturado) continue;
+    const j = nums.slice(Math.max(0, ultimo - 11), ultimo + 1).filter(x => x !== 0);
+    const sat = j.length > 0 &&
+      j.filter(x => val(dim, x) === b.v).length / j.length >= LIMIAR_SAT;
+
+    const motivo = zeroRecente ? 'BLOQ zero' : sat ? 'BLOQ sat' : 'DISPARA';
+    log?.push(`${dim} ${a.v}(${a.len})→${b.v}(${b.len}) #${ultimo + 1}: ${motivo}`);
+
+    if (zeroRecente || sat) continue;
 
     out.push({
       id: `${dim}-${ultimo}-${b.len}`,
@@ -75,10 +79,8 @@ export function detectarTriggers(nums: number[]): Trigger[] {
       mB: b.len,
     });
   }
-
   return out;
 }
-
 
 import type { Desfecho } from './resolver';
 export interface StatsPadrao { n: number; greens: number }
