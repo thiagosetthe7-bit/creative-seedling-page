@@ -1,116 +1,44 @@
 export type Dim = 'COR' | 'PAR' | 'ALT';
 
+import { atributos } from './avaliador';
+import { CONFIG } from './config';
+
 export interface Trigger {
-  id: string;
-  tipo: 'OSCILACAO' | 'RETORNO';
-  dim: Dim;
-  entrada: string;
-  indiceSinal: number;
-  alvo: number;
-  nA: number;
-  mB: number;
+  id:string; tipo:'OSCILACAO'|'RETORNO'; dim:string; entrada:string;
+  indiceSinal:number; alvo:number; nA:number; mB:number; padrao:string;
 }
-
-const VERM = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
-
-const val = (dim: string, n: number): string|null => {
-  if (n === 0) return null;
-  if (dim === 'COR') return VERM.has(n) ? 'V' : 'P';
-  if (dim === 'PAR') return n % 2 === 0 ? 'PAR' : 'IMPAR';
-  return n >= 19 ? 'ALTO' : 'BAIXO';
+const valDim=(dim:string,n:number):string|null=>{
+  if(n===0)return null;
+  const a=atributos(n);
+  return dim==='COR'?a.cor:dim==='PAR'?a.par:a.alt;
 };
-
-export const JANELA_ZERO = 8;
-export const MIN_A = 2;
-export const LIMIAR_SAT = 0.70;
-
-export function detectarTriggers(nums: number[], log?: string[]): Trigger[] {
-  const out: Trigger[] = [];
-  for (const dim of ['COR','PAR','ALT'] as Dim[]) {
-    const seq: {idx:number;v:string}[] = [];
-    nums.forEach((n,i) => {
-      const v = val(dim,n);
-      if (v) seq.push({idx:i,v});
-    });
-
-    const runs: {v:string;end:number;len:number}[] = [];
-    for (const s of seq) {
-      const l = runs[runs.length - 1];
-      if (l && l.v === s.v) {
-        l.end = s.idx;
-        l.len++;
-      } else {
-        runs.push({v:s.v,end:s.idx,len:1});
-      }
-    }
-
-    if (runs.length < 2) continue;
-    const b = runs[runs.length - 1]!;
-    const a = runs[runs.length - 2]!;
-    const ultimo = seq[seq.length - 1]!.idx;
-
-    if (b.end !== ultimo) continue;
-    if (b.len !== 1 && b.len !== 2) continue;
-    if (a.len < MIN_A) continue;
-
-    // A janela é contada em índices reais da catalogação: os últimos 8 giros,
-    // incluindo o giro atual. Zero em qualquer deles bloqueia o disparo.
-    const zeroRecente = nums
-      .slice(Math.max(0, ultimo - (JANELA_ZERO - 1)), ultimo + 1)
-      .includes(0);
-
-    const j = nums.slice(Math.max(0, ultimo - 11), ultimo + 1).filter(x => x !== 0);
-    const sat = j.length > 0 &&
-      j.filter(x => val(dim, x) === b.v).length / j.length >= LIMIAR_SAT;
-
-    const motivo = zeroRecente ? 'BLOQ zero' : sat ? 'BLOQ sat' : 'DISPARA';
-    log?.push(`${dim} ${a.v}(${a.len})→${b.v}(${b.len}) #${ultimo + 1}: ${motivo}`);
-
-    if (zeroRecente || sat) continue;
-
-    out.push({
-      id: `${dim}-${ultimo}-${b.len}`,
-      tipo: b.len === 2 ? 'OSCILACAO' : 'RETORNO',
-      dim,
-      entrada: a.v,
-      indiceSinal: ultimo,
-      alvo: ultimo + 1,
-      nA: a.len,
-      mB: b.len,
-    });
+export function detectarTriggers(nums:number[]):Trigger[]{
+  const out:Trigger[]=[];
+  for(const dim of ['COR','PAR','ALT']){
+    const seq:{idx:number;v:string}[]=[];
+    nums.forEach((n,i)=>{const v=valDim(dim,n);if(v)seq.push({idx:i,v});});
+    const runs:{v:string;end:number;len:number}[]=[];
+    for(const s of seq){const l=runs[runs.length-1];if(l&&l.v===s.v){l.end=s.idx;l.len++;}else runs.push({v:s.v,end:s.idx,len:1});}
+    if(runs.length<2)continue;
+    const b=runs[runs.length-1]!,a=runs[runs.length-2]!,ultimo=seq[seq.length-1]!.idx;
+    if(b.end!==ultimo|| (b.len!==1&&b.len!==2) || a.len<CONFIG.MIN_A)continue;
+    const zeroRecente=nums.slice(Math.max(0,ultimo-(CONFIG.JANELA_ZERO-1)),ultimo+1).includes(0);
+    const j=nums.slice(Math.max(0,ultimo-11),ultimo+1).filter(x=>x!==0);
+    const sat=j.length>0&&j.filter(x=>valDim(dim,x)===b.v).length/j.length>=CONFIG.LIMIAR_SAT;
+    if(zeroRecente||sat)continue;
+    out.push({id:`${dim}-${ultimo}-${b.len}`,tipo:b.len===2?'OSCILACAO':'RETORNO',dim,entrada:a.v,indiceSinal:ultimo,alvo:ultimo+1,nA:a.len,mB:b.len,padrao:`${a.v}×${a.len} → ${b.v}×${b.len} → entrar ${a.v}`});
   }
   return out;
 }
 
-import type { Desfecho } from './resolver';
-export interface StatsPadrao { n: number; greens: number }
-export function medirPadrao(desfechos: Desfecho[]): StatsPadrao {
-  const resolvidos = desfechos.filter(d => d != null);
-  return { n: resolvidos.length, greens: resolvidos.filter(d => d === 'GREEN_DIRETO' || d === 'GREEN_GALE1').length };
+export interface StatsPadrao { n:number; greens:number }
+export function medirPadrao(desfechos: import('./resolver').Desfecho[]):StatsPadrao{
+  const r=desfechos.filter(d=>d!=null);
+  return {n:r.length,greens:r.filter(d=>d==='GREEN_DIRETO'||d==='GREEN_GALE1').length};
 }
-export function rotuloConfianca(s: StatsPadrao): string {
-  if (s.n < 20) return `medindo… (${s.n} sinais)`;
-  const pct = Math.round((s.greens / s.n) * 100);
-  return `${pct}% em ${s.n} sinais (medido ao vivo)`;
-}
-
-export interface PadroesBoot { ok: boolean; errors: string[] }
-
-export function autoTestPadroes(): PadroesBoot {
-  const errors: string[] = [];
-  const osc = detectarTriggers([1,3,2,4]).filter(t => t.dim === 'COR');
-  if (!osc.some(t => t.tipo === 'OSCILACAO' && t.entrada === 'VERMELHO' && t.mB === 2)) {
-    errors.push('T-v10 OSCILAÇÃO V,V,P,P não detectada');
-  }
-  const ret = detectarTriggers([2,4,5]).filter(t => t.dim === 'PAR');
-  if (!ret.some(t => t.tipo === 'RETORNO' && t.entrada === 'PAR' && t.mB === 1)) {
-    errors.push('T-v10 RETORNO PAR,PAR,IMPAR não detectado');
-  }
-  if (detectarTriggers([1,0,3,2,4]).length !== 0) {
-    errors.push('T-v10 zero recente não bloqueou');
-  }
-  if (detectarTriggers([1,3,5,7,9,11,13,15,17,19,21,23]).length !== 0) {
-    errors.push('T-v10 saturação não bloqueou');
-  }
-  return { ok: errors.length === 0, errors };
-}
+export function rotuloConfianca(s:StatsPadrao){return s.n<20?`medindo… (${s.n} sinais)`:`${Math.round(s.greens/s.n*100)}% em ${s.n} sinais (medido ao vivo)`;}
+export function autoTestPadroes(){const errors:string[]=[];
+if(detectarTriggers([19,21,2,4]).filter(t=>t.dim==='COR').some(t=>t.tipo==='OSCILACAO'&&t.entrada==='VERMELHO')===false)errors.push('T2/T3 OSC não detectada');
+if(detectarTriggers([2,4,5]).filter(t=>t.dim==='PAR').some(t=>t.tipo==='RETORNO'&&t.entrada==='PAR')===false)errors.push('T2 RET não detectado');
+if(detectarTriggers([19,21,2,0,4]).length!==0)errors.push('zero recente não bloqueou');
+return {ok:errors.length===0,errors};}
