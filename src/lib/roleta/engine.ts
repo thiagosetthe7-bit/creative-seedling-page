@@ -12,6 +12,7 @@
 
 import { CATEGORIAS, classificar, type CategoriaId, type Classificacao } from "./classificacao";
 import { detectarTriggers } from "../padroes";
+import { calibrarEstrategias } from "../estrategias";
 import { CONFIG } from "../config";
 import { avaliarEntrada as avaliarEntradaV8, normalizarEntrada as normalizarEntradaV8 } from "../avaliador";
 import type { TipoBip } from "./store";
@@ -254,6 +255,9 @@ export interface Sinal {
   desfechoSequencia: "GREEN_DIRETO" | "GREEN_GALE1" | "FALHA_GIRO1" | "FALHA_GALE1" | "n/a";
   observacaoHostil: boolean;
 }
+
+/** Catálogo v13: única fonte dos cinco detectores estratégicos. */
+export { calibrarEstrategias } from "../estrategias";
 
 export interface OpcoesDeteccao {
   minimo: number;
