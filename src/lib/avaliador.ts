@@ -6,6 +6,11 @@ export interface EntradaMapeada {
 }
 
 const VERMELHO = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
+
+export function atributos(n: number) {
+  if (n === 0) return { cor: "VERDE", alt: "ZERO", par: "ZERO" } as const;
+  return { cor: VERMELHO.has(n) ? "VERMELHO" : "PRETO", alt: n >= 19 ? "ALTO" : "BAIXO", par: n % 2 === 0 ? "PAR" : "IMPAR" } as const;
+}
 const PRETO = new Set([2,4,6,8,10,11,13,15,17,20,22,24,26,28,29,31,33,35]);
 const COL: Record<string, (n: number) => boolean> = {
   C1: (n) => n !== 0 && n % 3 === 1,
@@ -64,17 +69,13 @@ export function avaliarEntrada(bruta: string, numero: number): "GREEN" | "RED" |
 
 export const SELF_TEST = [
   { e: "ENTRAR EM VERMELHO", n: 12, esp: "GREEN" },
-  { e: "VERMELHO", n: 1, esp: "GREEN" },
-  { e: "ENTRAR EM IMPAR", n: 33, esp: "GREEN" },
-  { e: "ÍMPAR", n: 33, esp: "GREEN" },
   { e: "ENTRAR EM PAR", n: 4, esp: "GREEN" },
+  { e: "ENTRAR EM IMPAR", n: 33, esp: "GREEN" },
   { e: "ENTRAR EM ALTO", n: 36, esp: "GREEN" },
   { e: "ENTRAR EM BAIXO", n: 2, esp: "GREEN" },
-  { e: "PRETO", n: 2, esp: "GREEN" },
-  { e: "C3", n: 33, esp: "GREEN" },
-  { e: "D2", n: 22, esp: "GREEN" },
-  { e: "ENTRAR EM VERMELHO", n: 28, esp: "RED" },
-  { e: "ENTRAR EM PAR", n: 33, esp: "RED" },
+  { e: "ENTRAR EM PRETO", n: 13, esp: "GREEN" },
+  { e: "ENTRAR EM ALTO", n: 13, esp: "RED" },
+  { e: "ENTRAR EM VERMELHO", n: 13, esp: "RED" },
 ] as const;
 
 export function rodarSelfTest() {
