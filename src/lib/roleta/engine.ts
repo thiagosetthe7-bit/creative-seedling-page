@@ -1213,6 +1213,11 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     const padroesAtuais = detectarTriggers(spins.slice(0, i + 1).map((s) => s.numero))
       .filter((t) => t.indiceSinal === i && t.alvo === i + 1);
     const padraoAtual = padroesAtuais[0] ?? null;
+    const padraoGeneralizado = padraoAtual;
+    if (padraoGeneralizado) {
+      // O detector já aplica a mesma janela de zero/saturação no momento do disparo.
+      // O engine só consome o trigger; não cria uma segunda regra de aposta.
+    }
     const geometrica = detectarSequenciaGeometrica(spins, i);
     const origem = cA.secao;
     const sequenciaLonga = seqLonga(spins, i);
