@@ -1100,7 +1100,8 @@ export function classificarRegimeJanela(spins: Spin[], bips: MapaBips, index: nu
   const inicio = Math.max(0, index - janela + 1);
   const w = spins.slice(inicio, index + 1);
   const n = w.length || 1;
-  const zeroRecente = w.some((s) => s.numero === 0);
+  const janelaZero = spins.slice(Math.max(0, index - (CONFIG.JANELA_ZERO - 1)), index + 1);
+  const zeroRecente = janelaZero.some((s) => s.numero === 0);
   let rajada = false;
   for (let j = 1; j < w.length; j++) {
     if (bips[w[j - 1]!.id] && bips[w[j]!.id]) { rajada = true; break; }
