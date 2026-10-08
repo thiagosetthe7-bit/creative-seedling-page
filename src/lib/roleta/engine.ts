@@ -1106,8 +1106,9 @@ export function classificarRegimeJanela(spins: Spin[], bips: MapaBips, index: nu
   for (let j = 1; j < w.length; j++) {
     if (bips[w[j - 1]!.id] && bips[w[j]!.id]) { rajada = true; break; }
   }
+  const janelaSat = spins.slice(Math.max(0, index - 11), index + 1);
   const counts: Record<string, number> = {};
-  for (const s of w) {
+  for (const s of janelaSat) {
     if (s.numero === 0) continue;
     for (const key of ["ab", "cor", "pi"] as const) {
       const value = s.classificacao[key];
@@ -1117,7 +1118,8 @@ export function classificarRegimeJanela(spins: Spin[], bips: MapaBips, index: nu
       }
     }
   }
-  const saturacao = Object.values(counts).some((count) => count / n >= limiarEfetivo);
+  const nSat = janelaSat.filter((s) => s.numero !== 0).length || 1;
+  const saturacao = Object.values(counts).some((count) => count / nSat >= limiarEfetivo);
   const isolamentoAtual = contarBipsIsolados(spins, bips, index, janela);
   const isolamentoInsuficiente = calib.isolamento > 0 && isolamentoAtual < calib.isolamento;
   const quique = detectarQuique(spins, bips, index, Math.min(12, janela));
