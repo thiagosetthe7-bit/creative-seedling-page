@@ -71,3 +71,23 @@ export function calibrarEstrategias(nums:number[],rows:{numero:number;bip:string
     oscRet:detOscRet(nums),
   };
 }
+
+export function testarCalibracaoV13(){
+  const falhas:string[]=[];
+  const br=detBrSeparado([{numero:2,bip:'BR',tipo:'SEPARADO'}]);
+  if(br[0]?.entrada!=='BAIXO')falhas.push('BR separado BAIXO');
+  if(detBrSeparado([{numero:2,bip:'BR',tipo:'SEPARADO'},{numero:4,bip:'BT',tipo:'SEPARADO'}]).length!==0)falhas.push('BR rajada');
+  const sg=detSeqGeom([{numero:13},{numero:16},{numero:19},{numero:22},{numero:25}]);
+  if(!sg.some(x=>x.entrada==='D2'))falhas.push('D2x5');
+  if(detSeqGeom([{numero:13},{numero:16},{numero:19},{numero:22}]).length!==0)falhas.push('D2x4');
+  const bt=detBtQuebra([{numero:2,bip:null},{numero:4,bip:null},{numero:8,bip:null},{numero:1,bip:'BT'}]);
+  if(bt[0]?.entrada!=='VERMELHO')falhas.push('BT quebra');
+  if(detBtQuebra([{numero:2,bip:null},{numero:4,bip:null},{numero:1,bip:'BT'}]).length!==0)falhas.push('BT <3');
+  const osc=detOscRet([19,21,2,4]);
+  if(!osc.some(x=>x.estrategia==='OSCILAÇÃO'&&x.entrada==='ALTO'))falhas.push('OSC');
+  const ret=detOscRet([19,21,2]);
+  if(!ret.some(x=>x.estrategia==='RETORNO'&&x.entrada==='ALTO'))falhas.push('RET');
+  if(detOscRet([19,21,2,4,6]).length!==0)falhas.push('B3');
+  if(detOscRet([19,2,4]).length!==0)falhas.push('MIN_A');
+  return {ok:falhas.length===0,falhas};
+}
