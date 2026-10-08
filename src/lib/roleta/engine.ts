@@ -1383,7 +1383,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     if (s.observacaoHostil) {
       // Estado hostil permanece interno; o prefixo legado nunca é exibido.
       s.message = observacaoMotivo || "condição de regime";
-      s.footerNote = "👁 OBSERVAÇÃO | " + (observacaoMotivo || "regime hostil") + " | 🔒 GALE 1 BLOQUEADO";
+      s.footerNote = (observacaoMotivo || "regime hostil") + " | 🔒 GALE 1 BLOQUEADO";
     } else {
       s.message = regime.gale1Liberado
         ? "🔓 GALE 1 LIBERADO — janela limpa"
