@@ -1322,14 +1322,14 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       : titulo.startsWith("BT QUEBRA") ? "BT_QUEBRA_COR"
       : titulo.startsWith("SEQUÊNCIA") ? "SEQUENCIA_GEOMETRICA_5X" : "OUTRA";
 
-    // v12: padrões generalizados não são aposta enquanto o kill-switch estiver ativo.
+    let observacaoHostil = false;
+    let observacaoMotivo = "";
+
+    // v12/v13: padrões generalizados permanecem em observação enquanto o kill-switch estiver ativo.
     if (padraoAtual && CONFIG.OSC_RET_APENAS_OBSERVACAO) {
       observacaoHostil = true;
       observacaoMotivo = "OSC/RET em observação até T1-T7";
     }
-
-    let observacaoHostil = false;
-    let observacaoMotivo = "";
 
     if (strategy === "BR_SEPARADO" && (!bipIsolado || origem !== "TIER" || atual.classificacao.tipo !== "SEPARADO" || alturaSaturada)) {
       observacaoHostil = true;
