@@ -12,6 +12,7 @@
 
 import { CATEGORIAS, classificar, type CategoriaId, type Classificacao } from "./classificacao";
 import { detectarTriggers } from "../padroes";
+import { CONFIG } from "../config";
 import { avaliarEntrada as avaliarEntradaV8, normalizarEntrada as normalizarEntradaV8 } from "../avaliador";
 import type { TipoBip } from "./store";
 
@@ -1147,7 +1148,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     const proximo = spins[i + 1] ?? null;
     const cA = anterior.classificacao;
     const ctx = contextoSequencial(sequenciaBips(spins, bips, i), bip, anterior);
-    const regime = classificarRegimeJanela(spins, bips, i, 14, 0.70);
+    const regime = classificarRegimeJanela(spins, bips, i, 14, CONFIG.LIMIAR_SAT);
     const bipAnterior = i > 0 ? bips[spins[i - 1]!.id] : undefined;
     // F1: o segundo BIP de qualquer rajada (BT ou BR) nunca é apostável
     // para BR Separado / 2-2-1 / 2-1-1.
@@ -1173,17 +1174,11 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       continue;
     }
 
-    // BLOQUEIO — ZERO estendido: após qualquer ZERO, aguarde 2 giros coloridos válidos.
-    let zeroRecente = false;
-    let coloridosAposZero = 0;
-    for (let z = i - 1; z >= 0; z--) {
-      if (spins[z]!.numero === 0) {
-        zeroRecente = true;
-        break;
-      }
-      coloridosAposZero++;
-    }
-    if (atual.numero === 0 || (zeroRecente && coloridosAposZero < 2)) {
+    // ZERO é recente somente dentro dos últimos CONFIG.JANELA_ZERO giros.
+    // Não escanear a sessão inteira: zero antigo não pode manter HOSTIL indefinidamente.
+    const janelaZero = spins.slice(Math.max(0, i - (CONFIG.JANELA_ZERO - 1)), i + 1);
+    const zeroRecente = janelaZero.some((s) => s.numero === 0);
+    if (atual.numero === 0 || zeroRecente) {
       sinais.push(sinalBase(
         `${atual.id}-pausa`, "ab", "A/B", "PAUSAR",
         atual, anterior, proximo, bip, "PAUSE", PALETA_BIP.bloqueio,
