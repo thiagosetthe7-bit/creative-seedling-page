@@ -9,7 +9,7 @@ import { useSinais } from "@/lib/roleta/useSinais";
 import { useEstado } from "@/lib/roleta/store";
 import type { Sinal } from "@/lib/roleta/engine";
 import { medirPadrao, type StatsPadrao } from "@/lib/padroes";
-import { baixarCSV, type SpinRow, type AlertaRow } from "@/lib/exportar";
+import { exportarParaAnalise, type SpinAnalise, type SinalAnalise } from "@/lib/exportAnalise";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -59,8 +59,8 @@ function Catalogacao() {
   const statsPopup = popupStats(sinais, popup?.title);
 
   const exportarAuditoria = () => {
-    const spins: SpinRow[] = estado.spins.map((s, i) => ({
-      indice: i,
+    const spins: SpinAnalise[] = estado.spins.map((s, i) => ({
+      indice: i + 1,
       numero: s.numero,
       bt: estado.bips[s.id] === "timer",
       br: estado.bips[s.id] === "rolando",
@@ -76,7 +76,7 @@ function Catalogacao() {
       v2234: s.classificacao.g2234,
       cor: s.classificacao.cor,
     }));
-    const alertas: AlertaRow[] = sinais.map((s) => ({
+    const alertas: SinalAnalise[] = sinais.map((s) => ({
       id: s.id,
       estrategia: s.title,
       entrada: s.mainAction.replace(/^ENTRAR EM\\s*/i, ""),
@@ -84,10 +84,10 @@ function Catalogacao() {
       regime: s.regimeClassificado,
       motivo: s.motivoHostil,
       numeroResultado: s.auditNumero ?? s.numeroSeguinte,
-      numeroGale: null,
+      numeroGale: s.gale1Usado ? (s.auditNumero ?? null) : null,
       desfecho: s.desfechoSequencia,
     }));
-    baixarCSV(spins, alertas);
+    exportarParaAnalise(spins, alertas);
   };
 
   return (
@@ -109,7 +109,7 @@ function Catalogacao() {
           <EntradaNumeros total={estado.spins.length} />
           <TabelaCatalogacao spins={estado.spins} sinais={sinais} />
           <DiagnosticoBip spins={estado.spins} bips={estado.bips} />
-          <button onClick={exportarAuditoria} className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs font-black tracking-widest hover:bg-accent">EXPORTAR AUDITORIA CSV</button>
+          <button onClick={exportarAuditoria} className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs font-black tracking-widest hover:bg-accent">📊 EXPORTAR PARA ANÁLISE</button>
         </div>
         <PainelSinais sinais={sinais} />
       </div>
