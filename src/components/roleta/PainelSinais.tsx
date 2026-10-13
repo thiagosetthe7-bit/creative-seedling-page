@@ -81,10 +81,11 @@ export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
             </div>
 
             <div className="mt-1 font-semibold">{linhaEntrada({ entrada: s.mainAction })}</div>
-            <div className="mt-1 text-muted-foreground">PADRÃO: {s.footerNote || s.sequenceContext || s.message || s.title}</div>
+            <div className="mt-1 text-muted-foreground">PADRÃO: {s.footerNote || s.sequenceContext || s.title}</div>
+            <div className="mt-1 text-muted-foreground">CONFIANÇA: {s.message || "medindo..."}</div>
             <div className="mt-1 text-muted-foreground">{resultadoVisual(s)}</div>
 
-            {s.type === "ENTRY_SIGNAL" && s.confidence >= 78 && (
+            {s.type === "ENTRY_SIGNAL" && s.confidence > 0 && (
               <div className="mt-2 text-[10px] font-bold text-muted-foreground">
                 {s.gale1Liberado ? "GALE 1 LIBERADO" : "GALE 1 BLOQUEADO · HOSTIL"}
               </div>
