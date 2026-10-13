@@ -42,6 +42,7 @@ export function autoTestPadroes(){
   if(!detectarTriggers([19,21,2,4]).some(t=>t.tipo==="OSCILACAO"&&t.entrada==="VERMELHO"))errors.push("OSC");
   if(!detectarTriggers([19,21,2]).some(t=>t.tipo==="RETORNO"&&t.entrada==="VERMELHO"))errors.push("RET");
   if(detectarTriggers([19,21,2,0,4]).length!==0)errors.push("zero recente");
-  if(detectarTriggers([19,21,2,4,6]).length!==0)errors.push("guarda B=3");
+  if(detectarTriggers([19,21,23,2,4,6]).length!==0)errors.push("T1: guarda B=3");
+  if(detectarTriggers([19,2,4]).length!==0)errors.push("T6: MIN_A");
   return{ok:errors.length===0,errors};
 }
