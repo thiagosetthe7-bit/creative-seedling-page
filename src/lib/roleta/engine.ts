@@ -1131,6 +1131,25 @@ export function classificarRegimeJanela(spins: Spin[], bips: MapaBips, index: nu
   };
 }
 
+
+export function autoTestRegimeV14(): { ok: boolean; errors: string[] } {
+  const errors: string[] = [];
+  const balanced = [1,20,3,22,5,24,7,26,9,28,11,30];
+  const nums = [0,2,4,6,8,10,12,14, ...balanced];
+  const spins = nums.map((numero, i) => ({
+    id: `v14-${i}`, numero, timestamp: i + 1, classificacao: classificar(numero),
+  }));
+  const regime = classificarRegimeJanela(spins, {}, spins.length - 1, CONFIG.JANELA_SAT, CONFIG.LIMIAR_SAT);
+  if (regime.zeroRecente) errors.push("T5: zero antigo contado como recente");
+  if (regime.regimeClassificado !== "LIMPA") errors.push("T5: janela de 8 giros não liberou após zero antigo");
+  const zeros = classificarRegimeJanela(spins.slice(0, -3).concat([
+    { id: "z1", numero: 0, timestamp: 100, classificacao: classificar(0) },
+    ...spins.slice(-2),
+  ]), {}, spins.length - 1, CONFIG.JANELA_SAT, CONFIG.LIMIAR_SAT);
+  if (!zeros.zeroRecente || zeros.regimeClassificado !== "HOSTIL") errors.push("T4/T5: zero recente não ativou pausa/regime hostil");
+  return { ok: errors.length === 0, errors };
+}
+
 export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
   const spins = spinsEntrada.map(comRodadas);
   const sinais: Sinal[] = [];
