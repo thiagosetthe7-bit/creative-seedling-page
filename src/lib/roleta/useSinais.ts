@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { analisarBips, calcularEstatisticas, autoTestResolver, type Sinal } from "./engine";
+import { analisarBips, calcularEstatisticas, autoTestResolver, autoTestRegimeV14, type Sinal } from "./engine";
 import { computarDesfecho, type AlertaBase } from "../resolver";
 import { autoTestPadroes } from "../padroes";
 import { rodarSelfTest } from "../avaliador";
@@ -88,9 +88,10 @@ export function useSinais() {
     if (typeof window === "undefined") return;
 
     const boot = autoTestResolver();
+    const regimeBoot = autoTestRegimeV14();
     const padroesBoot = autoTestPadroes();
     const avaliadorBoot = rodarSelfTest();
-    const combinedBoot = { ok: boot.ok && padroesBoot.ok && avaliadorBoot.ok, errors: [...boot.errors, ...padroesBoot.errors, ...avaliadorBoot.falhas.map((f) => `avaliador: ${JSON.stringify(f)}`)] };
+    const combinedBoot = { ok: boot.ok && regimeBoot.ok && padroesBoot.ok && avaliadorBoot.ok, errors: [...boot.errors, ...regimeBoot.errors, ...padroesBoot.errors, ...avaliadorBoot.falhas.map((f) => `avaliador: ${JSON.stringify(f)}`)] };
     window.dispatchEvent(new CustomEvent("roleta:self-test", { detail: combinedBoot }));
     if (!combinedBoot.ok) window.dispatchEvent(new CustomEvent("roleta:resolver-failure", { detail: combinedBoot.errors }));
 
