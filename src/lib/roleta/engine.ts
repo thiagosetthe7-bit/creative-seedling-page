@@ -1217,8 +1217,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     const padraoAtual = padroesAtuais[0] ?? null;
     const padraoGeneralizado = padraoAtual;
     if (padraoGeneralizado) {
-      // O detector já aplica a mesma janela de zero/saturação no momento do disparo.
-      // O engine só consome o trigger; não cria uma segunda regra de aposta.
+      // OSC/RET entram no mesmo pipeline do motor; a validação vem do ledger ao vivo.
     }
     const geometrica = detectarSequenciaGeometrica(spins, i);
     const origem = cA.secao;
@@ -1368,9 +1367,9 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     }
 
     const bloqueado = conf < 78 || !alinhada;
-    if (bloqueado && !observacaoHostil) continue;
+    if (bloqueado && !observacaoHostil) observacaoHostil = true;
 
-    const operacional = !observacaoHostil && conf >= 78 && alinhada;
+    const operacional = !observacaoHostil && alinhada;
     const s = sinalBase(
       atual.id + "-v67", categoriaAuditoria, "ENTRADA ÚNICA", acao,
       atual, anterior, proximo, bip, "ENTRY_SIGNAL",
@@ -1408,9 +1407,35 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     sinais.push(s);
   }
 
-  return sinais.sort(
+  const cronologicos = sinais.sort(
     (a, b) => a.timestamp - b.timestamp || prioridadeNumero(a.priority) - prioridadeNumero(b.priority),
   );
+  // Confiança calculada exclusivamente a partir de resultados observados antes do sinal atual.
+  // Zero e sinais sem próximo giro são excluídos do denominador; sem 20 amostras, fica "medindo".
+  return cronologicos.map((s) => {
+    const anteriores = cronologicos.filter((p) =>
+      p.title === s.title && p.rodada < s.rodada && p.numeroSeguinte != null && p.numeroSeguinte !== 0 &&
+      !p.observacaoHostil && p.type === "ENTRY_SIGNAL"
+    );
+    const n = anteriores.length;
+    const greens = anteriores.filter((p) => entradaPertenceAoNumero(p, p.numeroSeguinte as number) === true).length;
+    const pct = n >= CONFIG.N_VALIDAR ? greens / n * 100 : 0;
+    const tier = n < CONFIG.N_VALIDAR ? "MEDINDO" : pct >= CONFIG.PISO_FORTE * 100 ? "FORTE" : pct >= CONFIG.PISO_MODERADO * 100 ? "MODERADO" : "ABAIXO";
+    const foraPiso = tier === "ABAIXO";
+    const somenteObservacao = s.title.startsWith("SEQ GEOMÉTRICA");
+    const naoValidado = tier === "MEDINDO";
+    const bloquear = somenteObservacao || naoValidado || foraPiso || s.regimeClassificado !== "LIMPA";
+    return {
+      ...s,
+      confidence: n < CONFIG.N_VALIDAR ? 0 : Math.round(pct),
+      observacaoHostil: s.observacaoHostil || bloquear,
+      gale1Liberado: s.gale1Liberado && !bloquear,
+      message: n < CONFIG.N_VALIDAR
+        ? `medindo... (${n}) · ${s.message || s.title}`
+        : `${Math.round(pct)}% em ${n} sinais (medido) · ${s.message || s.title}`,
+      footerNote: s.footerNote,
+    };
+  });
 }
 
 /** Compatibilidade: a estratégia nova não usa mais detecção por sequência. */
