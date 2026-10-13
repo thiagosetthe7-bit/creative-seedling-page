@@ -1150,6 +1150,20 @@ export function autoTestRegimeV14(): { ok: boolean; errors: string[] } {
   return { ok: errors.length === 0, errors };
 }
 
+
+export function autoTestSeqObsV14(): { ok: boolean; errors: string[] } {
+  const spins = [1,2,3,4,5,6].map((numero, i) => ({
+    id: `seq-v14-${i}`, numero, timestamp: i + 1, classificacao: classificar(numero),
+  }));
+  const bips: MapaBips = { [spins[5]!.id]: "timer" };
+  const sinais = analisarBips(spins, bips);
+  const seq = sinais.find((s) => s.title.startsWith("SEQUÊNCIA GEOMÉTRICA 5x"));
+  const errors: string[] = [];
+  if (!seq) errors.push("T7: sequência geométrica 5x não foi detectada");
+  else if (!seq.observacaoHostil || seq.gale1Liberado) errors.push("T7: sequência geométrica não ficou bloqueada para aposta");
+  return { ok: errors.length === 0, errors };
+}
+
 export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
   const spins = spinsEntrada.map(comRodadas);
   const sinais: Sinal[] = [];
