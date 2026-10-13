@@ -43,7 +43,7 @@ export function avaliarEntrada(bruta:string,n:number):"GREEN"|"RED"|null {
   return pertence(m,n)?"GREEN":"RED";
 }
 export const SELF_TEST = [
-  {e:"PRETO",n:32,esp:"GREEN"},{e:"PRETO",n:13,esp:"GREEN"},
+  {e:"PRETO",n:32,esp:"RED"},{e:"PRETO",n:13,esp:"GREEN"},
   {e:"VERMELHO",n:13,esp:"RED"},{e:"ALTO",n:13,esp:"RED"},
   {e:"ALTO",n:0,esp:null},{e:"VERMELHO",n:12,esp:"GREEN"},
   {e:"PAR",n:4,esp:"GREEN"},{e:"IMPAR",n:33,esp:"GREEN"},
