@@ -84,7 +84,7 @@ function Catalogacao() {
       regime: s.regimeClassificado,
       motivo: s.motivoHostil,
       numeroResultado: s.auditNumero ?? s.numeroSeguinte,
-      numeroGale: s.gale1Usado ? (s.auditNumero ?? null) : null,
+      numeroGale: s.galeNumero ?? null,
       desfecho: s.desfechoSequencia,
       tier: s.observacaoHostil ? (s.confidence === 0 ? "MEDINDO/OBSERVACAO" : "OBSERVACAO") : "VALIDADO",
       padrao: s.message || s.sequenceContext || s.title,
