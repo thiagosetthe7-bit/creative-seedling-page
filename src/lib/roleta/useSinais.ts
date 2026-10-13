@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { analisarBips, calcularEstatisticas, autoTestResolver, type Sinal } from "./engine";
 import { computarDesfecho, type AlertaBase } from "../resolver";
 import { autoTestPadroes } from "../padroes";
+import { rodarSelfTest } from "../avaliador";
 import { acoes, useEstado } from "./store";
 
 const DESFECHOS_FINAIS = new Set(["GREEN_DIRETO", "GREEN_GALE1", "FALHA_GIRO1", "FALHA_GALE", "PAUSA"]);
@@ -88,7 +89,8 @@ export function useSinais() {
 
     const boot = autoTestResolver();
     const padroesBoot = autoTestPadroes();
-    const combinedBoot = { ok: boot.ok && padroesBoot.ok, errors: [...boot.errors, ...padroesBoot.errors] };
+    const avaliadorBoot = rodarSelfTest();
+    const combinedBoot = { ok: boot.ok && padroesBoot.ok && avaliadorBoot.ok, errors: [...boot.errors, ...padroesBoot.errors, ...avaliadorBoot.falhas.map((f) => `avaliador: ${JSON.stringify(f)}`)] };
     window.dispatchEvent(new CustomEvent("roleta:self-test", { detail: combinedBoot }));
     if (!combinedBoot.ok) window.dispatchEvent(new CustomEvent("roleta:resolver-failure", { detail: combinedBoot.errors }));
 
