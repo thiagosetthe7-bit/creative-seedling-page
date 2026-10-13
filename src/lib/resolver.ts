@@ -11,7 +11,7 @@ export function computarDesfecho(a:AlertaBase,cat:number[]){
   if(a.regime==='HOSTIL'||a.observacao)return{resultado:'RED' as const,n1:r1,n2:null,desfecho:'FALHA_GIRO1' as Desfecho};
   const r2=cat[a.indiceSinal+2];
   if(r2==null)return{resultado:'RED' as const,n1:r1,n2:null,desfecho:null as Desfecho};
-  if(r2===0)return{resultado:'RED' as const,n1:r1,n2:0,desfecho:'FALHA_GALE' as Desfecho};
+  if(r2===0)return{resultado:null,n1:r1,n2:0,desfecho:'PAUSA' as Desfecho};
   return avaliarEntrada(a.entrada,r2)==='GREEN'
     ?{resultado:'RED' as const,n1:r1,n2:r2,desfecho:'GREEN_GALE1' as Desfecho}
     :{resultado:'RED' as const,n1:r1,n2:r2,desfecho:'FALHA_GALE' as Desfecho};
