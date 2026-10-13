@@ -5,7 +5,7 @@ export interface SpinAnalise {
 }
 export interface SinalAnalise {
   id:string; estrategia:string; entrada:string; indiceSinal:number; regime:string; motivo?:string|null;
-  numeroResultado?:number|null; numeroGale?:number|null; desfecho?:string|null;
+  numeroResultado?:number|null; numeroGale?:number|null; desfecho?:string|null; tier?:string|null; padrao?:string|null;
 }
 function cell(value:unknown):string {
   const s=String(value??'');
@@ -21,10 +21,10 @@ export function montarCSVAnalise(catalogacao:SpinAnalise[], sinais:SinalAnalise[
     row.duzia,row.coluna,row.pi,row.tipo,row.secao,row.v010,row.v2234,row.cor,
   ].map(cell).join(';'));
   linhas.push('','# SECAO 2 - SINAIS E DESFECHOS',
-    'id;estrategia;entrada;indiceSinal;regime;motivo;numeroResultado;numeroGale;desfecho');
+    'id;estrategia;entrada;indiceSinal;regime;motivo;numeroResultado;numeroGale;desfecho;tier;padrao');
   for(const s of sinais) linhas.push([
     s.id,s.estrategia,s.entrada,s.indiceSinal,s.regime,s.motivo||'nenhum',
-    s.numeroResultado??'',s.numeroGale??'',s.desfecho??'',
+    s.numeroResultado??'',s.numeroGale??'',s.desfecho??'',s.tier??'',s.padrao??'',
   ].map(cell).join(';'));
   return linhas.join('\r\n');
 }
