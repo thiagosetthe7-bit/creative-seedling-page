@@ -533,7 +533,7 @@ function classificarRegime(spins: Spin[], bips: MapaBips, index: number) {
       counts.set(v, (counts.get(v) ?? 0) + 1);
     }
     const max = Math.max(0, ...counts.values());
-    return janela.length > 0 && max / janela.length >= 0.70;
+    return janela.length > 0 && max / janela.length >= CONFIG.LIMIAR_SAT;
   };
   const sat = saturacao("ab") || saturacao("cor") || saturacao("pi");
   const motivo = zero ? "ZERO" : rajada ? "RAJADA" : sat ? "SATURACAO" : "nenhum";
@@ -1014,7 +1014,7 @@ function detectarQuique(spins: Spin[], bips: MapaBips, index: number, janela = 1
     const counts = new Map<string, number>();
     for (const valor of valores) counts.set(valor, (counts.get(valor) ?? 0) + 1);
     const maxShare = Math.max(...counts.values()) / valores.length;
-    if (maxShare >= 0.60 && maxShare <= 0.70) {
+    if (maxShare >= CONFIG.PISO_MODERADO && maxShare <= CONFIG.LIMIAR_SAT) {
       saturacaoLean = true;
       break;
     }
@@ -1093,7 +1093,7 @@ function contarBipsIsolados(spins: Spin[], bips: MapaBips, index: number, janela
 
 export function classificarRegimeJanela(spins: Spin[], bips: MapaBips, index: number, janela = 14, limiarSat = 0.70): PortaoGale {
   const calib = carregarCalibracaoPortao();
-  const limiarEfetivo = Math.min(0.85, Math.max(limiarSat, calib.limiarSat));
+  const limiarEfetivo = CONFIG.LIMIAR_SAT;
   const inicio = Math.max(0, index - janela + 1);
   const w = spins.slice(inicio, index + 1);
   const n = w.length || 1;
@@ -1122,9 +1122,8 @@ export function classificarRegimeJanela(spins: Spin[], bips: MapaBips, index: nu
   const quique = detectarQuique(spins, bips, index, Math.min(12, janela));
   const motivoHostil: MotivoHostil =
     zeroRecente ? "ZERO"
-      : quique.ativo ? "QUIQUE"
       : rajada ? "RAJADA"
-      : saturacao || isolamentoInsuficiente ? "SATURACAO"
+      : saturacao ? "SATURACAO"
       : "nenhum";
   return {
     regimeClassificado: motivoHostil === "nenhum" ? "LIMPA" : "HOSTIL",
@@ -1148,7 +1147,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     const proximo = spins[i + 1] ?? null;
     const cA = anterior.classificacao;
     const ctx = contextoSequencial(sequenciaBips(spins, bips, i), bip, anterior);
-    const regime = classificarRegimeJanela(spins, bips, i, 14, CONFIG.LIMIAR_SAT);
+    const regime = classificarRegimeJanela(spins, bips, i, CONFIG.JANELA_SAT, CONFIG.LIMIAR_SAT);
     const bipAnterior = i > 0 ? bips[spins[i - 1]!.id] : undefined;
     // F1: o segundo BIP de qualquer rajada (BT ou BR) nunca é apostável
     // para BR Separado / 2-2-1 / 2-1-1.
@@ -1238,7 +1237,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
 
     const janela = spins.slice(Math.max(0, i - 13), i + 1);
     const naoZero = janela.filter((s) => s.numero !== 0);
-    const alturaSaturada = naoZero.length > 0 && ["ALTO","BAIXO"].some((v) => naoZero.filter((s) => s.classificacao.ab === v).length / Math.max(1, regime.janela) >= 0.70);
+    const alturaSaturada = naoZero.length > 0 && ["ALTO","BAIXO"].some((v) => naoZero.filter((s) => s.classificacao.ab === v).length / Math.max(1, regime.janela) >= CONFIG.LIMIAR_SAT);
     const bipAnterior2 = i > 1 ? bips[spins[i - 2]!.id] : undefined;
     const bipIsolado = bip === "rolando" && !bipAnterior;
     const brSeparado = bip === "rolando" && bipIsolado && origem === "TIER" && atual.classificacao.tipo === "SEPARADO" && !alturaSaturada;
@@ -1312,7 +1311,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
         ? ["D1+D2", "C1+C2"]
         : [];
 
-    const alinhada = categoriaAuditoria === "ab"
+    const alinhada = padraoGeneralizado ? true : categoriaAuditoria === "ab"
       ? cobertura !== null && permitidas.includes(cobertura)
       : cobertura !== null;
 
