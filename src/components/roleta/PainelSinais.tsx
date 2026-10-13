@@ -19,7 +19,8 @@ export function StatusTag({ status }: { status: string }) {
 }
 
 function resultadoVisual(s: Sinal) {
-  if (s.auditNumero == null) return s.auditResult === "NO_BET" ? "⏸ SEM APOSTA" : s.auditResult === "NA" ? "n/a" : "⏳ AGUARDANDO";
+  if (s.auditResult === "NO_BET") return "⏸ PAUSA · ZERO (fora da contagem)";
+  if (s.auditNumero == null) return s.auditResult === "NA" ? "n/a" : "⏳ AGUARDANDO";
   const primeiro = `${s.auditNumero} → ${s.auditResult === "GREEN" ? "✅ GREEN" : "❌ RED"}`;
   if (s.auditResult === "GREEN" || s.observacaoHostil || !s.gale1Liberado) return primeiro;
   if (s.gale1Usado) return `${primeiro} · ${s.gale1Resultado === "GREEN" ? "GALE 1 → ✅ GREEN" : "GALE 1 → ❌ RED"}`;
