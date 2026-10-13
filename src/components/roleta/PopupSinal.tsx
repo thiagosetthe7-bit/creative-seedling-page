@@ -26,7 +26,7 @@ export function PopupSinal({
   });
   const L = m.linhas;
   const podeConfirmar = !isPause && sinal.type === "ENTRY_SIGNAL" &&
-    sinal.gale1Liberado && !sinal.observacaoHostil && (stats.n < 20 || stats.greens / stats.n >= CONFIG.PISO_MODERADO);
+    sinal.gale1Liberado && !sinal.observacaoHostil && (stats.n < CONFIG.N_VALIDAR || stats.greens / stats.n >= CONFIG.PISO_MODERADO);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
