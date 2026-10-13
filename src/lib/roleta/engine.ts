@@ -1392,11 +1392,21 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
   // Zero e sinais sem próximo giro são excluídos do denominador; sem 20 amostras, fica "medindo".
   return cronologicos.map((s) => {
     const anteriores = cronologicos.filter((p) =>
-      p.title === s.title && p.rodada < s.rodada && p.numeroSeguinte != null && p.numeroSeguinte !== 0 &&
+      p.title === s.title && p.rodada < s.rodada && p.numeroSeguinte != null &&
       p.regimeClassificado === "LIMPA" && p.type === "ENTRY_SIGNAL" && !p.title.startsWith("SEQ GEOMÉTRICA")
     );
-    const n = anteriores.length;
-    const greens = anteriores.filter((p) => entradaPertenceAoNumero(p, p.numeroSeguinte as number) === true).length;
+    // Mede o desfecho completo: giro 1, ou gale apenas em regime LIMPA.
+    // Zero em qualquer tentativa pausa o sinal e é removido do denominador.
+    const desfechos = anteriores.map((p): boolean | null => {
+      const primeiro = p.numeroSeguinte;
+      if (primeiro == null || primeiro === 0) return null;
+      if (entradaPertenceAoNumero(p, primeiro) === true) return true;
+      const gale = spins[p.rodada + 1]?.numero;
+      if (gale == null || gale === 0) return null;
+      return entradaPertenceAoNumero(p, gale) === true;
+    }).filter((v): v is boolean => v !== null);
+    const n = desfechos.length;
+    const greens = desfechos.filter(Boolean).length;
     const pct = n >= CONFIG.N_VALIDAR ? greens / n * 100 : 0;
     const tier = n < CONFIG.N_VALIDAR ? "MEDINDO" : pct >= CONFIG.PISO_FORTE * 100 ? "FORTE" : pct >= CONFIG.PISO_MODERADO * 100 ? "MODERADO" : "ABAIXO";
     const foraPiso = tier === "ABAIXO";
