@@ -32,7 +32,7 @@ export function useSinais() {
       const r = porId.get(s.id);
       if (!r) return s;
       if (r.desfecho === "PAUSA") {
-        return { ...s, status: "CANCELADO", auditResult: "NO_BET", auditNumero: 0, galeNumero: r.n2 ?? null, desfechoSequencia: "PAUSA", auditMessage: "ZERO · PAUSA (fora da contagem)", auditResultPayload: { ...s.auditResultPayload, current_number: 0, verdict: "NO_BET", reason: "Zero é pausa e não entra no denominador.", ui_update: { row_color: "#6c757d", badge_text: "⏸ PAUSA", panel_status: "NO_BET" } } };
+        return { ...s, status: "CANCELADO", auditResult: "NO_BET", auditNumero: r.n1, galeNumero: r.n2 ?? null, desfechoSequencia: "PAUSA", auditMessage: "ZERO · PAUSA (fora da contagem)", auditResultPayload: { ...s.auditResultPayload, current_number: 0, verdict: "NO_BET", reason: "Zero é pausa e não entra no denominador.", ui_update: { row_color: "#6c757d", badge_text: "⏸ PAUSA", panel_status: "NO_BET" } } };
       }
       if (r.desfecho == null && r.resultado === "RED") {
         return {
@@ -46,7 +46,7 @@ export function useSinais() {
       return {
         ...s,
         auditResult: final,
-        auditNumero: r.numeroResultado,
+        auditNumero: r.n1,
         auditTimestamp: s.timestamp,
         desfechoSequencia: r.desfecho === "FALHA_GALE" ? "FALHA_GALE1" : r.desfecho,
         galeNumero: r.n2 ?? null,
