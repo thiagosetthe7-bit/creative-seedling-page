@@ -81,6 +81,7 @@ export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
             </div>
 
             <div className="mt-1 font-semibold">{linhaEntrada({ entrada: s.mainAction })}</div>
+            <div className="mt-1 text-muted-foreground">PADRÃO: {s.footerNote || s.sequenceContext || s.message || s.title}</div>
             <div className="mt-1 text-muted-foreground">{resultadoVisual(s)}</div>
 
             {s.type === "ENTRY_SIGNAL" && s.confidence >= 78 && (
