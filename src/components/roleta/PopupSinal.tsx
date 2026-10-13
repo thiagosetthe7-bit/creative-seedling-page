@@ -2,6 +2,7 @@ import { mensagemPopup } from "@/lib/confianca";
 import { acoes } from "@/lib/roleta/store";
 import type { Sinal } from "@/lib/roleta/engine";
 import type { StatsPadrao } from "@/lib/padroes";
+import { CONFIG } from "@/lib/config";
 
 export function PopupSinal({
   sinal,
@@ -25,7 +26,7 @@ export function PopupSinal({
   });
   const L = m.linhas;
   const podeConfirmar = !isPause && sinal.type === "ENTRY_SIGNAL" &&
-    sinal.gale1Liberado && !sinal.observacaoHostil && (stats.n < 20 || stats.greens / stats.n >= 0.70);
+    sinal.gale1Liberado && !sinal.observacaoHostil && (stats.n < 20 || stats.greens / stats.n >= CONFIG.PISO_MODERADO);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
