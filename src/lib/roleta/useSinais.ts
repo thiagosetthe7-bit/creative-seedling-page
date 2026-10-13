@@ -4,7 +4,7 @@ import { computarDesfecho, type AlertaBase } from "../resolver";
 import { autoTestPadroes } from "../padroes";
 import { acoes, useEstado } from "./store";
 
-const DESFECHOS_FINAIS = new Set(["GREEN_DIRETO", "GREEN_GALE1", "FALHA_GIRO1", "FALHA_GALE"]);
+const DESFECHOS_FINAIS = new Set(["GREEN_DIRETO", "GREEN_GALE1", "FALHA_GIRO1", "FALHA_GALE", "PAUSA"]);
 
 export function useSinais() {
   const estado = useEstado();
@@ -22,6 +22,8 @@ export function useSinais() {
         estrategia: s.title,
         indiceSinal: Math.max(0, (s.rodada || 1) - 1),
         regime: s.regimeClassificado,
+        observacao: s.observacaoHostil,
+        padrao: s.footerNote || s.sequenceContext || s.title,
       };
       porId.set(s.id, computarDesfecho(alerta, catalogacao));
     }
@@ -29,10 +31,13 @@ export function useSinais() {
     const sinais: Sinal[] = brutos.map((s) => {
       const r = porId.get(s.id);
       if (!r) return s;
+      if (r.desfecho === "PAUSA") {
+        return { ...s, status: "CANCELADO", auditResult: "NO_BET", auditNumero: 0, galeNumero: r.n2 ?? null, desfechoSequencia: "PAUSA", auditMessage: "ZERO · PAUSA (fora da contagem)", auditResultPayload: { ...s.auditResultPayload, current_number: 0, verdict: "NO_BET", reason: "Zero é pausa e não entra no denominador.", ui_update: { row_color: "#6c757d", badge_text: "⏸ PAUSA", panel_status: "NO_BET" } } };
+      }
       if (r.desfecho == null && r.resultado === "RED") {
         return {
-          ...s, auditResult: "RED", auditNumero: r.numeroResultado, auditTimestamp: s.timestamp,
-          desfechoSequencia: "n/a", gale1Usado: false, gale1Resultado: "n/a",
+          ...s, auditResult: "RED", auditNumero: r.n1, auditTimestamp: s.timestamp,
+          desfechoSequencia: "n/a", galeNumero: r.n2 ?? null, gale1Usado: false, gale1Resultado: "n/a",
           auditMessage: "Primeiro giro perdido · aguardando GALE 1.",
         };
       }
@@ -44,11 +49,12 @@ export function useSinais() {
         auditNumero: r.numeroResultado,
         auditTimestamp: s.timestamp,
         desfechoSequencia: r.desfecho === "FALHA_GALE" ? "FALHA_GALE1" : r.desfecho,
+        galeNumero: r.n2 ?? null,
         gale1Usado: r.desfecho === "GREEN_GALE1" || r.desfecho === "FALHA_GALE",
         gale1Resultado: r.desfecho === "GREEN_GALE1" ? "GREEN" : r.desfecho === "FALHA_GALE" ? "RED" : "n/a",
         auditResultPayload: {
           ...s.auditResultPayload,
-          current_number: r.numeroResultado,
+          current_number: r.n1,
           verdict: final,
           reason: "Resultado confirmado pelo resolver.",
           ui_update: { row_color: final === "GREEN" ? "#28a745" : "#dc3545", badge_text: final === "GREEN" ? "✅ GREEN" : "❌ RED", panel_status: final },
