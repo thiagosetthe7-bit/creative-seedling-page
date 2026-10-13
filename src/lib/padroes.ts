@@ -21,7 +21,7 @@ export function detectarTriggers(nums:number[]):Trigger[]{
     const janela=nums.slice(Math.max(0,ultimo-CONFIG.JANELA_SAT+1),ultimo+1).filter(n=>n!==0);
     const saturado=(["COR","PAR","ALT"] as const).some(d=>{
       const vals=janela.map(n=>valDim(d,n)).filter((x):x is string=>x!==null);
-      return vals.length>0&&Math.max(...new Set(vals).values().map(v=>vals.filter(x=>x===v).length))/vals.length>=CONFIG.LIMIAR_SAT;
+      return vals.length>0&&Math.max(0,...Array.from(new Set(vals),v=>vals.filter(x=>x===v).length))/vals.length>=CONFIG.LIMIAR_SAT;
     });
     if(zeroRecente||saturado)continue;
     out.push({id:`${dim}-${ultimo}-${b.len}`,tipo:b.len===2?"OSCILACAO":"RETORNO",dim,entrada:a.v,indiceSinal:ultimo,alvo:ultimo+1,nA:a.len,mB:b.len,padrao:`${a.v} × ${a.len} → ${b.v} × ${b.len} → entrar ${a.v}`});
