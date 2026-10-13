@@ -1251,7 +1251,14 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     const brSeparado = bip === "rolando" && bipIsolado && origem === "TIER" && atual.classificacao.tipo === "SEPARADO" && !alturaSaturada;
     const btQuebra = bip === "timer" && !mesmaCor && !sequenciaLonga && atual.classificacao.secao === cA.secao && bipAnterior2 !== "timer";
     // v10: 2-2-1 e 2-1-1 legados foram substituídos pelos padrões generalizados.
-      if (brSeparado) {
+      if (padraoGeneralizado) {
+        categoriaAuditoria = padraoGeneralizado.dim === "COR" ? "cor" : padraoGeneralizado.dim === "PAR" ? "pi" : "ab";
+        titulo = (padraoGeneralizado.tipo === "OSCILACAO" ? "OSCILAÇÃO" : "RETORNO") + " · " + padraoGeneralizado.dim;
+        acao = "ENTRAR EM " + padraoGeneralizado.entrada;
+        conf = 0;
+        cobertura = null;
+        nota = padraoGeneralizado.padrao;
+      } else if (brSeparado) {
         titulo = "BR SEPARADO · REPETE ALTURA";
         acao = "ENTRAR EM " + alturaAlvo;
         conf = mesmaParidade ? 86 : 86;
@@ -1325,10 +1332,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     let observacaoMotivo = "";
 
     // v12/v13: padrões generalizados permanecem em observação enquanto o kill-switch estiver ativo.
-    if (padraoAtual && CONFIG.OSC_RET_APENAS_OBSERVACAO) {
-      observacaoHostil = true;
-      observacaoMotivo = "OSC/RET em observação até T1-T7";
-    }
+
 
     if (strategy === "BR_SEPARADO" && (!bipIsolado || origem !== "TIER" || atual.classificacao.tipo !== "SEPARADO" || alturaSaturada)) {
       observacaoHostil = true;
@@ -1415,7 +1419,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
   return cronologicos.map((s) => {
     const anteriores = cronologicos.filter((p) =>
       p.title === s.title && p.rodada < s.rodada && p.numeroSeguinte != null && p.numeroSeguinte !== 0 &&
-      !p.observacaoHostil && p.type === "ENTRY_SIGNAL"
+      p.regimeClassificado === "LIMPA" && p.type === "ENTRY_SIGNAL" && !p.title.startsWith("SEQ GEOMÉTRICA")
     );
     const n = anteriores.length;
     const greens = anteriores.filter((p) => entradaPertenceAoNumero(p, p.numeroSeguinte as number) === true).length;
