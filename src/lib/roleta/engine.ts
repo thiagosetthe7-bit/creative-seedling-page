@@ -435,16 +435,9 @@ function sessaoExcluida(secao: string) {
   return secao || "SESSÃO ANTERIOR";
 }
 
-function confidenceBR(separadoMudanca: boolean, juntoMesma: boolean, solto: boolean) {
-  if (solto) return 60;
-  if (separadoMudanca) return 90;
-  if (juntoMesma) return 75;
-  return 85;
-}
+function confidenceBR(_separadoMudanca: boolean, _juntoMesma: boolean, _solto: boolean) { return 0; }
 
-function confidenceBT(mesmaCor: boolean) {
-  return mesmaCor ? 75 : 85;
-}
+function confidenceBT(_mesmaCor: boolean) { return 0; }
 
 function alturaOposta(ab: string) {
   return ab === "ALTO" ? "BAIXO" : ab === "BAIXO" ? "ALTO" : ab;
@@ -467,10 +460,10 @@ function sequenciaBips(spins: Spin[], bips: MapaBips, index: number) {
 function contextoSequencial(seq: string[], bip: TipoBip, anterior: Spin) {
   const joined = seq.join("+");
   if (seq.slice(-3).every((x) => x === "BT") && seq.slice(-3).length === 3) return { title: "⚠️ SEQUÊNCIA ANÔMALA", action: "AGUARDAR BR VÁLIDO", confidence: 0, context: joined };
-  if (joined.endsWith("BT+BR+BR+BT") || joined.endsWith("BR+BR+BT")) return { title: "INVERTE ALTURA", action: "ENTRAR EM " + alturaOposta(anterior.classificacao.ab), confidence: 88, context: "BR+BR→BT" };
-  if (joined.endsWith("BT+BR+BT")) return { title: "REPETE FAIXA", action: "ENTRAR EM " + anterior.classificacao.ab, confidence: 75, context: "BT+BR+BT" };
-  if (bip === "timer") return { title: "INVERTE ALTURA", action: "ENTRAR EM " + alturaOposta(anterior.classificacao.ab), confidence: 85, context: "BT isolado" };
-  return { title: "REPETE ALTURA", action: "ENTRAR EM " + anterior.classificacao.ab, confidence: 90, context: "BR" };
+  if (joined.endsWith("BT+BR+BR+BT") || joined.endsWith("BR+BR+BT")) return { title: "INVERTE ALTURA", action: "ENTRAR EM " + alturaOposta(anterior.classificacao.ab), confidence: 0, context: "BR+BR→BT" };
+  if (joined.endsWith("BT+BR+BT")) return { title: "REPETE FAIXA", action: "ENTRAR EM " + anterior.classificacao.ab, confidence: 0, context: "BT+BR+BT" };
+  if (bip === "timer") return { title: "INVERTE ALTURA", action: "ENTRAR EM " + alturaOposta(anterior.classificacao.ab), confidence: 0, context: "BT isolado" };
+  return { title: "REPETE ALTURA", action: "ENTRAR EM " + anterior.classificacao.ab, confidence: 0, context: "BR" };
 }
 function matrizSessoes(origem: string, sequenciaLonga: boolean) {
   const base: Record<string, [string,string]> = {
@@ -516,8 +509,8 @@ function detectarSequenciaGeometrica(spins: Spin[], index: number) {
   const last = spins.slice(index - 5, index);
   const duzias = last.map((s) => s.classificacao.duzia);
   const colunas = last.map((s) => s.classificacao.coluna);
-  if (duzias[0] !== "ZERO" && duzias.every((v) => v === duzias[0])) return { categoria: "duzia" as CategoriaId, alvo: duzias[0]!, context: "5x Dúzia Confirmada", confidence: 82 };
-  if (colunas[0] !== "ZERO" && colunas.every((v) => v === colunas[0])) return { categoria: "coluna" as CategoriaId, alvo: colunas[0]!, context: "5x Coluna Confirmada", confidence: 82 };
+  if (duzias[0] !== "ZERO" && duzias.every((v) => v === duzias[0])) return { categoria: "duzia" as CategoriaId, alvo: duzias[0]!, context: "5x Dúzia Confirmada", confidence: 0 };
+  if (colunas[0] !== "ZERO" && colunas.every((v) => v === colunas[0])) return { categoria: "coluna" as CategoriaId, alvo: colunas[0]!, context: "5x Coluna Confirmada", confidence: 0 };
   return null;
 }
 
@@ -1261,18 +1254,18 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
       } else if (brSeparado) {
         titulo = "BR SEPARADO · REPETE ALTURA";
         acao = "ENTRAR EM " + alturaAlvo;
-        conf = mesmaParidade ? 86 : 86;
+        conf = 0;
         cobertura = alturaAlvo === "ALTO" ? "C2+C3" : "D1+D2";
         nota = mesmaParidade ? "BR Separado + Parity" : "BR Separado";
       } else if (btQuebra) {
         titulo = "BT QUEBRA COR · INVERSÃO";
         acao = "ENTRAR EM " + alturaOposta(cA.ab);
-        conf = 81;
+        conf = 0;
         cobertura = acao.includes("ALTO") ? "D2+D3" : "D1+D2";
         nota = "BT Quebra Cor";
       } else if (geometrica) {
         categoriaAuditoria = geometrica.categoria;
-        conf = 82;
+        conf = 0;
         acao = "ENTRAR EM " + geometrica.alvo;
         cobertura = geometrica.alvo;
         titulo = "SEQUÊNCIA GEOMÉTRICA 5x";
@@ -1294,14 +1287,14 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     const gold = bipValido && atual.classificacao.cor === anterior.classificacao.cor && atual.classificacao.pi === anterior.classificacao.pi && (varsRepetidas >= 3 || spinsPosBip.length >= 2);
     const silver = bipValido && !gold && atual.classificacao.cor === anterior.classificacao.cor;
     const exclusaoFisica = bipValido && mesmaCor3;
-    if (conf >= 78 && gold) {
+    if (false && gold) {
       conf = Math.min(conf + 7, 86);
       nota = "🔥 ALTA CONFIANÇA: Cor+Paridade alinhadas pós-BIP.";
-    } else if (conf >= 78 && silver) {
+    } else if (false && silver) {
       conf = Math.min(conf + 4, 86);
       nota = "⚡ CONFIANÇA MODERADA: Cor mantida pós-BIP.";
     }
-    if (exclusaoFisica && conf >= 78) {
+    if (exclusaoFisica) {
       cobertura = null;
       nota = "🚫 FILTRO FÍSICO: combinação setor+cor em exaustão.";
     }
@@ -1363,14 +1356,14 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
         (!bipIsolado || origem !== "TIER" || atual.classificacao.tipo !== "SEPARADO" || alturaSaturada)) {
       titulo = "BR SEPARADO · REPETE ALTURA";
       acao = "ENTRAR EM " + alturaAlvo;
-      conf = 86;
+      conf = 0;
       categoriaAuditoria = "ab";
       cobertura = alturaAlvo === "ALTO" ? "C2+C3" : "D1+D2";
       observacaoHostil = true;
       observacaoMotivo = "BIP/Tipo/Altura fora da condição";
     }
 
-    const bloqueado = conf < 78 || !alinhada;
+    const bloqueado = !alinhada;
     if (bloqueado && !observacaoHostil) observacaoHostil = true;
 
     const operacional = !observacaoHostil && alinhada;
