@@ -5,8 +5,6 @@ import { autoTestPadroes } from "../padroes";
 import { rodarSelfTest } from "../avaliador";
 import { acoes, useEstado } from "./store";
 
-const DESFECHOS_FINAIS = new Set(["GREEN_DIRETO", "GREEN_GALE1", "FALHA_GIRO1", "FALHA_GALE", "PAUSA"]);
-
 export function useSinais() {
   const estado = useEstado();
   const [resolverTick, setResolverTick] = useState(0);
@@ -63,14 +61,9 @@ export function useSinais() {
       };
     });
 
-    const persistidos: Sinal[] = sinais.map((s): Sinal => {
-      const p = estado.auditoriaLog[s.id];
-      if (!p || !["GREEN","RED","PARTIAL"].includes(p.status)) return s;
-      const outcome = p.outcome === "GREEN" ? "GREEN" : p.outcome === "PARTIAL" ? "PARTIAL" : "RED";
-      return { ...s, status: outcome === "GREEN" ? "WIN" : outcome === "PARTIAL" ? "PARTIAL" : "RED", auditResult: outcome, auditNumero: p.result, auditTimestamp: p.resultTimestamp ?? p.recordedAt };
-    });
+    // Desfechos são derivados do catálogo em tempo de render; não usar ledger salvo como fonte da verdade.
 
-    return { sinais: persistidos, estatisticas: calcularEstatisticas(persistidos), naoVistos: persistidos.filter((s) => !estado.vistos.includes(s.id)), confirmados: estado.confirmados };
+    return { sinais, estatisticas: calcularEstatisticas(sinais), naoVistos: sinais.filter((s) => !estado.vistos.includes(s.id)), confirmados: estado.confirmados };
   }, [estado, resolverTick]);
 
   useEffect(() => {
@@ -95,39 +88,8 @@ export function useSinais() {
     window.dispatchEvent(new CustomEvent("roleta:self-test", { detail: combinedBoot }));
     if (!combinedBoot.ok) window.dispatchEvent(new CustomEvent("roleta:resolver-failure", { detail: combinedBoot.errors }));
 
-    for (const s of resultado.sinais) {
-      const persistido = estado.auditoriaLog[s.id];
-      const terminal = s.desfechoSequencia === "GREEN_DIRETO" ||
-        s.desfechoSequencia === "GREEN_GALE1" ||
-        s.desfechoSequencia === "FALHA_GIRO1" ||
-        s.desfechoSequencia === "FALHA_GALE1";
 
-      if (terminal && (s.auditResult === "GREEN" || s.auditResult === "RED")) {
-        if (!persistido || persistido.status === "AGUARDANDO_RESULTADO") {
-          acoes.registrarResultadoAutomatico({
-            signalId: s.id,
-            strategy: s.title,
-            entry: s.mainAction,
-            result: s.auditNumero ?? 0,
-            outcome: s.auditResult,
-            status: s.auditResult,
-            recordedAt: persistido?.recordedAt ?? Date.now(),
-            resultTimestamp: s.auditTimestamp ?? Date.now(),
-          });
-        }
-      } else if (!persistido) {
-        acoes.registrarAuditorias([{
-          signalId: s.id,
-          strategy: s.title,
-          entry: s.mainAction,
-          result: 0,
-          outcome: "AGUARDANDO_RESULTADO",
-          status: "AGUARDANDO_RESULTADO",
-          recordedAt: Date.now(),
-        }]);
-      }
-    }
-  }, [resultado.sinais, estado.auditoriaLog]);
+  }, []);
 
   return resultado;
 }
