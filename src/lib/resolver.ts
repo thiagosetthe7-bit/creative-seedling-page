@@ -1,5 +1,4 @@
 import { avaliarEntrada, atributos, normalizarEntrada } from './avaliador';
-import { CONFIG } from './config';
 
 export type Desfecho='GREEN_DIRETO'|'GREEN_GALE1'|'FALHA_GIRO1'|'FALHA_GALE'|'PAUSA'|null;
 export interface AlertaBase{id:string;entrada:string;estrategia:string;indiceSinal:number;regime:'LIMPA'|'HOSTIL';observacao:boolean;padrao?:string}
@@ -9,7 +8,7 @@ export function computarDesfecho(a:AlertaBase,cat:number[]){
   if(r1==null)return{resultado:null,n1:null,n2:null,desfecho:null as Desfecho};
   if(r1===0)return{resultado:null,n1:0,n2:null,desfecho:'PAUSA' as Desfecho};
   if(avaliarEntrada(a.entrada,r1)==='GREEN')return{resultado:'GREEN' as const,n1:r1,n2:null,desfecho:'GREEN_DIRETO' as Desfecho};
-  if(a.regime==='HOSTIL'||(a.observacao&&CONFIG.OSC_RET_APENAS_OBSERVACAO))return{resultado:'RED' as const,n1:r1,n2:null,desfecho:'FALHA_GIRO1' as Desfecho};
+  if(a.regime==='HOSTIL'||a.observacao)return{resultado:'RED' as const,n1:r1,n2:null,desfecho:'FALHA_GIRO1' as Desfecho};
   const r2=cat[a.indiceSinal+2];
   if(r2==null)return{resultado:'RED' as const,n1:r1,n2:null,desfecho:null as Desfecho};
   if(r2===0)return{resultado:'RED' as const,n1:r1,n2:0,desfecho:'FALHA_GALE' as Desfecho};
