@@ -3,7 +3,6 @@ import { CONFIG } from "./config";
 export type Stats = StatsPadrao;
 export function mensagemPopup(o:{estrategia:string;stats:Stats;regime:"LIMPA"|"HOSTIL";motivoHostil?:string;rebaixadoPorRegime:boolean;galeLiberado:boolean}){
  const confianca=rotuloConfianca(o.stats);
- const medido=o.stats.n>=CONFIG.N_VALIDAR;
  const taxa=o.stats.n>0?o.stats.greens/o.stats.n:0;
  const apostar=(o.stats.n<CONFIG.N_VALIDAR||taxa>=CONFIG.PISO_MODERADO)&&o.regime==="LIMPA"&&!o.rebaixadoPorRegime;
  const stake=o.stats.n<CONFIG.N_VALIDAR?0.25:taxa>=CONFIG.PISO_FORTE?1:taxa>=CONFIG.PISO_MODERADO?0.5:0;
