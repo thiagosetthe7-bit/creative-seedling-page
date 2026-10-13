@@ -41,6 +41,7 @@ export function PopupSinal({
           ) : (
             <div className="popup-linhas space-y-2 text-sm">
               <div>🎯 GATILHO: <strong>{L.gatilho}</strong></div>
+              <div>PADRÃO: <strong>{sinal.footerNote || sinal.sequenceContext || sinal.message || sinal.title}</strong></div>
               <div>📊 CONFIANÇA: {L.confianca}</div>
               <div>{L.regime}</div>
               <div>{L.decisao}</div>
