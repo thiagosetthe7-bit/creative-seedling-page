@@ -252,7 +252,8 @@ export interface Sinal {
   gale1Liberado: boolean;
   gale1Usado: boolean;
   gale1Resultado: "GREEN" | "RED" | "n/a";
-  desfechoSequencia: "GREEN_DIRETO" | "GREEN_GALE1" | "FALHA_GIRO1" | "FALHA_GALE1" | "n/a";
+  desfechoSequencia: "GREEN_DIRETO" | "GREEN_GALE1" | "FALHA_GIRO1" | "FALHA_GALE1" | "PAUSA" | "n/a";
+  galeNumero?: number | null;
   observacaoHostil: boolean;
 }
 
@@ -434,10 +435,6 @@ function cobertura(valor: string, prefixo: "C" | "D") {
 function sessaoExcluida(secao: string) {
   return secao || "SESSÃO ANTERIOR";
 }
-
-function confidenceBR(_separadoMudanca: boolean, _juntoMesma: boolean, _solto: boolean) { return 0; }
-
-function confidenceBT(_mesmaCor: boolean) { return 0; }
 
 function alturaOposta(ab: string) {
   return ab === "ALTO" ? "BAIXO" : ab === "BAIXO" ? "ALTO" : ab;
@@ -1275,24 +1272,9 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
 
     // v6.6+ — inteligência pós-BIP: bônus somente como modificador, nunca como gatilho.
     const bipValido = bip === "timer" || bip === "rolando";
-    const varsRepetidas = [
-      atual.classificacao.cor === anterior.classificacao.cor,
-      atual.classificacao.pi === anterior.classificacao.pi,
-      atual.classificacao.ab === anterior.classificacao.ab,
-      atual.classificacao.tipo === anterior.classificacao.tipo,
-    ].filter(Boolean).length;
     const spinsPosBip = spins.slice(Math.max(0, i - 3), i);
     const mesmaCor3 = spinsPosBip.length >= 3 && spinsPosBip.slice(-3).every((s) => s.classificacao.cor === atual.classificacao.cor);
-    const gold = bipValido && atual.classificacao.cor === anterior.classificacao.cor && atual.classificacao.pi === anterior.classificacao.pi && (varsRepetidas >= 3 || spinsPosBip.length >= 2);
-    const silver = bipValido && !gold && atual.classificacao.cor === anterior.classificacao.cor;
     const exclusaoFisica = bipValido && mesmaCor3;
-    if (false && gold) {
-      conf = Math.min(conf + 7, 86);
-      nota = "🔥 ALTA CONFIANÇA: Cor+Paridade alinhadas pós-BIP.";
-    } else if (false && silver) {
-      conf = Math.min(conf + 4, 86);
-      nota = "⚡ CONFIANÇA MODERADA: Cor mantida pós-BIP.";
-    }
     if (exclusaoFisica) {
       cobertura = null;
       nota = "🚫 FILTRO FÍSICO: combinação setor+cor em exaustão.";
