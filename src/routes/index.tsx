@@ -87,7 +87,7 @@ function Catalogacao() {
       numeroGale: s.galeNumero ?? null,
       desfecho: s.desfechoSequencia,
       tier: s.observacaoHostil ? (s.confidence === 0 ? "MEDINDO/OBSERVACAO" : "OBSERVACAO") : "VALIDADO",
-      padrao: s.message || s.sequenceContext || s.title,
+      padrao: s.footerNote || s.sequenceContext || s.title,
     }));
     exportarParaAnalise(spins, alertas);
   };
