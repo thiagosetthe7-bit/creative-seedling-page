@@ -1402,7 +1402,7 @@ export function analisarBips(spinsEntrada: Spin[], bips: MapaBips): Sinal[] {
     const foraPiso = tier === "ABAIXO";
     const somenteObservacao = s.title.startsWith("SEQ GEOMÉTRICA");
     const naoValidado = tier === "MEDINDO";
-    const bloquear = somenteObservacao || naoValidado || foraPiso || s.regimeClassificado !== "LIMPA";
+    const bloquear = somenteObservacao || foraPiso || s.regimeClassificado !== "LIMPA";
     return {
       ...s,
       confidence: n < CONFIG.N_VALIDAR ? 0 : Math.round(pct),
