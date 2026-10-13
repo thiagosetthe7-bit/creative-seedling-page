@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { analisarBips, calcularEstatisticas, autoTestResolver, autoTestRegimeV14, type Sinal } from "./engine";
-import { computarDesfecho, type AlertaBase } from "../resolver";
+import { computarDesfecho, autoTestResolverV14, type AlertaBase } from "../resolver";
 import { autoTestPadroes } from "../padroes";
 import { rodarSelfTest } from "../avaliador";
-import { acoes, useEstado } from "./store";
+import { useEstado } from "./store";
 
 export function useSinais() {
   const estado = useEstado();
@@ -81,10 +81,11 @@ export function useSinais() {
     if (typeof window === "undefined") return;
 
     const boot = autoTestResolver();
+    const resolverV14Boot = autoTestResolverV14();
     const regimeBoot = autoTestRegimeV14();
     const padroesBoot = autoTestPadroes();
     const avaliadorBoot = rodarSelfTest();
-    const combinedBoot = { ok: boot.ok && regimeBoot.ok && padroesBoot.ok && avaliadorBoot.ok, errors: [...boot.errors, ...regimeBoot.errors, ...padroesBoot.errors, ...avaliadorBoot.falhas.map((f) => `avaliador: ${JSON.stringify(f)}`)] };
+    const combinedBoot = { ok: boot.ok && resolverV14Boot.ok && regimeBoot.ok && padroesBoot.ok && avaliadorBoot.ok, errors: [...boot.errors, ...resolverV14Boot.errors, ...regimeBoot.errors, ...padroesBoot.errors, ...avaliadorBoot.falhas.map((f) => `avaliador: ${JSON.stringify(f)}`)] };
     window.dispatchEvent(new CustomEvent("roleta:self-test", { detail: combinedBoot }));
     if (!combinedBoot.ok) window.dispatchEvent(new CustomEvent("roleta:resolver-failure", { detail: combinedBoot.errors }));
 
