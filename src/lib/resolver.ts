@@ -20,6 +20,7 @@ export function computarDesfecho(a:AlertaBase,cat:number[]){
 export function formatResultado(a:AlertaBase,cat:number[]){
   const r=computarDesfecho(a,cat);
   if(r.n1==null)return'aguardando…';
+  if(r.desfecho==='PAUSA')return r.n1===0?'0 · ⏸ PAUSA (fora da contagem)':`${r.n1} · GALE 1 = 0 · ⏸ PAUSA (fora da contagem)`;
   if(r.n1===0)return'0 · ⏸ sem aposta';
   const at1=atributos(r.n1);
   const first=`${r.n1} (${at1.cor},${at1.alt}) → ${r.resultado==='GREEN'?'✅ GREEN':'❌ PERDEU'}`;
@@ -27,4 +28,15 @@ export function formatResultado(a:AlertaBase,cat:number[]){
   if(r.n2==null)return`${first} · aguardando G1…`;
   const at2=atributos(r.n2);
   return `${first} · G1: ${r.n2} (${at2.cor},${at2.alt}) → ${r.desfecho==='GREEN_GALE1'?'✅ GREEN no GALE 1':'❌ PERDEU'}`;
+}
+
+export function autoTestResolverV14(){
+  const alerta:AlertaBase={id:"v14-zero",entrada:"PRETO",estrategia:"TESTE",indiceSinal:0,regime:"LIMPA",observacao:false};
+  const zeroDireto=computarDesfecho(alerta,[0,12]);
+  const zeroGale=computarDesfecho(alerta,[1,1,0]);
+  const falhas:string[]=[];
+  if(zeroDireto.desfecho!=="PAUSA"||zeroDireto.resultado!==null)falhas.push("T4: zero no giro 1 não pausou");
+  if(zeroGale.desfecho!=="PAUSA"||zeroGale.resultado!==null)falhas.push("T4: zero no gale não pausou");
+  if(avaliarEntrada("PRETO",0)!==null)falhas.push("T4: avaliador classificou zero como GREEN/RED");
+  return{ok:falhas.length===0,errors:falhas};
 }
