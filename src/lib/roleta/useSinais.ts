@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { analisarBips, calcularEstatisticas, autoTestResolver, autoTestRegimeV14, autoTestSeqObsV14, type Sinal } from "./engine";
-import { computarDesfecho, autoTestResolverV14, type AlertaBase } from "../resolver";
+import { computarDesfecho, autoTestResolverV14, type AlertaBase, type Desfecho } from "../resolver";
+import { auditarIntegridade } from "../integridade";
 import { autoTestPadroes } from "../padroes";
 import { rodarSelfTest } from "../avaliador";
 import { useEstado } from "./store";
@@ -61,9 +62,24 @@ export function useSinais() {
       };
     });
 
-    // Desfechos são derivados do catálogo em tempo de render; não usar ledger salvo como fonte da verdade.
+    // Integridade é recalculada a partir do catálogo atual; edições/exclusões não deixam ledger obsoleto.
+    const alertasIntegridade: AlertaBase[] = brutos
+      .filter((s) => s.type === "ENTRY_SIGNAL")
+      .map((s) => ({
+        id: s.id,
+        entrada: s.mainAction,
+        estrategia: s.title,
+        indiceSinal: Math.max(0, (s.rodada || 1) - 1),
+        regime: s.regimeClassificado,
+        observacao: s.observacaoHostil,
+        padrao: s.footerNote || s.sequenceContext || s.title,
+      }));
+    const desfechosIntegridade: Desfecho[] = alertasIntegridade.map(
+      (a) => porId.get(a.id)?.desfecho ?? null,
+    );
+    const integridade = auditarIntegridade(alertasIntegridade, catalogacao, desfechosIntegridade);
 
-    return { sinais, estatisticas: calcularEstatisticas(sinais), naoVistos: sinais.filter((s) => !estado.vistos.includes(s.id)), confirmados: estado.confirmados };
+    return { sinais, integridade, estatisticas: calcularEstatisticas(sinais), naoVistos: sinais.filter((s) => !estado.vistos.includes(s.id)), confirmados: estado.confirmados };
   }, [estado, resolverTick]);
 
   useEffect(() => {
