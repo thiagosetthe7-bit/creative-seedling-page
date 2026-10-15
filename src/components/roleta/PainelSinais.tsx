@@ -60,14 +60,15 @@ export function PainelSinais({ sinais, integridade }: { sinais: Sinal[]; integri
   return (
     <section className="rounded-lg border border-border bg-card">
       <div className="border-b border-border px-3 py-2">
-        {(!selfTest.ok || falhaResolver || integridade?.ok === false) && (
-          <div className="mb-2 rounded border border-red-500/50 bg-red-500/10 px-2 py-2 text-xs font-black text-red-400">
-            ⚠️ FALHA DE INTEGRIDADE: {integridade?.falhas.length ?? 0} alerta(s) com resultado ausente/inconsistente. {integridade?.pendentes ?? 0} pendente(s) · {integridade?.orfaos ?? 0} órfão(s).
+        {integridade && integridade.falhas.length > 0 && (
+          <div className="banner-erro mb-2 rounded border border-red-500/50 bg-red-500/10 px-2 py-2 text-xs font-black text-red-400">
+            ⚠️ FALHA DE INTEGRIDADE: {integridade.falhas.length} alerta(s) inconsistentes.
           </div>
         )}
-        {integridade?.ok && (
-          <div className="mb-2 rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
-            INTEGRIDADE OK · {integridade.total} alerta(s) · {integridade.pendentes} pendente(s) · {integridade.orfaos} órfão(s)
+
+        {integridade && integridade.falhas.length === 0 && (
+          <div className="banner-ok mb-2 rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+            ✅ Integridade OK · {integridade.pendentes} pendente(s) normal(is) · {integridade.orfaos} órfão(s)
           </div>
         )}
         <div className="flex items-center justify-between gap-2">
