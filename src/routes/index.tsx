@@ -48,7 +48,7 @@ function popupStats(sinais: Sinal[], estrategia?: string): StatsPadrao {
 
 function Catalogacao() {
   const estado = useEstado();
-  const { sinais, naoVistos } = useSinais();
+  const { sinais, naoVistos, integridade } = useSinais();
   const popup = estado.config.alertasAtivos
     ? [...naoVistos].sort((a, b) => {
         const peso = (p: string) => p === "CRITICAL" ? 0 : p === "HIGH" ? 1 : p === "MEDIUM" ? 2 : 3;
@@ -113,7 +113,7 @@ function Catalogacao() {
           <DiagnosticoBip spins={estado.spins} bips={estado.bips} />
           <button onClick={exportarAuditoria} className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs font-black tracking-widest hover:bg-accent">📊 EXPORTAR PARA ANÁLISE</button>
         </div>
-        <PainelSinais sinais={sinais} />
+        <PainelSinais sinais={sinais} integridade={integridade} />
       </div>
 
       {popup && <PopupSinal sinal={popup} stats={statsPopup} />}
