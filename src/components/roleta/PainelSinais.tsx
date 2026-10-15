@@ -28,7 +28,7 @@ function resultadoVisual(s: Sinal) {
   return primeiro;
 }
 
-export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
+export function PainelSinais({ sinais, integridade }: { sinais: Sinal[]; integridade?: { falhas: { id: string; e: string }[]; pendentes: number; orfaos: number; total: number; ok: boolean } }) {
   const [selfTest, setSelfTest] = useState(() => autoTestResolver());
   const containerRef = useRef<HTMLUListElement | null>(null);
 
@@ -60,9 +60,14 @@ export function PainelSinais({ sinais }: { sinais: Sinal[] }) {
   return (
     <section className="rounded-lg border border-border bg-card">
       <div className="border-b border-border px-3 py-2">
-        {(!selfTest.ok || falhaResolver) && (
+        {(!selfTest.ok || falhaResolver || integridade?.ok === false) && (
           <div className="mb-2 rounded border border-red-500/50 bg-red-500/10 px-2 py-2 text-xs font-black text-red-400">
-            ⚠️ FALHA DE RESOLUÇÃO: existe um giro já catalogado sem resultado final.
+            ⚠️ FALHA DE INTEGRIDADE: {integridade?.falhas.length ?? 0} alerta(s) com resultado ausente/inconsistente. {integridade?.pendentes ?? 0} pendente(s) · {integridade?.orfaos ?? 0} órfão(s).
+          </div>
+        )}
+        {integridade?.ok && (
+          <div className="mb-2 rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+            INTEGRIDADE OK · {integridade.total} alerta(s) · {integridade.pendentes} pendente(s) · {integridade.orfaos} órfão(s)
           </div>
         )}
         <div className="flex items-center justify-between gap-2">
