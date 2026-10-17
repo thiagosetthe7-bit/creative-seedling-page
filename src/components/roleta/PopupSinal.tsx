@@ -46,8 +46,11 @@ export function PopupSinal({
     galeLiberado: Boolean(sinal.gale1Liberado),
   });
   const L = m.linhas;
+  const somenteObservacao = sinal.title.startsWith("SEQ GEOMÉTRICA") || sinal.title.startsWith("👁 OBSERVAÇÃO");
   const podeConfirmar = !isPause && gate.confirmavel && sinal.type === "ENTRY_SIGNAL" &&
-    sinal.gale1Liberado && !sinal.observacaoHostil && (stats.n < CONFIG.N_VALIDAR || stats.greens / stats.n >= CONFIG.PISO_MODERADO);
+    !somenteObservacao &&
+    (regimeGate === "HOSTIL" || (sinal.gale1Liberado && !sinal.observacaoHostil)) &&
+    (stats.n < CONFIG.N_VALIDAR || stats.greens / stats.n >= CONFIG.PISO_MODERADO);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
