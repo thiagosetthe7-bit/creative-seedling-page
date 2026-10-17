@@ -33,6 +33,7 @@ export function detectarRetornoLongo(nums: number[]): TriggerRL[] {
       const A = runs[k - 2];
       const B = runs[k - 1];
       const A2 = runs[k];
+      if (!A || !B || !A2) continue;
       if (A.len >= 5 && B.len >= 1 && B.len <= 2 && A2.v === A.v) {
         out.push({
           id: `RL-${dim}-${A2.start}`,
