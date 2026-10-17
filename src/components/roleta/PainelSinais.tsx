@@ -1,5 +1,6 @@
 import { gerarLogAuditoriaCSV, type Sinal } from "@/lib/roleta/engine";
-import { acoes } from "@/lib/roleta/store";
+import { acoes, useEstado } from "@/lib/roleta/store";
+import { baixarCSVCatalogacao } from "@/lib/exportCatalogacao";
 import { linhaEntrada, rotuloAlerta } from "@/lib/labels";
 import { useCallback, useRef } from "react";
 
@@ -29,19 +30,13 @@ function resultadoVisual(s: Sinal) {
 }
 
 export function PainelSinais({ sinais }: { sinais: Sinal[]; integridade?: { falhas: { id: string; e: string }[]; pendentes: number; orfaos: number; total: number; ok: boolean } }) {
+export function PainelSinais({ sinais }: { sinais: Sinal[]; integridade?: { falhas: { id: string; e: string }[]; pendentes: number; orfaos: number; total: number; ok: boolean } }) {
   const containerRef = useRef<HTMLUListElement | null>(null);
+  const { spins, bips } = useEstado();
 
   const exportarCSV = useCallback(() => {
-    const csv = gerarLogAuditoriaCSV(sinais);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "log-auditoria-sinais.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [sinais]);
-
+    baixarCSVCatalogacao(spins, bips);
+  }, [spins, bips]);
 
 
   const lista = [...sinais].reverse().slice(0, 20);
