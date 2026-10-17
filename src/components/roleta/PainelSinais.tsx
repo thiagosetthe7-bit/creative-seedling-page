@@ -1,4 +1,4 @@
-import { gerarLogAuditoriaCSV, type Sinal } from "@/lib/roleta/engine";
+import type { Sinal } from "@/lib/roleta/engine";
 import { acoes, useEstado } from "@/lib/roleta/store";
 import { baixarCSVCatalogacao } from "@/lib/exportCatalogacao";
 import { linhaEntrada, rotuloAlerta } from "@/lib/labels";
