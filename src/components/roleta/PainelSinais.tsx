@@ -30,7 +30,6 @@ function resultadoVisual(s: Sinal) {
 }
 
 export function PainelSinais({ sinais }: { sinais: Sinal[]; integridade?: { falhas: { id: string; e: string }[]; pendentes: number; orfaos: number; total: number; ok: boolean } }) {
-export function PainelSinais({ sinais }: { sinais: Sinal[]; integridade?: { falhas: { id: string; e: string }[]; pendentes: number; orfaos: number; total: number; ok: boolean } }) {
   const containerRef = useRef<HTMLUListElement | null>(null);
   const { spins, bips } = useEstado();
 
