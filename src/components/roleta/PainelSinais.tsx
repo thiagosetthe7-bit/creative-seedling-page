@@ -28,7 +28,7 @@ function resultadoVisual(s: Sinal) {
   return primeiro;
 }
 
-export function PainelSinais({ sinais, integridade }: { sinais: Sinal[]; integridade?: { falhas: { id: string; e: string }[]; pendentes: number; orfaos: number; total: number; ok: boolean } }) {
+export function PainelSinais({ sinais }: { sinais: Sinal[]; integridade?: { falhas: { id: string; e: string }[]; pendentes: number; orfaos: number; total: number; ok: boolean } }) {
   const containerRef = useRef<HTMLUListElement | null>(null);
 
   const exportarCSV = useCallback(() => {
