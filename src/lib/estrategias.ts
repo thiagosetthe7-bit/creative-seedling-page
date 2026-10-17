@@ -34,7 +34,7 @@ export function detBtQuebra(rows:{numero:number;bip:string|null}[]):Sinal[]{
   rows.forEach((r,i)=>{
     if(r.bip!=='BT'||i===0)return;
     const cor=atributos(r.numero).cor,corA=atributos(rows[i-1]!.numero).cor;
-    if(cor==='ZERO'||cor===corA)return;
+    if((cor as string)==='ZERO'||cor===corA)return;
     let len=1;
     for(let j=i-2;j>=0;j--){if(atributos(rows[j]!.numero).cor===corA)len++;else break;}
     if(len<3)return;

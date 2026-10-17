@@ -2,6 +2,7 @@ import { avaliarEntrada, atributos, normalizarEntrada } from './avaliador';
 
 export type Desfecho='GREEN_DIRETO'|'GREEN_GALE1'|'FALHA_GIRO1'|'FALHA_GALE'|'PAUSA'|null;
 export interface AlertaBase{id:string;entrada:string;estrategia:string;indiceSinal:number;regime:'LIMPA'|'HOSTIL';observacao:boolean;padrao?:string}
+export interface Alerta extends AlertaBase{numeroResultado?:number|null;numeroGale?:number|null;resultado?:'GREEN'|'RED'|null}
 
 export function computarDesfecho(a:AlertaBase,cat:number[]){
   const r1=cat[a.indiceSinal+1];

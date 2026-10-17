@@ -21,7 +21,7 @@ export function estadoDoAlerta(
   // Sem o primeiro giro catalogado, o alerta continua aguardando.
   if (alvo >= cat.length) return desfecho == null ? "PENDENTE" : "FALHA_REAL";
 
-  const r1 = cat[alvo];
+  const r1 = cat[alvo]!;
   // Zero é pausa; GREEN encerra no giro 1; regime HOSTIL não libera Gale.
   const resolvido1 =
     r1 === 0 ||
