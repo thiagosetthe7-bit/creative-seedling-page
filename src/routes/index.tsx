@@ -5,11 +5,18 @@ import { TabelaCatalogacao } from "@/components/roleta/TabelaCatalogacao";
 import { PainelSinais } from "@/components/roleta/PainelSinais";
 import { PopupSinal } from "@/components/roleta/PopupSinal";
 import { DiagnosticoBip } from "@/components/roleta/DiagnosticoBip";
+import { Diagnostico } from "@/components/Diagnostico";
 import { useSinais } from "@/lib/roleta/useSinais";
 import { useEstado } from "@/lib/roleta/store";
 import type { Sinal } from "@/lib/roleta/engine";
 import { medirPadrao, type StatsPadrao } from "@/lib/padroes";
 import { exportarParaAnalise, type SpinAnalise, type SinalAnalise } from "@/lib/exportAnalise";
+import { estadoDoAlerta } from "@/lib/integridade";
+import type { AlertaBase, Desfecho } from "@/lib/resolver";
+import { autoTestResolver, autoTestRegimeV14, autoTestSeqObsV14 } from "@/lib/roleta/engine";
+import { autoTestResolverV14 } from "@/lib/resolver";
+import { autoTestPadroes } from "@/lib/padroes";
+import { rodarSelfTest } from "@/lib/avaliador";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -76,20 +83,45 @@ function Catalogacao() {
       v2234: s.classificacao.g2234,
       cor: s.classificacao.cor,
     }));
-    const alertas: SinalAnalise[] = sinais.map((s) => ({
-      id: s.id,
-      estrategia: s.title,
-      entrada: s.mainAction.replace(/^ENTRAR EM\\s*/i, ""),
-      indiceSinal: Math.max(0, s.rodada - 1),
-      regime: s.regimeClassificado,
-      motivo: s.motivoHostil,
-      numeroResultado: s.auditNumero ?? s.numeroSeguinte,
-      numeroGale: s.galeNumero ?? null,
-      desfecho: s.desfechoSequencia,
-      tier: s.observacaoHostil ? (s.confidence === 0 ? "MEDINDO/OBSERVACAO" : "OBSERVACAO") : "VALIDADO",
-      padrao: s.footerNote || s.sequenceContext || s.title,
-    }));
-    exportarParaAnalise(spins, alertas);
+    const nums = estado.spins.map((spin) => spin.numero);
+    const alertas: SinalAnalise[] = sinais.map((s) => {
+      const indiceSinal = Math.max(0, s.rodada - 1);
+      const alerta: AlertaBase = {
+        id: s.id, entrada: s.mainAction, estrategia: s.title, indiceSinal,
+        regime: s.regimeClassificado, observacao: s.observacaoHostil,
+        padrao: s.footerNote || s.sequenceContext || s.title,
+      };
+      const raw = s.desfechoSequencia;
+      const desfecho: Desfecho = raw === "FALHA_GALE1" ? "FALHA_GALE"
+        : raw === "n/a" || raw == null ? null
+        : raw as Desfecho;
+      const estadoAlerta = s.type === "ENTRY_SIGNAL"
+        ? estadoDoAlerta(alerta, nums, desfecho)
+        : "OBSERVACAO";
+      return {
+        id: s.id,
+        estrategia: s.title,
+        entrada: s.mainAction.replace(/^ENTRAR EM\\s*/i, ""),
+        indiceSinal,
+        regime: s.regimeClassificado,
+        motivo: s.motivoHostil,
+        numeroResultado: s.auditNumero ?? s.numeroSeguinte,
+        numeroGale: s.galeNumero ?? null,
+        desfecho: s.desfechoSequencia,
+        tier: s.observacaoHostil ? (s.confidence === 0 ? "MEDINDO/OBSERVACAO" : "OBSERVACAO") : "VALIDADO",
+        padrao: s.footerNote || s.sequenceContext || s.title,
+        estado: estadoAlerta,
+      };
+    });
+    const tests = [autoTestResolver(), autoTestResolverV14(), autoTestRegimeV14(), autoTestSeqObsV14(), autoTestPadroes()];
+    const avaliador = rodarSelfTest();
+    const selftest = tests.every((test) => test.ok) && avaliador.ok ? "OK" : "FALHA";
+    exportarParaAnalise(spins, alertas, {
+      falhas: integridade?.falhas.length ?? 0,
+      pendentes: integridade?.pendentes ?? 0,
+      orfaos: integridade?.orfaos ?? 0,
+      selftest,
+    });
   };
 
   return (
@@ -111,6 +143,7 @@ function Catalogacao() {
           <EntradaNumeros total={estado.spins.length} />
           <TabelaCatalogacao spins={estado.spins} sinais={sinais} />
           <DiagnosticoBip spins={estado.spins} bips={estado.bips} />
+          {integridade && <Diagnostico falhas={integridade.falhas} pendentes={integridade.pendentes} orfaos={integridade.orfaos} />}
           <button onClick={exportarAuditoria} className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs font-black tracking-widest hover:bg-accent">📊 EXPORTAR PARA ANÁLISE</button>
         </div>
         <PainelSinais sinais={sinais} integridade={integridade} />
