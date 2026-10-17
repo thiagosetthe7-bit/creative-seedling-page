@@ -44,7 +44,7 @@ export function montarCSVCatalogacao(spins: Spin[], bips: Record<string, TipoBip
     ].map(celulaCSV).join(";"));
   });
 
-  return "\\ufeff" + linhas.join("\\r\\n");
+  return "\uFEFF" + linhas.join("\r\n");
 }
 
 /** Exporta todos os giros registrados, incluindo as marcações BT/BR individuais. */
