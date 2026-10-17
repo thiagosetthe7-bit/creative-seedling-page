@@ -1,7 +1,7 @@
-import { autoTestResolver, gerarLogAuditoriaCSV, type Sinal } from "@/lib/roleta/engine";
+import { gerarLogAuditoriaCSV, type Sinal } from "@/lib/roleta/engine";
 import { acoes } from "@/lib/roleta/store";
 import { linhaEntrada, rotuloAlerta } from "@/lib/labels";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
 
 export function StatusTag({ status }: { status: string }) {
   const cores: Record<string, string> = {
@@ -29,14 +29,7 @@ function resultadoVisual(s: Sinal) {
 }
 
 export function PainelSinais({ sinais, integridade }: { sinais: Sinal[]; integridade?: { falhas: { id: string; e: string }[]; pendentes: number; orfaos: number; total: number; ok: boolean } }) {
-  const [selfTest, setSelfTest] = useState(() => autoTestResolver());
   const containerRef = useRef<HTMLUListElement | null>(null);
-
-  useEffect(() => {
-    const onTest = (e: Event) => setSelfTest((e as CustomEvent<{ok:boolean;errors:string[]}>).detail);
-    window.addEventListener("roleta:self-test", onTest);
-    return () => window.removeEventListener("roleta:self-test", onTest);
-  }, []);
 
   const exportarCSV = useCallback(() => {
     const csv = gerarLogAuditoriaCSV(sinais);
@@ -49,28 +42,13 @@ export function PainelSinais({ sinais, integridade }: { sinais: Sinal[]; integri
     URL.revokeObjectURL(url);
   }, [sinais]);
 
-  const falhaResolver = sinais.some((s) =>
-    s.type === "ENTRY_SIGNAL" &&
-    s.auditResult === "AWAITING" &&
-    s.numeroSeguinte !== null
-  );
+
 
   const lista = [...sinais].reverse().slice(0, 20);
 
   return (
     <section className="rounded-lg border border-border bg-card">
       <div className="border-b border-border px-3 py-2">
-        {integridade && integridade.falhas.length > 0 && (
-          <div className="banner-erro mb-2 rounded border border-red-500/50 bg-red-500/10 px-2 py-2 text-xs font-black text-red-400">
-            ⚠️ FALHA DE INTEGRIDADE: {integridade.falhas.length} alerta(s) inconsistentes.
-          </div>
-        )}
-
-        {integridade && integridade.falhas.length === 0 && (
-          <div className="banner-ok mb-2 rounded border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
-            ✅ Integridade OK · {integridade.pendentes} pendente(s) normal(is) · {integridade.orfaos} órfão(s)
-          </div>
-        )}
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-xs font-black tracking-widest">ALERTAS BIP</h2>
           <button type="button" onClick={exportarCSV} className="rounded border border-border px-2 py-1 text-[10px] font-bold text-muted-foreground hover:text-foreground">EXPORTAR CSV</button>
