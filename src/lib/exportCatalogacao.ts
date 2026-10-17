@@ -36,7 +36,7 @@ export function montarCSVCatalogacao(spins: Spin[], bips: Record<string, TipoBip
       c.coluna,
       c.pi,
       c.tipo,
-      c.secao,
+      c.secao.toLocaleUpperCase("pt-BR"),
       c.g010,
       c.g2234,
       c.cor,
