@@ -3,6 +3,10 @@ import { acoes } from "@/lib/roleta/store";
 import type { Sinal } from "@/lib/roleta/engine";
 import type { StatsPadrao } from "@/lib/padroes";
 import { CONFIG } from "@/lib/config";
+import { useEstado } from "@/lib/roleta/store";
+import { computarDesfecho, type AlertaBase } from "@/lib/resolver";
+import { gateDoAlerta } from "@/lib/gate";
+import type { Regime } from "@/lib/regime";
 
 export function PopupSinal({
   sinal,
@@ -12,6 +16,23 @@ export function PopupSinal({
   stats: StatsPadrao;
 }) {
   const isPause = sinal.type === "PAUSE";
+  const estado = useEstado();
+  const catalogo = estado.spins.map((spin) => spin.numero);
+  const alerta: AlertaBase = {
+    id: sinal.id,
+    entrada: sinal.mainAction,
+    estrategia: sinal.title,
+    indiceSinal: Math.max(0, (sinal.rodada || 1) - 1),
+    regime: sinal.regimeClassificado,
+    observacao: sinal.observacaoHostil,
+    padrao: sinal.footerNote || sinal.sequenceContext || sinal.title,
+  };
+  const desfecho = computarDesfecho(alerta, catalogo).desfecho;
+  const janelaRecente = catalogo.slice(-8);
+  const regimeGate: Regime = janelaRecente.includes(0)
+    ? "PAUSA"
+    : sinal.regimeClassificado === "HOSTIL" ? "HOSTIL" : "LIMPA";
+  const gate = gateDoAlerta(alerta, catalogo, desfecho, regimeGate);
 
   const fechar = () => acoes.marcarVisto(sinal.id);
   const confirmar = () => acoes.confirmar(sinal.id);
@@ -25,7 +46,7 @@ export function PopupSinal({
     galeLiberado: Boolean(sinal.gale1Liberado),
   });
   const L = m.linhas;
-  const podeConfirmar = !isPause && sinal.type === "ENTRY_SIGNAL" &&
+  const podeConfirmar = !isPause && gate.confirmavel && sinal.type === "ENTRY_SIGNAL" &&
     sinal.gale1Liberado && !sinal.observacaoHostil && (stats.n < CONFIG.N_VALIDAR || stats.greens / stats.n >= CONFIG.PISO_MODERADO);
 
   return (
@@ -47,6 +68,7 @@ export function PopupSinal({
               <div>{L.regime}</div>
               <div>{L.decisao}</div>
               <div>{L.gale}</div>
+              {gate.aviso && <div className="rounded border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-bold">{gate.aviso}</div>}
             </div>
           )}
 
