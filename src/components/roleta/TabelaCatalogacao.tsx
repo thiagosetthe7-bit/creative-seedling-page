@@ -1,6 +1,6 @@
 import { CATEGORIAS, corDoNumero } from "@/lib/roleta/classificacao";
 import { estiloCelula } from "@/lib/roleta/paleta";
-import type { Sinal, Spin } from "@/lib/roleta/engine";
+import type { Spin } from "@/lib/roleta/engine";
 import { acoes, useEstado } from "@/lib/roleta/store";
 
 function estiloNumero(n: number) {
@@ -17,12 +17,9 @@ function estiloBipCell(ativo: boolean, tipo: "timer" | "rolando") {
   return { backgroundColor: "#E3F0FD", color: "#6FA8D6" };
 }
 
-export function TabelaCatalogacao({ spins, sinais }: { spins: Spin[]; sinais: Sinal[] }) {
+/** Tabela de catalogação sem destaque, trigger ou associação a estratégias. */
+export function TabelaCatalogacao({ spins }: { spins: Spin[] }) {
   const { bips } = useEstado();
-  const porRodada = new Map<number, Sinal[]>();
-  for (const s of sinais) {
-    porRodada.set(s.rodada, [...(porRodada.get(s.rodada) ?? []), s]);
-  }
   const linhas = spins.map((spin, i) => ({ spin, rodada: i + 1 })).reverse();
 
   return (
@@ -37,99 +34,40 @@ export function TabelaCatalogacao({ spins, sinais }: { spins: Spin[]; sinais: Si
             <tr className="bg-[#111111] text-[#FFD966]">
               <th className="border border-[#3f3f3f] px-1 py-1.5 text-center font-bold">#</th>
               <th className="border border-[#3f3f3f] px-1 py-1.5 text-center font-bold">Nº</th>
-              <th
-                className="border border-[#3f3f3f] bg-[#5c4d10] px-1 py-1.5 text-center font-bold"
-                title="BT - BIP NO TIMER"
-              >
-                BT
-              </th>
-              <th
-                className="border border-[#3f3f3f] bg-[#0f4c81] px-1 py-1.5 text-center font-bold"
-                title="BR - BIP ROLANDO"
-              >
-                BR
-              </th>
+              <th className="border border-[#3f3f3f] bg-[#5c4d10] px-1 py-1.5 text-center font-bold" title="BT - BIP NO TIMER">BT</th>
+              <th className="border border-[#3f3f3f] bg-[#0f4c81] px-1 py-1.5 text-center font-bold" title="BR - BIP ROLANDO">BR</th>
               {CATEGORIAS.map((c) => (
-                <th
-                  key={c.id}
-                  className="whitespace-nowrap border border-[#3f3f3f] px-2 py-1.5 text-center font-bold"
-                >
-                  {c.label}
-                </th>
+                <th key={c.id} className="whitespace-nowrap border border-[#3f3f3f] px-2 py-1.5 text-center font-bold">{c.label}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {linhas.length === 0 && (
-              <tr>
-                <td
-                  colSpan={CATEGORIAS.length + 4}
-                  className="border border-[#3f3f3f] px-3 py-8 text-center text-[#666]"
-                >
-                  Nenhum resultado cadastrado ainda.
-                </td>
-              </tr>
+              <tr><td colSpan={CATEGORIAS.length + 4} className="border border-[#3f3f3f] px-3 py-8 text-center text-[#666]">Nenhum resultado cadastrado ainda.</td></tr>
             )}
-            {linhas.map(({ spin, rodada }) => {
-              const sinaisLinha = porRodada.get(rodada) ?? [];
-              const catsComSinal = new Set(sinaisLinha.map((s) => s.categoria));
-              return (
-                <tr key={spin.id}>
-                  <td className="border border-[#3f3f3f] bg-[#f2f2f2] px-1 py-[3px] text-center text-[10px] text-[#666]">
-                    {rodada}
-                  </td>
-                  <td
-                    className="border border-[#3f3f3f] px-1 py-[3px] text-center font-bold"
-                    style={estiloNumero(spin.numero)}
-                  >
-                    {spin.numero}
-                  </td>
-                  {(["timer", "rolando"] as const).map((tipo) => {
-                    const ativo = bips[spin.id] === tipo;
-                    return (
-                      <td
-                        key={tipo}
-                        className="border border-[#3f3f3f] p-0 text-center"
-                        style={estiloBipCell(ativo, tipo)}
-                      >
-                        <button
-                          onClick={() =>
-                            acoes.marcarBip(spin.id, ativo ? null : tipo)
-                          }
-                          title={
-                            tipo === "timer"
-                              ? `BT - BIP NO TIMER (nº ${spin.numero})`
-                              : `BR - BIP ROLANDO (nº ${spin.numero})`
-                          }
-                          className={`h-full w-full px-1 py-[3px] text-[9px] font-black tracking-wide transition-transform active:scale-95 ${
-                            ativo ? "opacity-100" : "opacity-60 hover:opacity-100"
-                          }`}
-                        >
-                          {ativo ? (tipo === "timer" ? "BT" : "BR") : "—"}
-                        </button>
-                      </td>
-                    );
-                  })}
-                  {CATEGORIAS.map((c) => {
-                    const valor = spin.classificacao[c.id];
-                    const e = estiloCelula(c.id, valor);
-                    const marcado = catsComSinal.has(c.id);
-                    return (
-                      <td
-                        key={c.id}
-                        className={`whitespace-nowrap border px-2 py-[3px] text-center font-bold ${
-                          marcado ? "border-2 border-[#FF3B30]" : "border-[#3f3f3f]"
-                        }`}
-                        style={{ backgroundColor: e.bg, color: e.fg }}
-                        title={marcado ? "Sinal detectado nesta categoria" : undefined}
-                      >
-                        {valor}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
+            {linhas.map(({ spin, rodada }) => (
+              <tr key={spin.id}>
+                <td className="border border-[#3f3f3f] bg-[#f2f2f2] px-1 py-[3px] text-center text-[10px] text-[#666]">{rodada}</td>
+                <td className="border border-[#3f3f3f] px-1 py-[3px] text-center font-bold" style={estiloNumero(spin.numero)}>{spin.numero}</td>
+                {(["timer", "rolando"] as const).map((tipo) => {
+                  const ativo = bips[spin.id] === tipo;
+                  return (
+                    <td key={tipo} className="border border-[#3f3f3f] p-0 text-center" style={estiloBipCell(ativo, tipo)}>
+                      <button
+                        onClick={() => acoes.marcarBip(spin.id, ativo ? null : tipo)}
+                        title={tipo === "timer" ? `BT - BIP NO TIMER (nº ${spin.numero})` : `BR - BIP ROLANDO (nº ${spin.numero})`}
+                        className={`h-full w-full px-1 py-[3px] text-[9px] font-black tracking-wide transition-transform active:scale-95 ${ativo ? "opacity-100" : "opacity-60 hover:opacity-100"}`}
+                      >{ativo ? (tipo === "timer" ? "BT" : "BR") : "—"}</button>
+                    </td>
+                  );
+                })}
+                {CATEGORIAS.map((c) => {
+                  const valor = spin.classificacao[c.id];
+                  const e = estiloCelula(c.id, valor);
+                  return <td key={c.id} className="whitespace-nowrap border border-[#3f3f3f] px-2 py-[3px] text-center font-bold" style={{ backgroundColor: e.bg, color: e.fg }}>{valor}</td>;
+                })}
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
