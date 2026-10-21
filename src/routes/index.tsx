@@ -2,36 +2,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/roleta/AppShell";
 import { EntradaNumeros } from "@/components/roleta/EntradaNumeros";
 import { TabelaCatalogacao } from "@/components/roleta/TabelaCatalogacao";
-import { PainelSinais } from "@/components/roleta/PainelSinais";
-import { PopupSinal } from "@/components/roleta/PopupSinal";
-import { DiagnosticoBip } from "@/components/roleta/DiagnosticoBip";
-import { Diagnostico } from "@/components/Diagnostico";
-import { useSinais } from "@/lib/roleta/useSinais";
 import { useEstado } from "@/lib/roleta/store";
-import type { Sinal } from "@/lib/roleta/engine";
-import { medirPadrao, type StatsPadrao } from "@/lib/padroes";
-import { exportarParaAnalise, type SpinAnalise, type SinalAnalise } from "@/lib/exportAnalise";
-import { estadoDoAlerta } from "@/lib/integridade";
-import type { AlertaBase, Desfecho } from "@/lib/resolver";
-import { autoTestResolver, autoTestRegimeV14, autoTestSeqObsV14 } from "@/lib/roleta/engine";
-import { autoTestResolverV14 } from "@/lib/resolver";
-import { autoTestPadroes } from "@/lib/padroes";
-import { rodarSelfTest } from "@/lib/avaliador";
+import { baixarCSVCatalogacao } from "@/lib/exportCatalogacao";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "BIP ANALYZER — Gerador de Sinais Visuais" },
-      {
-        name: "description",
-        content:
-          "Motor BIP para leitura da rodada anterior, BIP atual e próximo giro, com popups operacionais e bloqueio prioritário.",
-      },
-      { property: "og:title", content: "BIP ANALYZER — Gerador de Sinais Visuais" },
-      {
-        property: "og:description",
-        content: "Bloqueio > Altura > Sessão > Coluna/Dúzia > Validação.",
-      },
+      { title: "Catalogação — Roleta" },
+      { name: "description", content: "Registro e classificação dos giros da roleta." },
+      { property: "og:title", content: "Catalogação — Roleta" },
+      { property: "og:description", content: "Registro manual de giros, classificações e marcações BT/BR." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -39,117 +19,30 @@ export const Route = createFileRoute("/")({
   component: Catalogacao,
 });
 
-function popupStats(sinais: Sinal[], estrategia?: string): StatsPadrao {
-  const alvo = estrategia?.replace(/^👁\s*OBSERVAÇÃO\s*·\s*/i, "") ?? "";
-  const desfechos = sinais
-    .filter((s) => s.title.replace(/^👁\s*OBSERVAÇÃO\s*·\s*/i, "") === alvo)
-    .map((s) => {
-      if (s.desfechoSequencia === "GREEN_DIRETO") return "GREEN_DIRETO" as const;
-      if (s.desfechoSequencia === "GREEN_GALE1") return "GREEN_GALE1" as const;
-      if (s.desfechoSequencia === "FALHA_GIRO1") return "FALHA_GIRO1" as const;
-      if (s.desfechoSequencia === "FALHA_GALE1") return "FALHA_GALE" as const;
-      return null;
-    });
-  return medirPadrao(desfechos);
-}
-
 function Catalogacao() {
   const estado = useEstado();
-  const { sinais, naoVistos, integridade } = useSinais();
-  const popup = estado.config.alertasAtivos
-    ? [...naoVistos].sort((a, b) => {
-        const peso = (p: string) => p === "CRITICAL" ? 0 : p === "HIGH" ? 1 : p === "MEDIUM" ? 2 : 3;
-        return peso(a.priority) - peso(b.priority) || b.rodada - a.rodada;
-      })[0] ?? null
-    : null;
-
-  const statsPopup = popupStats(sinais, popup?.title);
-
-  const exportarAuditoria = () => {
-    const spins: SpinAnalise[] = estado.spins.map((s, i) => ({
-      indice: i + 1,
-      numero: s.numero,
-      bt: estado.bips[s.id] === "timer",
-      br: estado.bips[s.id] === "rolando",
-      terminal: s.classificacao.terminal,
-      cavalo: s.classificacao.cavalo,
-      alt: s.classificacao.ab,
-      duzia: s.classificacao.duzia,
-      coluna: s.classificacao.coluna,
-      pi: s.classificacao.pi,
-      tipo: s.classificacao.tipo,
-      secao: s.classificacao.secao,
-      v010: s.classificacao.g010,
-      v2234: s.classificacao.g2234,
-      cor: s.classificacao.cor,
-    }));
-    const nums = estado.spins.map((spin) => spin.numero);
-    const alertas: SinalAnalise[] = sinais.map((s) => {
-      const indiceSinal = Math.max(0, s.rodada - 1);
-      const alerta: AlertaBase = {
-        id: s.id, entrada: s.mainAction, estrategia: s.title, indiceSinal,
-        regime: s.regimeClassificado, observacao: s.observacaoHostil,
-        padrao: s.footerNote || s.sequenceContext || s.title,
-      };
-      const raw = s.desfechoSequencia;
-      const desfecho: Desfecho = raw === "FALHA_GALE1" ? "FALHA_GALE"
-        : raw === "n/a" || raw == null ? null
-        : raw as Desfecho;
-      const estadoAlerta = s.type === "ENTRY_SIGNAL"
-        ? estadoDoAlerta(alerta, nums, desfecho)
-        : "OBSERVACAO";
-      return {
-        id: s.id,
-        estrategia: s.title,
-        entrada: s.mainAction.replace(/^ENTRAR EM\\s*/i, ""),
-        indiceSinal,
-        regime: s.regimeClassificado,
-        motivo: s.motivoHostil,
-        numeroResultado: s.auditNumero ?? s.numeroSeguinte,
-        numeroGale: s.galeNumero ?? null,
-        desfecho: s.desfechoSequencia,
-        tier: s.observacaoHostil ? (s.confidence === 0 ? "MEDINDO/OBSERVACAO" : "OBSERVACAO") : "VALIDADO",
-        padrao: s.footerNote || s.sequenceContext || s.title,
-        estado: estadoAlerta,
-      };
-    });
-    const tests = [autoTestResolver(), autoTestResolverV14(), autoTestRegimeV14(), autoTestSeqObsV14(), autoTestPadroes()];
-    const avaliador = rodarSelfTest();
-    const selftest = tests.every((test) => test.ok) && avaliador.ok ? "OK" : "FALHA";
-    exportarParaAnalise(spins, alertas, {
-      falhas: integridade?.falhas.length ?? 0,
-      pendentes: integridade?.pendentes ?? 0,
-      orfaos: integridade?.orfaos ?? 0,
-      selftest,
-    });
-  };
 
   return (
     <AppShell>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-lg font-black tracking-widest">BIP ANALYZER</h1>
+          <h1 className="text-lg font-black tracking-widest">CATALOGAÇÃO</h1>
           <p className="mt-1 text-xs text-muted-foreground">
-            Rodada anterior → BIP atual → próximo giro. Bloqueios têm prioridade absoluta.
+            Registro manual de giros ativo. O módulo antigo de estratégias e alertas está desativado.
           </p>
         </div>
-        <div className="rounded border border-border bg-muted/40 px-3 py-1.5 text-[10px] font-black tracking-wide">
-          BLOQUEIO &gt; ALTURA &gt; SESSÃO &gt; COLUNA/DÚZIA &gt; VALIDAÇÃO
-        </div>
+        <button
+          type="button"
+          onClick={() => baixarCSVCatalogacao(estado.spins, estado.bips)}
+          className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-black tracking-widest hover:bg-accent"
+        >
+          EXPORTAR CSV
+        </button>
       </div>
-
-      <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
-        <div className="space-y-4">
-          <EntradaNumeros total={estado.spins.length} />
-          <TabelaCatalogacao spins={estado.spins} sinais={sinais} />
-          <DiagnosticoBip spins={estado.spins} bips={estado.bips} />
-          {integridade && <Diagnostico falhas={integridade.falhas} pendentes={integridade.pendentes} orfaos={integridade.orfaos} />}
-          <button onClick={exportarAuditoria} className="w-full rounded-lg border border-border bg-card px-3 py-2 text-xs font-black tracking-widest hover:bg-accent">📊 EXPORTAR PARA ANÁLISE</button>
-        </div>
-        <PainelSinais sinais={sinais} integridade={integridade} />
+      <div className="space-y-4">
+        <EntradaNumeros total={estado.spins.length} />
+        <TabelaCatalogacao spins={estado.spins} />
       </div>
-
-      {popup && <PopupSinal sinal={popup} stats={statsPopup} />}
     </AppShell>
   );
 }
