@@ -11,9 +11,9 @@
  */
 
 import { CATEGORIAS, classificar, type CategoriaId, type Classificacao } from "./classificacao";
-import { criarSpin, type Spin } from "./catalogo";
-export { criarSpin } from "./catalogo";
-export type { Spin } from "./catalogo";
+import { criarSpin as criarSpinCatalogo, type Spin } from "./catalogo";
+export { criarSpinCatalogo as criarSpin };
+export type { Spin };
 import { detectarTriggers } from "../padroes";
 import { calibrarEstrategias } from "../estrategias";
 import { CONFIG } from "../config";
@@ -769,7 +769,7 @@ export function autoTestResolver(): { ok: boolean; errors: string[] } {
     const got = avaliar(d,v,n,"APOSTA_ATIVA");
     if (got !== e) errors.push(`${d}+${n}=${got}, esperado ${e}`);
   }
-  const s1 = criarSpin(7, 1000); const s2 = criarSpin(12, 2000);
+  const s1 = criarSpinCatalogo(7, 1000); const s2 = criarSpinCatalogo(12, 2000);
   const sint = { id:"self-test-resolver", categoria:"cor", categoriaLabel:"COR", alvo:"VERMELHO",
     sequenciaInicial:1, quebra:"", quebraRodadas:0, retorno:"VERMELHO", rodada:1, spinId:s1.id,
     numero:7, timestamp:1000, resultadoSeguinte:null, numeroSeguinte:null, status:"PENDENTE",
