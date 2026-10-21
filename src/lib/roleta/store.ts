@@ -54,7 +54,7 @@ const inicial: EstadoApp = {
   config: {
     minimo: 4,
     categoriasAtivas: CATEGORIAS.map((c) => c.id),
-    alertasAtivos: true,
+    alertasAtivos: false,
   },
   confirmados: [],
   cancelados: [],
@@ -77,7 +77,7 @@ function migrar(bruto: EstadoApp): EstadoApp {
   const chaves = Object.keys(antigo as Record<string, unknown>);
   const pareceNovo = chaves.every((k) => Number.isNaN(Number(k)));
   const semModeloFinanceiro: EstadoApp = {
-    spins: bruto.spins ?? [], config: bruto.config ?? inicial.config, confirmados: bruto.confirmados ?? [],
+    spins: bruto.spins ?? [], config: { ...(bruto.config ?? inicial.config), alertasAtivos: false }, confirmados: bruto.confirmados ?? [],
     cancelados: bruto.cancelados ?? [], vistos: bruto.vistos ?? [], bips: bruto.bips ?? {},
     pendentes: bruto.pendentes ?? {}, auditoriaLog: bruto.auditoriaLog ?? {},
   };
