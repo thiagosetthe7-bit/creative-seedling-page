@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import type { CategoriaId } from "./classificacao";
 import { CATEGORIAS } from "./classificacao";
-import { criarSpin, type Spin } from "./engine";
+import { criarSpin, type Spin } from "./catalogo";
 import { analisarBips, gerarLogBipCSV, type RowBip } from "../loggerBip";
 
 export type TipoBip = "timer" | "rolando";
