@@ -10,7 +10,10 @@
  * permanece exportada para compatibilidade com o histórico de testes do projeto.
  */
 
-import { CATEGORIAS, classificar, type CategoriaId, type Classificacao } from "./classificacao";
+import { CATEGORIAS, classificar, type CategoriaId } from "./classificacao";
+import { criarSpin, type Spin } from "./catalogo";
+export { criarSpin } from "./catalogo";
+export type { Spin } from "./catalogo";
 import { detectarTriggers } from "../padroes";
 import { calibrarEstrategias } from "../estrategias";
 import { CONFIG } from "../config";
@@ -168,15 +171,6 @@ if (typeof window !== "undefined") {
   logDiagnosticoNormalizador();
 }
 
-export interface Spin {
-  id: string;
-  numero: number;
-  timestamp: number;
-  classificacao: Classificacao;
-  /** Posição cronológica (1-based); preenchida por comRodadas durante a análise. */
-  rodada?: number;
-}
-
 type Altura = "ALTO" | "BAIXO";
 
 export type StatusSinal = "PENDENTE" | "WIN" | "RED" | "PARTIAL" | "CANCELADO";
@@ -267,15 +261,6 @@ export interface OpcoesDeteccao {
 
 export interface MapaBips {
   [spinId: string]: TipoBip;
-}
-
-export function criarSpin(numero: number, timestamp = Date.now()): Spin {
-  return {
-    id: `${timestamp}-${Math.random().toString(36).slice(2, 8)}`,
-    numero,
-    timestamp,
-    classificacao: classificar(numero),
-  };
 }
 
 /** Compatibilidade com o motor anterior. */
