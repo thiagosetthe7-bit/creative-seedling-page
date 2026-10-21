@@ -10,7 +10,7 @@
  * permanece exportada para compatibilidade com o histórico de testes do projeto.
  */
 
-import { CATEGORIAS, classificar, type CategoriaId } from "./classificacao";
+import { CATEGORIAS, classificar, type CategoriaId, type Classificacao } from "./classificacao";
 import { criarSpin, type Spin } from "./catalogo";
 export { criarSpin } from "./catalogo";
 export type { Spin } from "./catalogo";
