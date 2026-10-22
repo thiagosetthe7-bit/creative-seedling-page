@@ -58,7 +58,7 @@ function toTracked(signal: EntrySignal, index: number): TrackedSignal {
 }
 
 /** Deterministic replay lets persisted sessions recover correctly after reload. */
-export function rebuildSignalTracking(spins: Spin[], bips: Record<string, TipoBip>, previous: SignalTrackingState = EMPTY_SIGNAL_TRACKING): SignalTrackingState {
+export function rebuildSignalTracking(spins: Spin[], bips: Record<string, TipoBip>): SignalTrackingState {
   if (!spins.length) return EMPTY_SIGNAL_TRACKING;
   const signals: TrackedSignal[] = [];
   for (let index = 0; index < spins.length; index += 1) {
