@@ -6,13 +6,13 @@ const spins = (...numbers: number[]) => numbers.map((n, i) => criarSpin(n, 1_700
 
 describe("VOLT Duplo", () => {
   it("fires after five dominant spins, one break and a return", () => {
-    const history = spins(1, 14, 2, 17, 3, 25, 4);
+    const history = spins(1, 14, 2, 17, 14, 25, 4);
     const signals = detectarSinaisEntrada(history, {});
     expect(signals.some((s) => s.strategy === "volt-duplo" && s.target.includes("D1 + D2"))).toBe(true);
   });
 
   it("blocks a return after two break spins", () => {
-    const history = spins(1, 14, 2, 17, 3, 25, 26, 4);
+    const history = spins(1, 14, 2, 17, 14, 25, 26, 4);
     expect(detectarSinaisEntrada(history, {}).some((s) => s.strategy === "volt-duplo")).toBe(false);
   });
 
