@@ -1,34 +1,42 @@
 import type { Spin } from "./roleta/catalogo";
 import type { TipoBip } from "./roleta/store";
+import type { TrackedSignal } from "./roleta/signalTracking";
 
-const CABECALHO = "GIRO;NUMERO;BT;BR;TERMINAL;CAVALO;AB;DUZIA;COLUNA;PI;TIPO;SECAO;010;22_34;COR;TIMESTAMP";
+const CABECALHO = "Spin_Index;Number;Terminal;Cavalo;High_Low;Dozen;Column;Even_Odd;Type;Section;Axis_0_10;Axis_22_34;Color;BR_Flag;BT_Flag;Triggered_Strategy;Target_Bet;Signal_Result";
 
 function celulaCSV(valor: unknown): string {
   const texto = String(valor ?? "");
   return /[";\r\n]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
 }
 
-function dataHoraLocal(data: Date): { data: string; hora: string } {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return {
-    data: `${data.getFullYear()}-${pad(data.getMonth() + 1)}-${pad(data.getDate())}`,
-    hora: `${pad(data.getHours())}-${pad(data.getMinutes())}`,
-  };
-}
-
-/** Monta o CSV de catalogação na mesma ordem visual da tabela: mais recente primeiro. */
-export function montarCSVCatalogacao(spins: Spin[], bips: Record<string, TipoBip>): string {
+/** Um registro por giro, em ordem cronológica, com as 14 áreas/flags e o desfecho dos sinais. */
+export function montarCSVCatalogacao(
+  spins: Spin[],
+  bips: Record<string, TipoBip>,
+  trackedSignals: TrackedSignal[] = [],
+): string {
   const linhas = [CABECALHO];
-  const recentesPrimeiro = [...spins].reverse();
+  const bySpin = new Map<string, TrackedSignal[]>();
+  for (const signal of trackedSignals) {
+    const list = bySpin.get(signal.sourceSpinId) ?? [];
+    list.push(signal);
+    bySpin.set(signal.sourceSpinId, list);
+  }
 
-  recentesPrimeiro.forEach((spin, index) => {
+  spins.forEach((spin, index) => {
     const c = spin.classificacao;
     const bip = bips[spin.id];
+    const related = bySpin.get(spin.id) ?? [];
+    const strategy = related.map((signal) => signal.strategyLabel).join(" | ") || "None";
+    const target = related.map((signal) => signal.target).join(" | ") || "";
+    const results = related.map((signal) => signal.result).filter((value) => value !== "NO_SIGNAL");
+    const result = results.includes("GREEN_R1") ? "GREEN_R1"
+      : results.includes("GREEN_GALE1") ? "GREEN_GALE1"
+      : results.includes("RED") ? "RED" : "NO_SIGNAL";
+
     linhas.push([
       index + 1,
       spin.numero,
-      bip === "timer" ? "1" : "",
-      bip === "rolando" ? "1" : "",
       c.terminal,
       c.cavalo,
       c.ab,
@@ -36,33 +44,38 @@ export function montarCSVCatalogacao(spins: Spin[], bips: Record<string, TipoBip
       c.coluna,
       c.pi,
       c.tipo,
-      c.secao.toLocaleUpperCase("pt-BR"),
+      c.secao,
       c.g010,
       c.g2234,
       c.cor,
-      new Date(spin.timestamp).toISOString(),
+      bip === "rolando" ? "1" : "0",
+      bip === "timer" ? "1" : "0",
+      strategy,
+      target,
+      result,
     ].map(celulaCSV).join(";"));
   });
 
   return "\uFEFF" + linhas.join("\r\n");
 }
 
-/** Exporta todos os giros registrados, incluindo as marcações BT/BR individuais. */
-export function baixarCSVCatalogacao(spins: Spin[], bips: Record<string, TipoBip>): void {
+export function baixarCSVCatalogacao(
+  spins: Spin[],
+  bips: Record<string, TipoBip>,
+  trackedSignals: TrackedSignal[] = [],
+): void {
   if (spins.length === 0) {
     window.alert("Nenhum dado para exportar");
     return;
   }
-
-  const csv = montarCSVCatalogacao(spins, bips);
+  const csv = montarCSVCatalogacao(spins, bips, trackedSignals);
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   const agora = new Date();
-  const { data, hora } = dataHoraLocal(agora);
-
+  const pad = (n: number) => String(n).padStart(2, "0");
   link.href = url;
-  link.download = `catalogacao_roleta_${data}_${hora}.csv`;
+  link.download = `catalogacao_roleta_${agora.getFullYear()}-${pad(agora.getMonth() + 1)}-${pad(agora.getDate())}_${pad(agora.getHours())}-${pad(agora.getMinutes())}.csv`;
   link.style.display = "none";
   document.body.appendChild(link);
   link.click();
