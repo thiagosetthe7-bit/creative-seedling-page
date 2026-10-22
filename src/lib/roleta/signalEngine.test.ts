@@ -51,7 +51,7 @@ describe("BR Antecedente", () => {
   });
 
   it("marks VOLT plus BR as a super trigger when concurrent", () => {
-    const history = spins(1, 14, 2, 17, 3, 25, 4);
+    const history = spins(1, 14, 2, 17, 14, 25, 4);
     const last = history[history.length - 1]!;
     const signals = detectarSinaisEntrada(history, { [last.id]: "rolando" });
     expect(isSuperGatilho(signals)).toBe(true);
