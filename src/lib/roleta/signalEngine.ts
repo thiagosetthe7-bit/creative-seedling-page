@@ -1,7 +1,7 @@
 import type { Spin } from "./catalogo";
 import type { TipoBip } from "./store";
 
-export type StrategyId = "volt-duplo" | "delta" | "br-antecedente";
+export type StrategyId = "volt-duplo" | "delta" | "br-antecedente" | "bt-concomitante";
 
 export interface EntrySignal {
   id: string;
@@ -11,6 +11,8 @@ export interface EntrySignal {
   explanation: string;
   action: string;
   sourceSpinId: string;
+  /** Estratégia cuja entrada é acompanhada pelo BT concomitante. */
+  baseStrategy?: StrategyId;
 }
 
 type CategoryKey = "cor" | "pi" | "ab" | "cavalo";
@@ -149,15 +151,34 @@ function detectBrAntecedente(spins: Spin[], bips: Record<string, TipoBip>, index
   }];
 }
 
+function detectBtConcomitante(
+  spins: Spin[],
+  bips: Record<string, TipoBip>,
+  index: number,
+  primarySignals: EntrySignal[],
+): EntrySignal[] {
+  const current = spins[index];
+  if (!current || bips[current.id] !== "timer") return [];
+  return primarySignals.map((signal) => ({
+    ...signal,
+    id: `${current.id}:bt-concomitante:${signal.id}`,
+    strategy: "bt-concomitante" as const,
+    baseStrategy: signal.strategy,
+    name: "BT Concomitante",
+    explanation: `BT marcado no mesmo giro do sinal ${signal.name}. A reentrada, se R1 perder o alvo, será avaliada pelo filtro contextual Smart Gale 1.`,
+  }));
+}
+
 /** Detecta apenas gatilhos confirmados pelo giro mais recente; não varre alertas históricos. */
 export function detectarSinaisEntrada(spins: Spin[], bips: Record<string, TipoBip>): EntrySignal[] {
   const index = spins.length - 1;
   if (index < 0) return [];
-  return [
+  const primary = [
     ...detectVolt(spins, index),
     ...detectDelta(spins, index),
     ...detectBrAntecedente(spins, bips, index),
   ];
+  return [...primary, ...detectBtConcomitante(spins, bips, index, primary)];
 }
 
 /** VOLT Duplo + BR Antecedente ativos no mesmo giro formam um Super Gatilho. */
