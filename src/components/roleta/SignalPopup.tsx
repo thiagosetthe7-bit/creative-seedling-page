@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { isSuperGatilho, type EntrySignal } from "@/lib/roleta/signalEngine";
+import type { SmartGaleDecision } from "@/lib/roleta/smartGale";
 
 interface SignalPopupProps {
   signals: EntrySignal[];
+  smartGale?: SmartGaleDecision | null;
   onDismiss?: () => void;
 }
 
@@ -33,15 +35,16 @@ function tocarAlerta() {
   }
 }
 
-export function SignalPopup({ signals, onDismiss }: SignalPopupProps) {
+export function SignalPopup({ signals, smartGale = null, onDismiss }: SignalPopupProps) {
   const [open, setOpen] = useState(false);
   const [dismissedKey, setDismissedKey] = useState("");
   const previousKey = useRef("");
-  const key = signals.map((signal) => signal.id).sort().join("|");
+  const key = [...signals.map((signal) => signal.id), ...(smartGale ? [smartGale.id] : [])].sort().join("|");
+  const hasContent = signals.length > 0 || smartGale !== null;
   const superGatilho = isSuperGatilho(signals);
 
   useEffect(() => {
-    if (signals.length === 0) {
+    if (!hasContent) {
       setOpen(false);
       previousKey.current = "";
       setDismissedKey("");
@@ -55,7 +58,7 @@ export function SignalPopup({ signals, onDismiss }: SignalPopupProps) {
     } else if (dismissedKey !== key) {
       setOpen(true);
     }
-  }, [key, signals.length, dismissedKey]);
+  }, [key, hasContent, dismissedKey]);
 
   useEffect(() => {
     if (!open) return;
@@ -75,7 +78,7 @@ export function SignalPopup({ signals, onDismiss }: SignalPopupProps) {
     };
   }, [open, key, onDismiss]);
 
-  if (!open || signals.length === 0) return null;
+  if (!open || !hasContent) return null;
 
   return (
     <div
@@ -89,9 +92,19 @@ export function SignalPopup({ signals, onDismiss }: SignalPopupProps) {
         className="my-auto max-h-[94dvh] w-full max-w-3xl overflow-y-auto rounded-2xl border-2 border-amber-300 bg-slate-950 text-white shadow-[0_0_70px_rgba(250,204,21,0.22)]"
       >
         <header className="border-b border-amber-300/30 bg-gradient-to-r from-amber-400/20 via-slate-900 to-slate-900 p-5 sm:p-7">
-          <p className="text-xs font-black tracking-[0.24em] text-amber-300">SINAL DE ENTRADA · PRÓXIMO GIRO</p>
+          <p className="text-xs font-black tracking-[0.24em] text-amber-300">
+            {smartGale ? "ANÁLISE CONTEXTUAL R1 · GALE 1 MÁXIMO" : "SINAL DE ENTRADA · PRÓXIMO GIRO"}
+          </p>
           <h2 id="signal-popup-title" className="mt-2 text-2xl font-black sm:text-4xl">
-            {signals.length > 1 ? "⚡ GATILHOS DE ENTRADA ATIVOS" : signals[0]?.strategy === "volt-duplo" ? "⚡ GATILHO ATIVO: VOLT DUPLO" : signals[0]?.strategy === "delta" ? "🎯 GATILHO ATIVO: DELTA" : "🔔 GATILHO ATIVO: BR ANTECEDENTE"}
+            {smartGale
+              ? "🧠 SMART GALE 1 · ANÁLISE DE CONTEXTO"
+              : signals.length > 1
+                ? "⚡ GATILHOS DE ENTRADA ATIVOS"
+                : signals[0]?.strategy === "volt-duplo"
+                  ? "⚡ GATILHO ATIVO: VOLT DUPLO"
+                  : signals[0]?.strategy === "delta"
+                    ? "🎯 GATILHO ATIVO: DELTA"
+                    : "🔔 GATILHO ATIVO: BR ANTECEDENTE"}
           </h2>
           {superGatilho && (
             <div className="mt-4 inline-flex rounded-lg border border-fuchsia-300 bg-fuchsia-500/20 px-4 py-2 text-sm font-black tracking-widest text-fuchsia-200">
@@ -101,13 +114,33 @@ export function SignalPopup({ signals, onDismiss }: SignalPopupProps) {
         </header>
 
         <div className="space-y-4 p-5 sm:p-7">
+          {smartGale && (
+            <article
+              role="status"
+              className={smartGale.status === "APPROVED"
+                ? "rounded-xl border-2 border-amber-300 bg-amber-300/10 p-4 sm:p-5"
+                : "rounded-xl border-2 border-rose-400 bg-rose-500/10 p-4 sm:p-5"}
+            >
+              <p className={smartGale.status === "APPROVED"
+                ? "text-base font-black leading-relaxed text-amber-200 sm:text-lg"
+                : "text-base font-black leading-relaxed text-rose-200 sm:text-lg"}>
+                {smartGale.title}
+              </p>
+              <p className="mt-3 text-sm leading-relaxed text-slate-200">{smartGale.reason}</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
+                <span className="rounded-full border border-white/20 px-3 py-1">R1 registrado: {smartGale.r1Number}</span>
+                <span className="rounded-full border border-white/20 px-3 py-1">Nível máximo permitido: GALE 1</span>
+              </div>
+            </article>
+          )}
+
           {signals.map((signal) => (
             <article key={signal.id} className="rounded-xl border border-white/15 bg-white/[0.04] p-4 sm:p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-lg font-black text-amber-200">{signal.name}</h3>
                 <span className="rounded-full border border-emerald-300/50 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-200">CONDIÇÕES DO PADRÃO: COMPLETAS</span>
               </div>
-              <p className="mt-2 text-xs font-bold tracking-wide text-cyan-200">CONFIANÇA DO PADRÃO: ALTA · REGRAS CONFIGURADAS ATENDIDAS (NÃO É PROBABILIDADE DE GANHO)</p>
+              <p className="mt-2 text-xs font-bold tracking-wide text-cyan-200">CONFIANÇA DO PADRÃO: REGRAS CONFIGURADAS ATENDIDAS (NÃO É PROBABILIDADE DE GANHO)</p>
               <p className="mt-3 text-sm leading-relaxed text-slate-300">{signal.explanation}</p>
               <div className="mt-4 rounded-lg border border-amber-300/50 bg-amber-300/10 p-4">
                 <p className="text-[10px] font-black tracking-[0.2em] text-amber-200">ALVO IDENTIFICADO</p>
@@ -117,7 +150,7 @@ export function SignalPopup({ signals, onDismiss }: SignalPopupProps) {
             </article>
           ))}
           <p className="text-xs leading-relaxed text-slate-400">
-            Alerta estatístico baseado nos giros cadastrados. Não garante resultado futuro; confirme os dados antes de qualquer decisão.
+            A análise contextual não garante resultado futuro. Gale 2 é proibido e não existe neste módulo; uma autorização é apenas uma avaliação do padrão, não uma garantia de recuperação.
           </p>
         </div>
 
