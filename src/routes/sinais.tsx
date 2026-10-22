@@ -1,20 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/roleta/AppShell";
 
 export const Route = createFileRoute("/sinais")({
-  head: () => ({ meta: [{ title: "Módulo de sinais desativado — Roleta" }] }),
+  head: () => ({ meta: [{ title: "Engine de sinais — Roleta" }] }),
   component: HistoricoSinais,
 });
 
 function HistoricoSinais() {
   return (
     <AppShell>
-      <section className="rounded-lg border border-border bg-card p-4">
-        <h1 className="text-lg font-black tracking-widest">SINAIS DESATIVADOS</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          O histórico de recomendações e os gatilhos antigos não são mais executados nem exibidos.
-          Nenhum giro da catalogação foi apagado. Esta área será reutilizada pela nova arquitetura.
+      <section className="rounded-lg border border-border bg-card p-4 sm:p-6">
+        <h1 className="text-lg font-black tracking-widest">ENGINE DE SINAIS ATIVA</h1>
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+          VOLT Duplo, DELTA e BR Antecedente são recalculados a partir do histórico catalogado.
+          Quando as regras forem atendidas, o alerta em tela cheia será exibido na página de catalogação.
+          O motor identifica padrões configurados; não garante resultados futuros.
         </p>
+        <Link to="/" className="mt-4 inline-flex rounded-lg bg-brand px-4 py-2 text-sm font-bold text-brand-foreground">
+          ABRIR CATALOGAÇÃO
+        </Link>
       </section>
     </AppShell>
   );
