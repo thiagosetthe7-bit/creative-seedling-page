@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 
-const LINKS = [{ to: "/", label: "CATALOGAÇÃO" }] as const;
+const LINKS = [{ to: "/", label: "CATALOGAÇÃO" }, { to: "/bips", label: "BIPS / BR" }] as const;
 
 function useTema() {
   const [escuro, setEscuro] = useState(false);
