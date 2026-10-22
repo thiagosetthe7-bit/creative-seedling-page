@@ -27,7 +27,10 @@ export function montarCSVCatalogacao(
     const c = spin.classificacao;
     const bip = bips[spin.id];
     const related = bySpin.get(spin.id) ?? [];
-    const strategy = related.map((signal) => signal.strategyLabel).join(" | ") || "None";
+    const strategy = related.map((signal) => {
+      const id = signal.strategy === "bt-concomitante" ? signal.baseStrategy : signal.strategy;
+      return id === "volt-duplo" ? "VOLT" : id === "delta" ? "DELTA" : id === "br-antecedente" ? "BR" : "None";
+    }).filter((value) => value !== "None").join(" | ") || "None";
     const target = related.map((signal) => signal.target).join(" | ") || "";
     const results = related.map((signal) => signal.result).filter((value) => value !== "NO_SIGNAL");
     const result = results.includes("GREEN_R1") ? "GREEN_R1"
