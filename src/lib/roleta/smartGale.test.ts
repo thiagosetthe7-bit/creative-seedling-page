@@ -24,4 +24,14 @@ describe("Smart Gale 1 safety rules", () => {
     const result = avaliarSmartGale1(history, {});
     if (result) expect(result.galeLevel).toBe(1);
   });
+  it("approves BT-concomitant Gale 1 only on the defined border numbers", () => {
+    const history = spins(1, 2, 4, 5, 7, 3, 1);
+    const current = history[history.length - 1]!;
+    const withR1 = [...history, ...spins(18)];
+    const result = avaliarSmartGale1(withR1, { [current.id]: "timer" });
+    expect(result?.strategy).toBe("bt-concomitante");
+    expect(result?.status).toBe("APPROVED");
+    expect(result?.galeLevel).toBe(1);
+  });
+
 });
