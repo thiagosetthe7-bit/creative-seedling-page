@@ -23,11 +23,11 @@ export const Route = createFileRoute("/")({
 
 function Catalogacao() {
   const estado = useEstado();
-  const { sinais } = useSinais();
+  const { sinais, smartGale } = useSinais();
 
   return (
     <AppShell>
-      <SignalPopup signals={sinais} />
+      <SignalPopup signals={sinais} smartGale={smartGale} />
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-lg font-black tracking-widest">CATALOGAÇÃO</h1>
