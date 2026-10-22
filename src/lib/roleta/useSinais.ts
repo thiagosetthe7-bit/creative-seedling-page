@@ -1,41 +1,15 @@
-import type { Estatisticas, Sinal } from "./engine";
+import { useMemo } from "react";
+import { detectarSinaisEntrada, isSuperGatilho } from "./signalEngine";
 import { useEstado } from "./store";
 
-/**
- * RESET DE ESTRATÉGIAS:
- * Compatibilidade de tipos para telas legadas, sem carregar ou executar o engine.
- * Histórico de giros, classificação e marcações BT/BR permanecem no store.
- */
+/** Deriva sinais apenas do histórico persistido e do bip marcado na rodada atual. */
 export function useSinais() {
   const estado = useEstado();
-  const sinais: Sinal[] = [];
-  const integridade = {
-    falhas: [] as { id: string; e: string }[],
-    pendentes: 0,
-    orfaos: 0,
-    total: 0,
-    ok: true,
-  };
-  const estatisticas: Estatisticas = {
-    total: 0,
-    win: 0,
-    red: 0,
-    partial: 0,
-    score: 0,
-    pendentes: 0,
-    cancelados: 0,
-    taxaWin: 0,
-    taxaRed: 0,
-    maiorSeqWin: 0,
-    maiorSeqRed: 0,
-    ultimo: null,
-  };
+  const sinais = useMemo(
+    () => detectarSinaisEntrada(estado.spins, estado.bips),
+    [estado.spins, estado.bips],
+  );
+  const superGatilho = useMemo(() => isSuperGatilho(sinais), [sinais]);
 
-  return {
-    sinais,
-    integridade,
-    estatisticas,
-    naoVistos: sinais,
-    confirmados: estado.confirmados,
-  };
+  return { sinais, superGatilho };
 }
