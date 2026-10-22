@@ -45,6 +45,7 @@ function Catalogacao() {
         </button>
       </div>
       <div className="space-y-4">
+        <SignalTrackingPanel signals={tracking.signals} />
         <EntradaNumeros total={estado.spins.length} />
         <TabelaCatalogacao spins={estado.spins} />
       </div>
