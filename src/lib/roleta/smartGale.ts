@@ -30,14 +30,15 @@ function targetValues(signal: EntrySignal, prefix: string): string[] {
 }
 
 function hitSignal(signal: EntrySignal, spin: Spin): boolean {
-  if (signal.strategy === "volt-duplo") {
+  const strategy = signal.strategy === "bt-concomitante" ? signal.baseStrategy : signal.strategy;
+  if (strategy === "volt-duplo") {
     if (signal.target.startsWith("DÚZIAS")) return targetValues(signal, "DÚZIAS").includes(spin.classificacao.duzia);
     if (signal.target.startsWith("COLUNAS")) return targetValues(signal, "COLUNAS").includes(spin.classificacao.coluna);
   }
-  if (signal.strategy === "br-antecedente") {
+  if (strategy === "br-antecedente") {
     return spin.classificacao.duzia === "D2" || spin.classificacao.coluna === "C2";
   }
-  if (signal.strategy === "delta") {
+  if (strategy === "delta") {
     const separator = signal.target.indexOf(":");
     if (separator < 0) return false;
     const category = signal.target.slice(0, separator).trim();
@@ -46,7 +47,6 @@ function hitSignal(signal: EntrySignal, spin: Spin): boolean {
     const key = category === "COR" ? "cor" : category === "P/I" ? "pi" : category === "A/B" ? "ab" : "cavalo";
     return spin.classificacao[key] === value;
   }
-  // BT Concomitante can be evaluated if a BT strategy signal is added later.
   return false;
 }
 
@@ -116,7 +116,7 @@ export function avaliarSmartGale1(spins: Spin[], bips: Record<string, TipoBip>):
   if (!sinaisAnteriores.length) return null;
 
   // A análise só vale para sinais emitidos no giro imediatamente anterior ao R1.
-  const candidatos = sinaisAnteriores.filter((signal) => signal.sourceSpinId === history[history.length - 1]?.id);
+  const candidatos = sinaisAnteriores\n    .filter((signal) => signal.sourceSpinId === history[history.length - 1]?.id)\n    .sort((a, b) => Number(b.strategy === "bt-concomitante") - Number(a.strategy === "bt-concomitante"));
   const signal = candidatos.find((candidate) => !hitSignal(candidate, r1));
   if (!signal) return null;
 
