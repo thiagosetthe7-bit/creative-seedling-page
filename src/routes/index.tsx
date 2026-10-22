@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/roleta/AppShell";
 import { EntradaNumeros } from "@/components/roleta/EntradaNumeros";
 import { SignalPopup } from "@/components/roleta/SignalPopup";
+import { SignalTrackingPanel } from "@/components/roleta/SignalTrackingPanel";
 import { TabelaCatalogacao } from "@/components/roleta/TabelaCatalogacao";
 import { useSinais } from "@/lib/roleta/useSinais";
 import { useEstado } from "@/lib/roleta/store";
@@ -23,7 +24,7 @@ export const Route = createFileRoute("/")({
 
 function Catalogacao() {
   const estado = useEstado();
-  const { sinais, smartGale } = useSinais();
+  const { sinais, smartGale, tracking } = useSinais();
 
   return (
     <AppShell>
@@ -37,7 +38,7 @@ function Catalogacao() {
         </div>
         <button
           type="button"
-          onClick={() => baixarCSVCatalogacao(estado.spins, estado.bips)}
+          onClick={() => baixarCSVCatalogacao(estado.spins, estado.bips, tracking.signals)}
           className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-black tracking-widest hover:bg-accent"
         >
           EXPORTAR CSV
