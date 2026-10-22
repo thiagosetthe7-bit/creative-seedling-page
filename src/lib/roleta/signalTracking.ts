@@ -72,7 +72,7 @@ export function rebuildSignalTracking(spins: Spin[], bips: Record<string, TipoBi
           signals[s] = { ...tracked, status: "CONCLUÍDO", result: "GREEN_R1", r1Number: current.numero, resolvedNumber: current.numero };
         } else {
           const decision = avaliarSmartGale1(spins.slice(0, index + 1), bips);
-          const decisionForSignal = decision && (decision.signalId === tracked.id || decision.signalId.startsWith(tracked.sourceSpinId));
+          const decisionForSignal = decision?.signalId === tracked.id;
           if (decisionForSignal && decision.status === "APPROVED") {
             signals[s] = { ...tracked, status: "GALE 1 EM ANDAMENTO", result: "NO_SIGNAL", r1Number: current.numero, galeReason: decision.reason };
           } else {
