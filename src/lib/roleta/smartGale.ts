@@ -25,8 +25,8 @@ function mode(values: string[]): string | undefined {
 }
 
 function targetValues(signal: EntrySignal, prefix: string): string[] {
-  const match = signal.target.match(new RegExp(prefix + "\\s+([A-Z0-9-]+(?:\\s*\\+\\s*[A-Z0-9-]+)*)", "i"));
-  return match?.[1].split(/\\s*\\+\\s*/).map((part) => part.trim().toUpperCase()) ?? [];
+  const rest = signal.target.slice(prefix.length).trim();
+  return rest.split("+").map((part) => part.trim().toUpperCase()).filter(Boolean);
 }
 
 function hitSignal(signal: EntrySignal, spin: Spin): boolean {
@@ -38,7 +38,10 @@ function hitSignal(signal: EntrySignal, spin: Spin): boolean {
     return spin.classificacao.duzia === "D2" || spin.classificacao.coluna === "C2";
   }
   if (signal.strategy === "delta") {
-    const [, category, value] = signal.target.match(/^(COR|P\\/I|A\\/B|CAVALO):\\s*(.+)$/) ?? [];
+    const separator = signal.target.indexOf(":");
+    if (separator < 0) return false;
+    const category = signal.target.slice(0, separator).trim();
+    const value = signal.target.slice(separator + 1).trim();
     if (!category || !value) return false;
     const key = category === "COR" ? "cor" : category === "P/I" ? "pi" : category === "A/B" ? "ab" : "cavalo";
     return spin.classificacao[key] === value;
@@ -54,7 +57,7 @@ function voltDecision(signal: EntrySignal, history: Spin[], r1: Spin): { status:
   const inTarget = target.includes(r1.classificacao[areaKey]);
   if (inTarget) return { status: "BLOCKED", reason: "R1 atingiu uma das áreas cobertas; o resultado não é uma perda integral do VOLT Duplo." };
 
-  const dominance = sourceIndex >= 7 ? history.slice(sourceIndex - 7, sourceIndex - 2) : [];
+  const dominance = sourceIndex >= 6 ? history.slice(sourceIndex - 6, sourceIndex - 1) : [];
   const dominantSecao = mode(dominance.map((spin) => spin.classificacao.secao));
   const dominantAxis = mode(dominance.map((spin) => spin.classificacao.g010));
   const secaoAligned = Boolean(dominantSecao && r1.classificacao.secao === dominantSecao);
