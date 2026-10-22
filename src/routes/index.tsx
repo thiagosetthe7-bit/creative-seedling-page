@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/roleta/AppShell";
 import { EntradaNumeros } from "@/components/roleta/EntradaNumeros";
+import { SignalPopup } from "@/components/roleta/SignalPopup";
 import { TabelaCatalogacao } from "@/components/roleta/TabelaCatalogacao";
+import { useSinais } from "@/lib/roleta/useSinais";
 import { useEstado } from "@/lib/roleta/store";
 import { baixarCSVCatalogacao } from "@/lib/exportCatalogacao";
 
@@ -21,14 +23,16 @@ export const Route = createFileRoute("/")({
 
 function Catalogacao() {
   const estado = useEstado();
+  const { sinais } = useSinais();
 
   return (
     <AppShell>
+      <SignalPopup signals={sinais} />
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-lg font-black tracking-widest">CATALOGAÇÃO</h1>
           <p className="mt-1 text-xs text-muted-foreground">
-            Registro manual de giros ativo. O módulo antigo de estratégias e alertas está desativado.
+            Registro manual ativo · engine VOLT Duplo, DELTA e BR Antecedente.
           </p>
         </div>
         <button
