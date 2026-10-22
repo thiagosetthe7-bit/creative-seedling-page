@@ -1,6 +1,6 @@
 import { CATEGORIAS, corDoNumero } from "@/lib/roleta/classificacao";
 import { estiloCelula } from "@/lib/roleta/paleta";
-import type { Spin } from "@/lib/roleta/engine";
+import type { Spin } from "@/lib/roleta/catalogo";
 import { acoes, useEstado } from "@/lib/roleta/store";
 
 function estiloNumero(n: number) {
