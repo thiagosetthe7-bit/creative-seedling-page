@@ -1,4 +1,4 @@
-import type { Spin } from "./roleta/engine";
+import type { Spin } from "./roleta/catalogo";
 import type { TipoBip } from "./roleta/store";
 
 const CABECALHO = "GIRO;NUMERO;BT;BR;TERMINAL;CAVALO;AB;DUZIA;COLUNA;PI;TIPO;SECAO;010;22_34;COR;TIMESTAMP";
