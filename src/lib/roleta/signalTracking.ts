@@ -10,6 +10,7 @@ export interface TrackedSignal {
   sourceSpinId: string;
   sourceIndex: number;
   strategy: StrategyId;
+  baseStrategy?: StrategyId;
   strategyLabel: string;
   target: string;
   action: string;
@@ -52,7 +53,7 @@ function label(strategy: StrategyId): string {
 function toTracked(signal: EntrySignal, index: number): TrackedSignal {
   return {
     id: signal.id, sourceSpinId: signal.sourceSpinId, sourceIndex: index + 1,
-    strategy: signal.strategy, strategyLabel: label(signal.strategy), target: signal.target,
+    strategy: signal.strategy, baseStrategy: signal.baseStrategy, strategyLabel: label(signal.strategy), target: signal.target,
     action: signal.action, explanation: signal.explanation, status: "AGUARDANDO R1", result: "NO_SIGNAL",
   };
 }
