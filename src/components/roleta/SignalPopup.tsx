@@ -105,8 +105,9 @@ export function SignalPopup({ signals, onDismiss }: SignalPopupProps) {
             <article key={signal.id} className="rounded-xl border border-white/15 bg-white/[0.04] p-4 sm:p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-lg font-black text-amber-200">{signal.name}</h3>
-                <span className="rounded-full border border-emerald-300/50 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-200">PADRÃO DETECTADO</span>
+                <span className="rounded-full border border-emerald-300/50 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-200">CONDIÇÕES DO PADRÃO: COMPLETAS</span>
               </div>
+              <p className="mt-2 text-xs font-bold tracking-wide text-cyan-200">CONFIANÇA DO PADRÃO: ALTA · REGRAS CONFIGURADAS ATENDIDAS (NÃO É PROBABILIDADE DE GANHO)</p>
               <p className="mt-3 text-sm leading-relaxed text-slate-300">{signal.explanation}</p>
               <div className="mt-4 rounded-lg border border-amber-300/50 bg-amber-300/10 p-4">
                 <p className="text-[10px] font-black tracking-[0.2em] text-amber-200">ALVO IDENTIFICADO</p>
