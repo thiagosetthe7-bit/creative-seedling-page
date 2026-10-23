@@ -13,6 +13,8 @@ export interface EntrySignal {
   sourceSpinId: string;
   /** Estratégia cuja entrada é acompanhada pelo BT concomitante. */
   baseStrategy?: StrategyId;
+  /** Todas as estratégias que confluíram neste único cartão/entrada. */
+  confluence?: StrategyId[];
 }
 
 type CategoryKey = "cor" | "pi" | "ab" | "cavalo";
@@ -169,7 +171,31 @@ function detectBtConcomitante(
   }));
 }
 
-/** Detecta apenas gatilhos confirmados pelo giro mais recente; não varre alertas históricos. */
+function strategySet(signal: EntrySignal): StrategyId[] {
+  return [...new Set([signal.strategy, ...(signal.confluence ?? []), ...(signal.baseStrategy ? [signal.baseStrategy] : [])])];
+}
+
+/** Funde todos os gatilhos do mesmo giro em uma única recomendação. Colunas têm prioridade máxima. */
+function fuseSignals(candidates: EntrySignal[]): EntrySignal[] {
+  if (!candidates.length) return [];
+  const columnVolt = candidates.filter((signal) => signal.strategy === "volt-duplo" && signal.target.startsWith("COLUNAS"));
+  const dozenVolt = candidates.filter((signal) => signal.strategy === "volt-duplo" && signal.target.startsWith("DÚZIAS"));
+  const preferredPool = columnVolt.length ? columnVolt : dozenVolt.length ? dozenVolt : candidates;
+  // Em caso de vários pares na mesma matriz, favorece o bloco com maior duração dominante.
+  const runLength = (signal: EntrySignal) => Number(signal.explanation.match(/por (\d+) giros/)?.[1] ?? 0);
+  const rank = (signal: EntrySignal) => signal.strategy === "volt-duplo" ? 0 : signal.strategy === "br-antecedente" ? 1 : signal.strategy === "delta" ? 2 : 3;
+  const chosen = [...preferredPool].sort((a, b) => runLength(b) - runLength(a) || rank(a) - rank(b))[0]!;
+  const confluence = [...new Set(candidates.flatMap(strategySet))];
+  return [{
+    ...chosen,
+    confluence,
+    explanation: candidates.length > 1
+      ? `${chosen.explanation} Gatilhos concomitantes unificados em uma única entrada: ${confluence.map((id) => id.toUpperCase()).join(" + ")}. Prioridade máxima aplicada a COLUNAS quando VOLT detectou dúzias e colunas no mesmo giro.`
+      : chosen.explanation,
+  }];
+}
+
+/** Detecta e unifica os gatilhos do giro mais recente; nunca emite recomendações duplicadas. */
 export function detectarSinaisEntrada(spins: Spin[], bips: Record<string, TipoBip>): EntrySignal[] {
   const index = spins.length - 1;
   if (index < 0) return [];
@@ -178,11 +204,15 @@ export function detectarSinaisEntrada(spins: Spin[], bips: Record<string, TipoBi
     ...detectDelta(spins, index),
     ...detectBrAntecedente(spins, bips, index),
   ];
-  return [...primary, ...detectBtConcomitante(spins, bips, index, primary)];
+  const fused = fuseSignals(primary);
+  // BT é uma confluência do mesmo gatilho, não uma recomendação adicional.
+  return detectBtConcomitante(spins, bips, index, fused).length
+    ? detectBtConcomitante(spins, bips, index, fused)
+    : fused;
 }
 
-/** VOLT Duplo + BR Antecedente ativos no mesmo giro formam um Super Gatilho. */
+/** VOLT Duplo + BR Antecedente concomitantes formam um Super Gatilho mesmo após fusão. */
 export function isSuperGatilho(signals: EntrySignal[]): boolean {
-  return signals.some((signal) => signal.strategy === "volt-duplo")
-    && signals.some((signal) => signal.strategy === "br-antecedente");
+  const strategies = new Set(signals.flatMap(strategySet));
+  return strategies.has("volt-duplo") && strategies.has("br-antecedente");
 }
