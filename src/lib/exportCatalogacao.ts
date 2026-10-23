@@ -16,23 +16,30 @@ export function montarCSVCatalogacao(
   trackedSignals: TrackedSignal[] = [],
 ): string {
   const linhas = [CABECALHO];
-  const bySpin = new Map<string, TrackedSignal[]>();
+  const bySourceSpin = new Map<string, TrackedSignal[]>();
+  const byResultSpin = new Map<string, TrackedSignal[]>();
   for (const signal of trackedSignals) {
-    const list = bySpin.get(signal.sourceSpinId) ?? [];
-    list.push(signal);
-    bySpin.set(signal.sourceSpinId, list);
+    const sourceList = bySourceSpin.get(signal.sourceSpinId) ?? [];
+    sourceList.push(signal);
+    bySourceSpin.set(signal.sourceSpinId, sourceList);
+    if (signal.resultSpinId && signal.result !== "NO_SIGNAL") {
+      const resultList = byResultSpin.get(signal.resultSpinId) ?? [];
+      resultList.push(signal);
+      byResultSpin.set(signal.resultSpinId, resultList);
+    }
   }
 
   spins.forEach((spin, index) => {
     const c = spin.classificacao;
     const bip = bips[spin.id];
-    const related = bySpin.get(spin.id) ?? [];
+    const related = bySourceSpin.get(spin.id) ?? [];
     const strategy = related.map((signal) => {
-      const id = signal.strategy === "bt-concomitante" ? signal.baseStrategy : signal.strategy;
-      return id === "volt-duplo" ? "VOLT" : id === "delta" ? "DELTA" : id === "br-antecedente" ? "BR" : "None";
-    }).filter((value) => value !== "None").join(" | ") || "None";
+      const ids = signal.confluence?.length ? signal.confluence : [signal.strategy === "bt-concomitante" ? signal.baseStrategy : signal.strategy].filter(Boolean) as NonNullable<TrackedSignal["baseStrategy"]>[];
+      return ids.map((id) => id === "volt-duplo" ? "VOLT" : id === "delta" ? "DELTA" : id === "br-antecedente" ? "BR" : "None").filter((value) => value !== "None").join(" + ");
+    }).filter(Boolean).join(" | ") || "None";
     const target = related.map((signal) => signal.target).join(" | ") || "";
-    const results = related.map((signal) => signal.result).filter((value) => value !== "NO_SIGNAL");
+    const resolved = byResultSpin.get(spin.id) ?? [];
+    const results = resolved.map((signal) => signal.result);
     const result = results.includes("GREEN_R1") ? "GREEN_R1"
       : results.includes("GREEN_GALE1") ? "GREEN_GALE1"
       : results.includes("RED") ? "RED" : "NO_SIGNAL";
