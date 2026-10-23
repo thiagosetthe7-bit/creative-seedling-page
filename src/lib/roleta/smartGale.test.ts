@@ -24,6 +24,16 @@ describe("Smart Gale 1 safety rules", () => {
     const result = avaliarSmartGale1(history, {});
     if (result) expect(result.galeLevel).toBe(1);
   });
+  it("approves BR Gale 1 after an R1 miss when height and cylinder inertia remain", () => {
+    const sourceHistory = spins(1, 4, 7, 14);
+    const source = sourceHistory[sourceHistory.length - 1]!;
+    const historyWithR1 = [...sourceHistory, ...spins(4)];
+    const result = avaliarSmartGale1(historyWithR1, { [source.id]: "rolando" });
+    expect(result?.strategy).toBe("br-antecedente");
+    expect(result?.status).toBe("APPROVED");
+    expect(result?.galeLevel).toBe(1);
+  });
+
   it("approves BT-concomitant Gale 1 only on the defined border numbers", () => {
     const history = spins(1, 2, 4, 5, 7, 3, 1);
     const current = history[history.length - 1]!;
