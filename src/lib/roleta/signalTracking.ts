@@ -11,6 +11,7 @@ export interface TrackedSignal {
   sourceIndex: number;
   strategy: StrategyId;
   baseStrategy?: StrategyId;
+  confluence?: StrategyId[];
   strategyLabel: string;
   target: string;
   action: string;
@@ -20,6 +21,8 @@ export interface TrackedSignal {
   galeReason?: string;
   r1Number?: number;
   resolvedNumber?: number;
+  /** Giro exato que encerrou a entrada; usado para evitar dupla contagem. */
+  resultSpinId?: string;
 }
 export interface SignalTrackingState {
   version: 1;
@@ -53,7 +56,7 @@ function label(strategy: StrategyId): string {
 function toTracked(signal: EntrySignal, index: number): TrackedSignal {
   return {
     id: signal.id, sourceSpinId: signal.sourceSpinId, sourceIndex: index + 1,
-    strategy: signal.strategy, baseStrategy: signal.baseStrategy, strategyLabel: label(signal.strategy), target: signal.target,
+    strategy: signal.strategy, baseStrategy: signal.baseStrategy, confluence: signal.confluence, strategyLabel: label(signal.strategy), target: signal.target,
     action: signal.action, explanation: signal.explanation, status: "AGUARDANDO R1", result: "NO_SIGNAL",
   };
 }
@@ -70,21 +73,21 @@ export function rebuildSignalTracking(spins: Spin[], bips: Record<string, TipoBi
       if (tracked.status === "CONCLUÍDO" || tracked.sourceSpinId === current.id) continue;
       if (tracked.status === "AGUARDANDO R1") {
         if (targetHit(tracked, current)) {
-          signals[s] = { ...tracked, status: "CONCLUÍDO", result: "GREEN_R1", r1Number: current.numero, resolvedNumber: current.numero };
+          signals[s] = { ...tracked, status: "CONCLUÍDO", result: "GREEN_R1", r1Number: current.numero, resolvedNumber: current.numero, resultSpinId: current.id };
         } else {
           const decision = avaliarSmartGale1(spins.slice(0, index + 1), bips);
           const decisionForSignal = decision?.signalId === tracked.id;
           if (decisionForSignal && decision.status === "APPROVED") {
             signals[s] = { ...tracked, status: "GALE 1 EM ANDAMENTO", result: "NO_SIGNAL", r1Number: current.numero, galeReason: decision.reason };
           } else {
-            signals[s] = { ...tracked, status: "CONCLUÍDO", result: "RED", r1Number: current.numero, resolvedNumber: current.numero, galeReason: decision?.reason };
+            signals[s] = { ...tracked, status: "CONCLUÍDO", result: "RED", r1Number: current.numero, resolvedNumber: current.numero, resultSpinId: current.id, galeReason: decision?.reason };
           }
         }
       } else if (tracked.status === "GALE 1 EM ANDAMENTO") {
         if (targetHit(tracked, current)) {
-          signals[s] = { ...tracked, status: "CONCLUÍDO", result: "GREEN_GALE1", resolvedNumber: current.numero };
+          signals[s] = { ...tracked, status: "CONCLUÍDO", result: "GREEN_GALE1", resolvedNumber: current.numero, resultSpinId: current.id };
         } else {
-          signals[s] = { ...tracked, status: "CONCLUÍDO", result: "RED", resolvedNumber: current.numero };
+          signals[s] = { ...tracked, status: "CONCLUÍDO", result: "RED", resolvedNumber: current.numero, resultSpinId: current.id };
         }
       }
     }
