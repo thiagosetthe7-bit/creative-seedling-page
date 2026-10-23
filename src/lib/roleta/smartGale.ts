@@ -80,16 +80,23 @@ function brDecision(signal: EntrySignal, history: Spin[], r1: Spin): { status: S
   const dominantCor = mode(context.map((spin) => spin.classificacao.cor));
   const dominantDuzia = mode(context.map((spin) => spin.classificacao.duzia));
   const dominantColuna = mode(context.map((spin) => spin.classificacao.coluna));
+  const dominantSecao = mode(context.map((spin) => spin.classificacao.secao));
+  const dominantAxis = mode(context.map((spin) => spin.classificacao.g010));
   const breaksHeight = Boolean(dominantAb && r1.classificacao.ab !== dominantAb);
   const breaksDozen = Boolean(dominantDuzia && r1.classificacao.duzia !== dominantDuzia);
   const breaksColumn = Boolean(dominantColuna && r1.classificacao.coluna !== dominantColuna);
   if (breaksHeight && breaksDozen && breaksColumn) {
     return { status: "BLOCKED", reason: "R1 rompeu simultaneamente ALTURA, DÚZIA e COLUNA (3× quebra). Proteção de banca: aguarde novo sinal." };
   }
+  const sectionAligned = Boolean(dominantSecao && r1.classificacao.secao === dominantSecao);
+  const axisAligned = Boolean(dominantAxis && r1.classificacao.g010 === dominantAxis);
+  if (!sectionAligned && !axisAligned) {
+    return { status: "BLOCKED", reason: "BR perdeu D2/C2 e R1 rompeu simultaneamente a SEÇÃO e o eixo 0/10 do cilindro. Gale 1 bloqueado; aguarde novo sinal." };
+  }
   const retainsHeight = Boolean(dominantAb && r1.classificacao.ab === dominantAb);
   const retainsColor = Boolean(dominantCor && r1.classificacao.cor === dominantCor);
   if (retainsHeight || retainsColor) {
-    return { status: "APPROVED", reason: `R1 perdeu D2/C2, mas preservou ${retainsHeight ? "a altura dominante" : "a cor dominante"} do contexto BR. Autoriza somente Gale 1.` };
+    return { status: "APPROVED", reason: `R1 perdeu D2/C2, preservou ${retainsHeight ? "a altura dominante" : "a cor dominante"} e manteve inércia do cilindro (${sectionAligned ? "SEÇÃO" : "eixo 0/10"}). Autoriza somente Gale 1.` };
   }
   return { status: "BLOCKED", reason: "R1 perdeu D2/C2 e não preservou altura nem cor dominantes. Aguarde novo sinal." };
 }
@@ -123,13 +130,12 @@ export function avaliarSmartGale1(spins: Spin[], bips: Record<string, TipoBip>):
   if (!signal) return null;
 
   let result: { status: SmartGaleStatus; reason: string };
-  if (signal.strategy === "bt-concomitante") {
-    result = btDecision(signal, history, r1);
-  } else if (signal.strategy === "volt-duplo") {
+  const primaryStrategy = signal.strategy === "bt-concomitante" ? signal.baseStrategy : signal.strategy;
+  if (primaryStrategy === "volt-duplo") {
     result = voltDecision(signal, history, r1);
-  } else if (signal.strategy === "br-antecedente") {
+  } else if (primaryStrategy === "br-antecedente") {
     result = brDecision(signal, history, r1);
-  } else if (signal.strategy === "delta") {
+  } else if (primaryStrategy === "delta") {
     const hasBrConfluence = candidatos.some((candidate) => candidate.strategy === "br-antecedente");
     result = hasBrConfluence
       ? { status: "APPROVED", reason: "DELTA teve confluência com BR Antecedente no mesmo gatilho; contexto autoriza somente Gale 1." }
@@ -141,7 +147,7 @@ export function avaliarSmartGale1(spins: Spin[], bips: Record<string, TipoBip>):
   return {
     id: `${signal.id}:smart-gale-1:${r1.id}:${result.status}`,
     signalId: signal.id,
-    strategy: signal.strategy,
+    strategy: primaryStrategy ?? signal.strategy,
     status: result.status,
     r1Number: r1.numero,
     title: result.status === "APPROVED"
