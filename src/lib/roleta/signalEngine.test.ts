@@ -50,10 +50,22 @@ describe("BR Antecedente", () => {
     expect(signals.some((s) => s.strategy === "br-antecedente")).toBe(false);
   });
 
-  it("marks VOLT plus BR as a super trigger when concurrent", () => {
+  it("marks VOLT plus BR as one fused super trigger when concurrent", () => {
     const history = spins(1, 14, 2, 17, 14, 25, 4);
     const last = history[history.length - 1]!;
     const signals = detectarSinaisEntrada(history, { [last.id]: "rolando" });
+    expect(signals).toHaveLength(1);
+    expect(signals[0]?.confluence).toContain("volt-duplo");
+    expect(signals[0]?.confluence).toContain("br-antecedente");
     expect(isSuperGatilho(signals)).toBe(true);
+  });
+
+  it("prioritizes columns when VOLT dozen and column matrices trigger together", () => {
+    // Five spins inside D1/D2 and C1/C2, one D3/C3 break, then return.
+    const history = spins(1, 14, 4, 17, 2, 27, 14);
+    const signals = detectarSinaisEntrada(history, {});
+    expect(signals).toHaveLength(1);
+    expect(signals[0]?.strategy).toBe("volt-duplo");
+    expect(signals[0]?.target.startsWith("COLUNAS")).toBe(true);
   });
 });
