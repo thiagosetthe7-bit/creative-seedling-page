@@ -131,7 +131,9 @@ export function avaliarSmartGale1(spins: Spin[], bips: Record<string, TipoBip>):
 
   let result: { status: SmartGaleStatus; reason: string };
   const primaryStrategy = signal.strategy === "bt-concomitante" ? signal.baseStrategy : signal.strategy;
-  if (primaryStrategy === "volt-duplo") {
+  if (signal.strategy === "bt-concomitante") {
+    result = btDecision(signal, history, r1);
+  } else if (primaryStrategy === "volt-duplo") {
     result = voltDecision(signal, history, r1);
   } else if (primaryStrategy === "br-antecedente") {
     result = brDecision(signal, history, r1);
@@ -147,7 +149,7 @@ export function avaliarSmartGale1(spins: Spin[], bips: Record<string, TipoBip>):
   return {
     id: `${signal.id}:smart-gale-1:${r1.id}:${result.status}`,
     signalId: signal.id,
-    strategy: primaryStrategy ?? signal.strategy,
+    strategy: signal.strategy === "bt-concomitante" ? "bt-concomitante" : primaryStrategy ?? signal.strategy,
     status: result.status,
     r1Number: r1.numero,
     title: result.status === "APPROVED"
