@@ -98,8 +98,8 @@ export function SignalPopup({ signals, smartGale = null, onDismiss }: SignalPopu
           <h2 id="signal-popup-title" className="mt-2 text-2xl font-black sm:text-4xl">
             {smartGale
               ? "🧠 SMART GALE 1 · ANÁLISE DE CONTEXTO"
-              : signals.length > 1
-                ? "⚡ GATILHOS DE ENTRADA ATIVOS"
+              : signals[0]?.strategy === "bt-concomitante"
+                ? "⏱️ GATILHO ATIVO: BT CONCOMITANTE"
                 : signals[0]?.strategy === "volt-duplo"
                   ? "⚡ GATILHO ATIVO: VOLT DUPLO"
                   : signals[0]?.strategy === "delta"
