@@ -4,8 +4,17 @@ interface SignalTrackingPanelProps {
   signals: TrackedSignal[];
 }
 export function SignalTrackingPanel({ signals }: SignalTrackingPanelProps) {
-  const greens = signals.filter((s) => s.result === "GREEN_R1" || s.result === "GREEN_GALE1").length;
-  const reds = signals.filter((s) => s.result === "RED").length;
+  const outcomesBySpin = new Map<string, "GREEN" | "RED">();
+  for (const signal of signals) {
+    if (!signal.resultSpinId) continue;
+    const outcome = signal.result === "GREEN_R1" || signal.result === "GREEN_GALE1" ? "GREEN" : signal.result === "RED" ? "RED" : null;
+    if (!outcome) continue;
+    const existing = outcomesBySpin.get(signal.resultSpinId);
+    // A giro só conta uma vez; se registros antigos duplicados divergirem, GREEN tem precedência.
+    if (!existing || outcome === "GREEN") outcomesBySpin.set(signal.resultSpinId, outcome);
+  }
+  const greens = [...outcomesBySpin.values()].filter((value) => value === "GREEN").length;
+  const reds = [...outcomesBySpin.values()].filter((value) => value === "RED").length;
   const total = greens + reds;
   const rate = total ? Math.round((greens / total) * 100) : 0;
   const active = signals.filter((s) => s.status !== "CONCLUÍDO").slice().reverse();
