@@ -32,8 +32,8 @@ export interface SignalTrackingState {
 export const SIGNAL_TRACKING_KEY = "roleta-signal-tracking-v1";
 export const EMPTY_SIGNAL_TRACKING: SignalTrackingState = { version: 1, lastProcessedSpinId: null, signals: [] };
 
-function targetHit(signal: Pick<TrackedSignal, "strategy" | "target">, spin: Spin): boolean {
-  const strategy = signal.strategy;
+function targetHit(signal: Pick<TrackedSignal, "strategy" | "baseStrategy" | "target">, spin: Spin): boolean {
+  const strategy = signal.strategy === "bt-concomitante" ? signal.baseStrategy ?? signal.strategy : signal.strategy;
   if (strategy === "volt-duplo" || strategy === "bt-concomitante") {
     const base = signal.target.startsWith("DÚZIAS") ? "duzia" : signal.target.startsWith("COLUNAS") ? "coluna" : null;
     if (base === "duzia") return signal.target.slice("DÚZIAS".length).split("+").map(v => v.trim()).includes(spin.classificacao.duzia);
