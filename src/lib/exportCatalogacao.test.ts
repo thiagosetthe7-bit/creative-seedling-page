@@ -1,16 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { criarSpin } from "./roleta/catalogo";
 import { montarCSVCatalogacao } from "./exportCatalogacao";
+import type { TrackedSignal } from "./roleta/signalTracking";
 
 describe("exportação da catalogação", () => {
-  it("exporta o cabeçalho, BOM UTF-8 e zero linhas de dados quando não há giros", () => {
+  it("exporta cabeçalho com as 18 colunas, BOM UTF-8 e sem linhas quando não há giros", () => {
     const csv = montarCSVCatalogacao([], {});
     expect(csv.charCodeAt(0)).toBe(0xfeff);
-    expect(csv).toContain("GIRO;NUMERO;BT;BR;TERMINAL");
+    expect(csv).toContain("Spin_Index;Number;Terminal;Cavalo;High_Low;Dozen;Column;Even_Odd;Type;Section;Axis_0_10;Axis_22_34;Color;BR_Flag;BT_Flag;Triggered_Strategy;Target_Bet;Signal_Result");
     expect(csv.split("\r\n")).toHaveLength(1);
   });
 
-  it("mantém os giros mais recentes primeiro e registra BT/BR por rodada", () => {
+  it("mantém ordem cronológica e registra flags BR/BT por giro", () => {
     const antigo = criarSpin(17, 1000);
     const recente = criarSpin(0, 2000);
     const csv = montarCSVCatalogacao(
@@ -18,10 +19,45 @@ describe("exportação da catalogação", () => {
       { [antigo.id]: "timer", [recente.id]: "rolando" },
     );
     const linhas = csv.replace(/^\uFEFF/, "").split("\r\n");
+    const antiga = linhas[1]!.split(";");
+    const nova = linhas[2]!.split(";");
 
     expect(linhas).toHaveLength(3);
-    expect(linhas[1]).toContain("1;0;;1;");
-    expect(linhas[2]).toContain("2;17;1;;");
+    expect(antiga[0]).toBe("1");
+    expect(antiga[1]).toBe("17");
+    expect(antiga[13]).toBe("0");
+    expect(antiga[14]).toBe("1");
+    expect(nova[0]).toBe("2");
+    expect(nova[1]).toBe("0");
+    expect(nova[13]).toBe("1");
+    expect(nova[14]).toBe("0");
+    expect(antiga).toHaveLength(18);
+  });
+
+  it("registra o resultado no giro que resolveu o sinal, sem duplicar a recomendação", () => {
+    const source = criarSpin(1, 1000);
+    const resolution = criarSpin(14, 2000);
+    const tracked: TrackedSignal = {
+      id: "signal-1",
+      sourceSpinId: source.id,
+      sourceIndex: 1,
+      strategy: "br-antecedente",
+      strategyLabel: "BR Antecedente",
+      target: "DÚZIA D2 + COLUNA C2",
+      action: "Alvo",
+      explanation: "Teste",
+      status: "CONCLUÍDO",
+      result: "GREEN_GALE1",
+      resolvedNumber: 14,
+      resultSpinId: resolution.id,
+    };
+    const csv = montarCSVCatalogacao([source, resolution], {}, [tracked]).replace(/^\uFEFF/, "").split("\r\n");
+    const sourceRow = csv[1]!.split(";");
+    const resolutionRow = csv[2]!.split(";");
+    expect(sourceRow[15]).toBe("BR");
+    expect(sourceRow[16]).toBe("DÚZIA D2 + COLUNA C2");
+    expect(sourceRow[17]).toBe("NO_SIGNAL");
+    expect(resolutionRow[17]).toBe("GREEN_GALE1");
   });
 
   it("não altera a sequência de entrada nem exige os módulos antigos de sinais", () => {
