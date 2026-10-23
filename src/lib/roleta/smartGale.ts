@@ -136,7 +136,7 @@ export function avaliarSmartGale1(spins: Spin[], bips: Record<string, TipoBip>):
   } else if (primaryStrategy === "br-antecedente") {
     result = brDecision(signal, history, r1);
   } else if (primaryStrategy === "delta") {
-    const hasBrConfluence = candidatos.some((candidate) => candidate.strategy === "br-antecedente");
+    const hasBrConfluence = signal.confluence?.includes("br-antecedente") === true || candidatos.some((candidate) => candidate.strategy === "br-antecedente" || candidate.confluence?.includes("br-antecedente") === true);
     result = hasBrConfluence
       ? { status: "APPROVED", reason: "DELTA teve confluência com BR Antecedente no mesmo gatilho; contexto autoriza somente Gale 1." }
       : { status: "BLOCKED", reason: "DELTA não oferece Gale por padrão. Sem confluência BR simultânea, a reentrada é bloqueada." };
