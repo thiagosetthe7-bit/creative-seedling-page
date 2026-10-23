@@ -139,6 +139,11 @@ export function SignalPopup({ signals, smartGale = null, onDismiss }: SignalPopu
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-lg font-black text-amber-200">{signal.name}</h3>
                 <span className="rounded-full border border-emerald-300/50 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-200">CONDIÇÕES DO PADRÃO: COMPLETAS</span>
+                {signal.confluence && signal.confluence.length > 1 && (
+                  <span className="rounded-full border border-fuchsia-300/50 bg-fuchsia-500/10 px-3 py-1 text-xs font-black text-fuchsia-200">
+                    MATRIZ UNIFICADA: {signal.confluence.map((id) => id === "volt-duplo" ? "VOLT" : id === "delta" ? "DELTA" : id === "br-antecedente" ? "BR" : "BT").join(" + ")}
+                  </span>
+                )}
               </div>
               <p className="mt-2 text-xs font-bold tracking-wide text-cyan-200">CONFIANÇA DO PADRÃO: REGRAS CONFIGURADAS ATENDIDAS (NÃO É PROBABILIDADE DE GANHO)</p>
               <p className="mt-3 text-sm leading-relaxed text-slate-300">{signal.explanation}</p>
