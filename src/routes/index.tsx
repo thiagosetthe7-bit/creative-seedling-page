@@ -5,7 +5,7 @@ import { SignalPopup } from "@/components/roleta/SignalPopup";
 import { SignalTrackingPanel } from "@/components/roleta/SignalTrackingPanel";
 import { TabelaCatalogacao } from "@/components/roleta/TabelaCatalogacao";
 import { useSinais } from "@/lib/roleta/useSinais";
-import { useEstado } from "@/lib/roleta/store";
+import { acoes, useEstado } from "@/lib/roleta/store";
 import { baixarCSVCatalogacao } from "@/lib/exportCatalogacao";
 
 export const Route = createFileRoute("/")({
@@ -53,10 +53,7 @@ function Catalogacao() {
           <input
             type="checkbox"
             checked={estado.config.zeroComoProtecao}
-            onChange={(event) => {
-              const current = estado.config;
-              import("@/lib/roleta/store").then(({ acoes }) => acoes.atualizarConfig({ zeroComoProtecao: event.target.checked }));
-            }}
+            onChange={(event) => acoes.atualizarConfig({ zeroComoProtecao: event.target.checked })}
           />
           ZERO = PROTEÇÃO
         </label>
