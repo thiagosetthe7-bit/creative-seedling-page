@@ -50,6 +50,27 @@ function targetHit(signal: Pick<TrackedSignal, "strategy" | "baseStrategy" | "ta
   }
   return false;
 }
+function dominantValue(values: string[]): string | undefined {
+  const counts = new Map<string, number>();
+  for (const value of values) {
+    if (!value || value === "ZERO" || value === "VERDE" || value === "Zero") continue;
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+}
+
+function zeroKeepsCylinderContext(spins: Spin[], zeroIndex: number): boolean {
+  const beforeZero = spins.slice(Math.max(0, zeroIndex - 5), zeroIndex);
+  if (!beforeZero.length) return false;
+  const section = dominantValue(beforeZero.map((spin) => spin.classificacao.secao));
+  const axis = dominantValue(beforeZero.map((spin) => spin.classificacao.g010));
+  const current = spins[zeroIndex];
+  return Boolean(current && (
+    (section && current.classificacao.secao === section)
+    || (axis && current.classificacao.g010 === axis)
+  ));
+}
+
 function label(strategy: StrategyId): string {
   return strategy === "volt-duplo" ? "VOLT Duplo" : strategy === "delta" ? "DELTA" : strategy === "br-antecedente" ? "BR Antecedente" : "BT Concomitante";
 }
@@ -83,20 +104,22 @@ export function rebuildSignalTracking(spins: Spin[], bips: Record<string, TipoBi
           resultSpinId: current.id,
           galeReason: "ZERO (0) tratado como GREEN/PROTEÇÃO; tendência anterior preservada para reentrada.",
         };
-        zeroReentries.push({
-          ...tracked,
-          id: tracked.id + ":zero-reentry:" + current.id,
-          sourceSpinId: current.id,
-          sourceIndex: index + 1,
-          explanation: "ZERO (0) tratado como GREEN/PROTEÇÃO. Reentrada mantém a direção do padrão " + tracked.strategyLabel + ": " + tracked.target + ".",
-          action: "REENTRADA APÓS ZERO: MANTER " + tracked.target + " NO PRÓXIMO GIRO.",
-          status: "AGUARDANDO R1",
-          result: "NO_SIGNAL",
-          r1Number: undefined,
-          resolvedNumber: undefined,
-          resultSpinId: undefined,
-          galeReason: undefined,
-        });
+        if (zeroKeepsCylinderContext(spins, index)) {
+          zeroReentries.push({
+            ...tracked,
+            id: tracked.id + ":zero-reentry:" + current.id,
+            sourceSpinId: current.id,
+            sourceIndex: index + 1,
+            explanation: "ZERO (0) tratado como GREEN/PROTEÇÃO. A seção ou o eixo 0/10 mantém alinhamento com o contexto pré-zero; reentrada mantém " + tracked.target + ".",
+            action: "REENTRADA APÓS ZERO: MANTER " + tracked.target + " NO PRÓXIMO GIRO.",
+            status: "AGUARDANDO R1",
+            result: "NO_SIGNAL",
+            r1Number: undefined,
+            resolvedNumber: undefined,
+            resultSpinId: undefined,
+            galeReason: undefined,
+          });
+        }
         continue;
       }
       if (tracked.status === "AGUARDANDO R1") {
