@@ -10,15 +10,20 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BancaRouteImport } from './routes/banca'
 import { Route as BipsRouteImport } from './routes/bips'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as SinaisRouteImport } from './routes/sinais'
-import { Route as BancaRouteImport } from './routes/banca'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BancaRoute = BancaRouteImport.update({
+  id: '/banca',
+  path: '/banca',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BipsRoute = BipsRouteImport.update({
@@ -41,22 +46,18 @@ const SinaisRoute = SinaisRouteImport.update({
   path: '/sinais',
   getParentRoute: () => rootRouteImport,
 } as any)
-const BancaRoute = BancaRouteImport.update({
-  id: '/banca',
-  path: '/banca',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/bips': typeof BipsRoute
   '/banca': typeof BancaRoute
+  '/bips': typeof BipsRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
   '/sinais': typeof SinaisRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/banca': typeof BancaRoute
   '/bips': typeof BipsRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
@@ -65,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/banca': typeof BancaRoute
   '/bips': typeof BipsRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
@@ -72,19 +74,27 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/bips' | '/banca' | '/configuracoes' | '/dashboard' | '/sinais'
+  fullPaths:
+    '/' | '/banca' | '/bips' | '/configuracoes' | '/dashboard' | '/sinais'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/bips' | '/banca' | '/configuracoes' | '/dashboard' | '/sinais'
-  id: '__root__' | '/' | '/bips' | '/banca' | '/configuracoes' | '/dashboard' | '/sinais'
+  to: '/' | '/banca' | '/bips' | '/configuracoes' | '/dashboard' | '/sinais'
+  id:
+    | '__root__'
+    | '/'
+    | '/banca'
+    | '/bips'
+    | '/configuracoes'
+    | '/dashboard'
+    | '/sinais'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BancaRoute: typeof BancaRoute
   BipsRoute: typeof BipsRoute
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   DashboardRoute: typeof DashboardRoute
   SinaisRoute: typeof SinaisRoute
-  BancaRoute: typeof BancaRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -96,18 +106,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/bips': {
-      id: '/bips'
-      path: '/bips'
-      fullPath: '/bips'
-      preLoaderRoute: typeof BipsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/banca': {
       id: '/banca'
       path: '/banca'
       fullPath: '/banca'
       preLoaderRoute: typeof BancaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/bips': {
+      id: '/bips'
+      path: '/bips'
+      fullPath: '/bips'
+      preLoaderRoute: typeof BipsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/configuracoes': {
@@ -136,11 +146,11 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BancaRoute: BancaRoute,
   BipsRoute: BipsRoute,
   ConfiguracoesRoute: ConfiguracoesRoute,
   DashboardRoute: DashboardRoute,
   SinaisRoute: SinaisRoute,
-  BancaRoute: BancaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
