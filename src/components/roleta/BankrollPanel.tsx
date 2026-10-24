@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, ShieldAlert, Wallet } from "lucide-react";
 import { useSinais } from "@/lib/roleta/useSinais";
+import { useEstado } from "@/lib/roleta/store";
+import { effectiveSignalResult, impactoFinanceiro, loadSessionFinance, SESSION_FINANCE_EVENT } from "@/lib/roleta/sessionFinance";
 import { BANKROLL_KEY, BANKROLL_DAYS_KEY, carregarConfigBanca, carregarDiasBanca, calcularBanca, calcularTabelaJuros, projetarJurosCompostos, diaAtivo, dinheiro, DEFAULT_BANKROLL_CONFIG, type BankrollConfig, type DailyRecord } from "@/lib/roleta/bankroll";
 
 const inputClass = "mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-amber-400";
@@ -8,12 +10,21 @@ const dataLocal = () => { const d = new Date(); return `${d.getFullYear()}-${Str
 
 export function BankrollPanel() {
   const { tracking } = useSinais();
+  const estado = useEstado();
+  const [financeRevision, setFinanceRevision] = useState(0);
+  useEffect(() => { const sync = () => setFinanceRevision((n) => n + 1); window.addEventListener(SESSION_FINANCE_EVENT, sync); window.addEventListener("storage", sync); return () => { window.removeEventListener(SESSION_FINANCE_EVENT, sync); window.removeEventListener("storage", sync); }; }, []);
+  void financeRevision;
   const [config, setConfig] = useState<BankrollConfig>(() => carregarConfigBanca());
   const [records, setRecords] = useState<Record<number, DailyRecord>>(() => carregarDiasBanca());
   const [alertaDispensado, setAlertaDispensado] = useState(false);
   const [confirmarReset, setConfirmarReset] = useState(false);
-  const rows = useMemo(() => calcularTabelaJuros(config, records, dataLocal()), [config, records]);
-  const resumo = useMemo(() => calcularBanca(tracking.signals, config), [tracking.signals, config]);
+  const financeLedger = loadSessionFinance();
+  const spinById = useMemo(() => new Map(estado.spins.map((spin) => [spin.id, spin])), [estado.spins]);
+  const autoDailyResults = useMemo(() => { const totals: Record<number, number> = {}; for (const signal of tracking.signals) { if (!signal.resultSpinId) continue; const result = effectiveSignalResult(signal, financeLedger); if (result === "PENDING" || result === "NO_SIGNAL") continue; if (financeLedger.removedSignalIds.includes(signal.id)) continue; const spin = spinById.get(signal.resultSpinId); if (!spin) continue; const d = new Date(spin.timestamp); const date = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; const day = diaAtivo(config, date); if (day < 1 || day > config.periodoDias) continue; const impact = impactoFinanceiro(signal, config, financeLedger); if (impact !== null) totals[day] = (totals[day] ?? 0) + impact; } return totals; }, [tracking.signals, financeLedger, spinById, config]);
+  const effectiveRecords = useMemo(() => { const merged: Record<number, DailyRecord> = { ...records }; for (const [dayText, result] of Object.entries(autoDailyResults)) { const day = Number(dayText); if (merged[day]?.resultadoRealizado === null || merged[day]?.resultadoRealizado === undefined) merged[day] = { ...merged[day], resultadoRealizado: result }; } return merged; }, [records, autoDailyResults]);
+  const rows = useMemo(() => calcularTabelaJuros(config, effectiveRecords, dataLocal()), [config, effectiveRecords]);
+  const financialSignals = tracking.signals.filter((signal) => !financeLedger.removedSignalIds.includes(signal.id)).map((signal) => ({ ...signal, result: effectiveSignalResult(signal, financeLedger) === "PENDING" ? "NO_SIGNAL" as const : effectiveSignalResult(signal, financeLedger) as TrackedSignal["result"] }));
+  const resumo = useMemo(() => calcularBanca(financialSignals, config), [financialSignals, config]);
   const activeDay = Math.max(1, Math.min(config.periodoDias, diaAtivo(config, dataLocal())));
   const activeRow = rows[activeDay - 1];
   const resultadoDia = activeRow?.resultadoRealizado ?? 0;
