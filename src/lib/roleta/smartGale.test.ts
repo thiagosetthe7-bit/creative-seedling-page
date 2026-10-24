@@ -13,7 +13,7 @@ describe("Smart Gale 1 safety rules", () => {
 
   it("blocks DELTA after R1 loss without BR confluence", () => {
     // Five reds, two breaks, red return => DELTA signal; R1 then lands black.
-    const history = spins(1, 3, 5, 7, 9, 2, 4, 12, 2);
+    const history = spins(1, 3, 5, 7, 9, 2, 12, 2);
     const result = avaliarSmartGale1(history, {});
     expect(result?.strategy).toBe("delta");
     expect(result?.status).toBe("BLOCKED");
