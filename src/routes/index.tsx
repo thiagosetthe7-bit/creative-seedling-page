@@ -7,7 +7,7 @@ import { TabelaCatalogacao } from "@/components/roleta/TabelaCatalogacao";
 import { useSinais } from "@/lib/roleta/useSinais";
 import { acoes, useEstado } from "@/lib/roleta/store";
 import { baixarCSVCatalogacao } from "@/lib/exportCatalogacao";
-import { calcularBanca, carregarConfigBanca } from "@/lib/roleta/bankroll";
+import { calcularBanca, carregarConfigBanca, carregarDiasBanca, calcularTabelaJuros, diaAtivo } from "@/lib/roleta/bankroll";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -26,14 +26,18 @@ export const Route = createFileRoute("/")({
 function Catalogacao() {
   const estado = useEstado();
   const { sinais, smartGale, tracking } = useSinais();
-  const resumoBanca = calcularBanca(tracking.signals, carregarConfigBanca());
-  const bloqueioFinanceiro = resumoBanca.metaBatida || resumoBanca.stopLossCritico;
+  const configBanca = carregarConfigBanca();
+  const resumoBanca = calcularBanca(tracking.signals, configBanca);
+  const diaAtual = Math.max(1, Math.min(configBanca.periodoDias, diaAtivo(configBanca, new Date().toLocaleDateString("en-CA"))));
+  const linhaDia = calcularTabelaJuros(configBanca, carregarDiasBanca(), new Date().toLocaleDateString("en-CA"))[diaAtual - 1];
+  const metaDiariaAtingida = Boolean(configBanca.bloquearSinaisMetaDiaria && linhaDia && linhaDia.resultadoRealizado !== null && linhaDia.resultadoRealizado >= linhaDia.metaDia);
+  const bloqueioFinanceiro = resumoBanca.metaBatida || resumoBanca.stopLossCritico || metaDiariaAtingida;
 
   return (
     <AppShell>
       {bloqueioFinanceiro ? (
         <div role="alert" className="mb-4 rounded-lg border-2 border-rose-500 bg-rose-500/10 p-3 text-sm font-black text-rose-500">
-          SINAIS BLOQUEADOS: {resumoBanca.metaBatida ? "META DA SESSÃO ATINGIDA" : "STOP LOSS CRÍTICO ATINGIDO"}. Encerre a sessão antes de considerar novas entradas.
+          SINAIS BLOQUEADOS: {metaDiariaAtingida ? "META DIÁRIA ATINGIDA" : resumoBanca.metaBatida ? "META DA SESSÃO ATINGIDA" : "STOP LOSS CRÍTICO ATINGIDO"}. Encerre a sessão antes de considerar novas entradas.
         </div>
       ) : <SignalPopup signals={sinais} smartGale={smartGale} />}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
