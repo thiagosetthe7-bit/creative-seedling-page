@@ -9,6 +9,8 @@ import { acoes, useEstado } from "@/lib/roleta/store";
 import { baixarCSVCatalogacao } from "@/lib/exportCatalogacao";
 import { calcularBanca, carregarConfigBanca, carregarDiasBanca, calcularTabelaJuros, diaAtivo } from "@/lib/roleta/bankroll";
 
+const dataLocalISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -28,7 +30,7 @@ function Catalogacao() {
   const { sinais, smartGale, tracking } = useSinais();
   const configBanca = carregarConfigBanca();
   const resumoBanca = calcularBanca(tracking.signals, configBanca);
-  const diaAtual = Math.max(1, Math.min(configBanca.periodoDias, diaAtivo(configBanca, new Date().toLocaleDateString("en-CA"))));
+  const diaAtual = Math.max(1, Math.min(configBanca.periodoDias, diaAtivo(configBanca, dataLocalISO())));
   const linhaDia = calcularTabelaJuros(configBanca, carregarDiasBanca(), new Date().toLocaleDateString("en-CA"))[diaAtual - 1];
   const metaDiariaAtingida = Boolean(configBanca.bloquearSinaisMetaDiaria && linhaDia && linhaDia.resultadoRealizado !== null && linhaDia.resultadoRealizado >= linhaDia.metaDia);
   const bloqueioFinanceiro = resumoBanca.metaBatida || resumoBanca.stopLossCritico || metaDiariaAtingida;
