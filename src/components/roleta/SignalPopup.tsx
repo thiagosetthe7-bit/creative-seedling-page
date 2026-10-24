@@ -6,6 +6,8 @@ interface SignalPopupProps {
   signals: EntrySignal[];
   smartGale?: SmartGaleDecision | null;
   onDismiss?: () => void;
+  stakeR1Total?: number;
+  stakeR2Total?: number;
 }
 
 function tocarAlerta() {
@@ -35,7 +37,7 @@ function tocarAlerta() {
   }
 }
 
-export function SignalPopup({ signals, smartGale = null, onDismiss }: SignalPopupProps) {
+export function SignalPopup({ signals, smartGale = null, onDismiss, stakeR1Total, stakeR2Total }: SignalPopupProps) {
   const [open, setOpen] = useState(false);
   const [dismissedKey, setDismissedKey] = useState("");
   const previousKey = useRef("");
@@ -114,6 +116,13 @@ export function SignalPopup({ signals, smartGale = null, onDismiss }: SignalPopu
         </header>
 
         <div className="space-y-4 p-5 sm:p-7">
+          {(stakeR1Total !== undefined || stakeR2Total !== undefined) && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {stakeR1Total !== undefined && <div className="rounded-xl border border-sky-300/40 bg-sky-400/10 p-4"><p className="text-xs font-black tracking-widest text-sky-200">STAKE RECOMENDADA · R1</p><p className="mt-2 text-2xl font-black">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(stakeR1Total)}</p></div>}
+              {stakeR2Total !== undefined && <div className="rounded-xl border border-orange-300/40 bg-orange-400/10 p-4"><p className="text-xs font-black tracking-widest text-orange-200">STAKE RECOMENDADA · R2</p><p className="mt-2 text-2xl font-black">{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(stakeR2Total)}</p><p className="text-xs text-slate-300">Dobro da entrada R1</p></div>}
+            </div>
+          )}
+
           {smartGale && (
             <article
               role="status"
