@@ -23,14 +23,14 @@ describe("VOLT Duplo", () => {
 });
 
 describe("DELTA", () => {
-  it("fires after five red spins, two breaks and a red return", () => {
-    const history = spins(1, 3, 5, 7, 9, 2, 4, 12);
+  it("fires after five red spins, one break and a red return", () => {
+    const history = spins(1, 3, 5, 7, 9, 2, 12);
     const signals = detectarSinaisEntrada(history, {});
     expect(signals.some((s) => s.strategy === "delta" && s.target === "COR: VERMELHO")).toBe(true);
   });
 
-  it("blocks a return after three break spins", () => {
-    const history = spins(1, 3, 5, 7, 9, 2, 4, 6, 12);
+  it("blocks a return after two breaks for simple chances", () => {
+    const history = spins(1, 3, 5, 7, 9, 2, 4, 12);
     expect(detectarSinaisEntrada(history, {}).some((s) => s.strategy === "delta" && s.target === "COR: VERMELHO")).toBe(false);
   });
 });
