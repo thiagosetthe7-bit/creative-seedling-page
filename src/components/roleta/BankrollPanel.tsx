@@ -27,7 +27,6 @@ export function BankrollPanel() {
   const update = (patch: Partial<BankrollConfig>) => setConfig((current) => ({ ...current, ...patch }));
   const updateResult = (day: number, value: string) => setRecords((current) => ({ ...current, [day]: { ...current[day], resultadoRealizado: value.trim() === "" ? null : Number(value) } }));
   const updateOpeningBalance = (day: number, value: string) => setRecords((current) => ({ ...current, [day]: { ...current[day], bancaInicialOverride: value.trim() === "" ? null : Math.max(0, Number(value)) } }));
-  const activeBank = activeRow?.bancaInicial ?? config.bancaInicial;
   const stakeR1Total = config.stakeR1PorArea * 2;
   const stakeR2Total = stakeR1Total * 2;
   const blockSignals = config.bloquearSinaisMetaDiaria && metaDiaBatida;
@@ -54,7 +53,8 @@ export function BankrollPanel() {
         <h2 className="mb-4 text-sm font-black tracking-widest">PARÂMETROS EDITÁVEIS</h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <Field label="Banca Inicial (R$)"><input className={inputClass} type="number" min="0" step="any" value={config.bancaInicial} onChange={(e) => update({ bancaInicial: Math.max(0, Number(e.target.value)) })}/></Field>
-          <Field label="Meta Diária (%)"><input className={inputClass} type="number" min="0" step="0.1" value={config.metaDiariaPercentual} onChange={(e) => update({ metaDiariaPercentual: Math.max(0, Number(e.target.value)) })}/></Field>
+          <Field label="Tipo de meta diária"><select className={inputClass} value={config.metaModo} onChange={(e) => update({ metaModo: e.target.value as "valor" | "percentual" })}><option value="valor">Meta em R$</option><option value="percentual">Meta em %</option></select></Field>
+          {config.metaModo === "valor" ? <Field label="Meta Diária (R$)"><input className={inputClass} type="number" min="0" step="any" value={config.metaValor} onChange={(e) => update({ metaValor: Math.max(0, Number(e.target.value)) })}/></Field> : <Field label="Meta Diária (%)"><input className={inputClass} type="number" min="0" step="0.1" value={config.metaDiariaPercentual} onChange={(e) => update({ metaDiariaPercentual: Math.max(0, Number(e.target.value)), metaPercentual: Math.max(0, Number(e.target.value)) })}/></Field>}
           <Field label="Período de Operação (dias)"><input className={inputClass} type="number" min="1" max="3650" step="1" value={config.periodoDias} onChange={(e) => update({ periodoDias: Math.max(1, Math.min(3650, Math.floor(Number(e.target.value) || 1))) })}/></Field>
           <Field label="Data inicial da operação"><input className={inputClass} type="date" value={config.dataInicio} onChange={(e) => update({ dataInicio: e.target.value || dataLocal() })}/></Field>
           <Field label="Stake Base R1 por Área (R$)"><input className={inputClass} type="number" min="0" step="0.5" value={config.stakeR1PorArea} onChange={(e) => update({ stakeR1PorArea: Math.max(0, Number(e.target.value)), stakeR2PorArea: Math.max(0, Number(e.target.value)) * 2 })}/></Field>
