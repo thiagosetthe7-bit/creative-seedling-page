@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, ShieldAlert, Wallet } from "lucide-react";
 import { useSinais } from "@/lib/roleta/useSinais";
+import type { TrackedSignal } from "@/lib/roleta/signalTracking";
 import { useEstado } from "@/lib/roleta/store";
 import { effectiveSignalResult, impactoFinanceiro, loadSessionFinance, SESSION_FINANCE_EVENT } from "@/lib/roleta/sessionFinance";
 import { BANKROLL_KEY, BANKROLL_DAYS_KEY, carregarConfigBanca, carregarDiasBanca, calcularBanca, calcularTabelaJuros, projetarJurosCompostos, diaAtivo, dinheiro, DEFAULT_BANKROLL_CONFIG, type BankrollConfig, type DailyRecord } from "@/lib/roleta/bankroll";
