@@ -28,7 +28,7 @@ export function BankrollPanel() {
   const updateResult = (day: number, value: string) => setRecords((current) => ({ ...current, [day]: { ...current[day], resultadoRealizado: value.trim() === "" ? null : Number(value) } }));
   const updateOpeningBalance = (day: number, value: string) => setRecords((current) => ({ ...current, [day]: { ...current[day], bancaInicialOverride: value.trim() === "" ? null : Math.max(0, Number(value)) } }));
   const activeBank = activeRow?.bancaInicial ?? config.bancaInicial;
-  const stakeR1Total = activeBank * config.stakePercentual / 100;
+  const stakeR1Total = config.stakeR1PorArea * 2;
   const stakeR2Total = stakeR1Total * 2;
   const blockSignals = config.bloquearSinaisMetaDiaria && metaDiaBatida;
 
@@ -57,7 +57,7 @@ export function BankrollPanel() {
           <Field label="Meta Diária (%)"><input className={inputClass} type="number" min="0" step="0.1" value={config.metaDiariaPercentual} onChange={(e) => update({ metaDiariaPercentual: Math.max(0, Number(e.target.value)) })}/></Field>
           <Field label="Período de Operação (dias)"><input className={inputClass} type="number" min="1" max="3650" step="1" value={config.periodoDias} onChange={(e) => update({ periodoDias: Math.max(1, Math.min(3650, Math.floor(Number(e.target.value) || 1))) })}/></Field>
           <Field label="Data inicial da operação"><input className={inputClass} type="date" value={config.dataInicio} onChange={(e) => update({ dataInicio: e.target.value || dataLocal() })}/></Field>
-          <Field label="Stake R1 (% da banca do dia)"><input className={inputClass} type="number" min="0" step="0.1" value={config.stakePercentual} onChange={(e) => update({ stakePercentual: Math.max(0, Number(e.target.value)) })}/></Field>
+          <Field label="Stake Base R1 por Área (R$)"><input className={inputClass} type="number" min="0" step="0.5" value={config.stakeR1PorArea} onChange={(e) => update({ stakeR1PorArea: Math.max(0, Number(e.target.value)), stakeR2PorArea: Math.max(0, Number(e.target.value)) * 2 })}/></Field>
           <Field label="Stop Loss diário (R$)"><input className={inputClass} type="number" min="0" step="any" value={config.stopLossMaximo} onChange={(e) => update({ stopLossMaximo: Math.max(0, Number(e.target.value)) })}/></Field>
         </div>
         <div className="mt-4 rounded-xl border-2 border-emerald-500/40 bg-emerald-500/5 p-4"><p className="text-xs font-black tracking-widest text-emerald-500">PROJEÇÃO DE JUROS COMPOSTOS</p><p className="mt-2 text-2xl font-black">Projeção Final acumulada em {config.periodoDias} dias: {dinheiro(projecaoFinal)}</p><p className="mt-1 text-xs text-muted-foreground">Cálculo teórico: banca inicial × (1 + meta diária) elevado ao número de dias.</p></div>
@@ -66,7 +66,7 @@ export function BankrollPanel() {
 
       <section className="rounded-xl border border-border bg-card p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-sm font-black tracking-widest">STAKES INTEGRADAS À CATALOGAÇÃO</h2><p className="mt-1 text-xs text-muted-foreground">Calculadas pela banca inicial do dia ativo; R2 é o dobro de R1.</p></div><span className="rounded-lg border border-border px-3 py-2 text-xs font-bold">DIA {activeDay}</span></div>
-        <div className="grid gap-3 sm:grid-cols-2"><div className="rounded-lg border border-sky-500/40 bg-sky-500/5 p-4"><p className="text-xs font-black text-sky-500">STAKE R1</p><p className="mt-2 text-2xl font-black">{dinheiro(stakeR1Total)}</p><p className="text-xs text-muted-foreground">{config.stakePercentual}% da banca do dia · stake total sugerida</p></div><div className="rounded-lg border border-orange-500/40 bg-orange-500/5 p-4"><p className="text-xs font-black text-orange-500">STAKE R2 · SMART GALE 1</p><p className="mt-2 text-2xl font-black">{dinheiro(stakeR2Total)}</p><p className="text-xs text-muted-foreground">2× a stake R1</p></div></div>
+        <div className="grid gap-3 sm:grid-cols-2"><div className="rounded-lg border border-sky-500/40 bg-sky-500/5 p-4"><p className="text-xs font-black text-sky-500">STAKE R1</p><p className="mt-2 text-2xl font-black">{dinheiro(stakeR1Total)}</p><p className="text-xs text-muted-foreground">2 áreas × {dinheiro(config.stakeR1PorArea)} por área · stake total sugerida</p></div><div className="rounded-lg border border-orange-500/40 bg-orange-500/5 p-4"><p className="text-xs font-black text-orange-500">STAKE R2 · SMART GALE 1</p><p className="mt-2 text-2xl font-black">{dinheiro(stakeR2Total)}</p><p className="text-xs text-muted-foreground">2× a stake R1</p></div></div>
       </section>
 
       <section className="rounded-xl border border-border bg-card p-4">
