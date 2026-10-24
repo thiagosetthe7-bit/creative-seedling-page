@@ -7,6 +7,7 @@ import { TabelaCatalogacao } from "@/components/roleta/TabelaCatalogacao";
 import { useSinais } from "@/lib/roleta/useSinais";
 import { acoes, useEstado } from "@/lib/roleta/store";
 import { baixarCSVCatalogacao } from "@/lib/exportCatalogacao";
+import { calcularBanca, carregarConfigBanca } from "@/lib/roleta/bankroll";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -25,10 +26,16 @@ export const Route = createFileRoute("/")({
 function Catalogacao() {
   const estado = useEstado();
   const { sinais, smartGale, tracking } = useSinais();
+  const resumoBanca = calcularBanca(tracking.signals, carregarConfigBanca());
+  const bloqueioFinanceiro = resumoBanca.metaBatida || resumoBanca.stopLossCritico;
 
   return (
     <AppShell>
-      <SignalPopup signals={sinais} smartGale={smartGale} />
+      {bloqueioFinanceiro ? (
+        <div role="alert" className="mb-4 rounded-lg border-2 border-rose-500 bg-rose-500/10 p-3 text-sm font-black text-rose-500">
+          SINAIS BLOQUEADOS: {resumoBanca.metaBatida ? "META DA SESSÃO ATINGIDA" : "STOP LOSS CRÍTICO ATINGIDO"}. Encerre a sessão antes de considerar novas entradas.
+        </div>
+      ) : <SignalPopup signals={sinais} smartGale={smartGale} />}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-lg font-black tracking-widest">CATALOGAÇÃO</h1>
