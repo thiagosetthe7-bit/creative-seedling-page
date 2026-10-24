@@ -14,6 +14,7 @@ import { Route as BipsRouteImport } from './routes/bips'
 import { Route as ConfiguracoesRouteImport } from './routes/configuracoes'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as SinaisRouteImport } from './routes/sinais'
+import { Route as BancaRouteImport } from './routes/banca'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,10 +41,16 @@ const SinaisRoute = SinaisRouteImport.update({
   path: '/sinais',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BancaRoute = BancaRouteImport.update({
+  id: '/banca',
+  path: '/banca',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/bips': typeof BipsRoute
+  '/banca': typeof BancaRoute
   '/configuracoes': typeof ConfiguracoesRoute
   '/dashboard': typeof DashboardRoute
   '/sinais': typeof SinaisRoute
@@ -65,10 +72,10 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/bips' | '/configuracoes' | '/dashboard' | '/sinais'
+  fullPaths: '/' | '/bips' | '/banca' | '/configuracoes' | '/dashboard' | '/sinais'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/bips' | '/configuracoes' | '/dashboard' | '/sinais'
-  id: '__root__' | '/' | '/bips' | '/configuracoes' | '/dashboard' | '/sinais'
+  to: '/' | '/bips' | '/banca' | '/configuracoes' | '/dashboard' | '/sinais'
+  id: '__root__' | '/' | '/bips' | '/banca' | '/configuracoes' | '/dashboard' | '/sinais'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -77,6 +84,7 @@ export interface RootRouteChildren {
   ConfiguracoesRoute: typeof ConfiguracoesRoute
   DashboardRoute: typeof DashboardRoute
   SinaisRoute: typeof SinaisRoute
+  BancaRoute: typeof BancaRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -93,6 +101,13 @@ declare module '@tanstack/react-router' {
       path: '/bips'
       fullPath: '/bips'
       preLoaderRoute: typeof BipsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/banca': {
+      id: '/banca'
+      path: '/banca'
+      fullPath: '/banca'
+      preLoaderRoute: typeof BancaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/configuracoes': {
@@ -125,6 +140,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConfiguracoesRoute: ConfiguracoesRoute,
   DashboardRoute: DashboardRoute,
   SinaisRoute: SinaisRoute,
+  BancaRoute: BancaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
