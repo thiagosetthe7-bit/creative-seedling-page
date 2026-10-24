@@ -31,6 +31,7 @@ export function BankrollPanel() {
   const resultadoDia = activeRow?.resultadoRealizado ?? 0;
   const metaDiaBatida = Boolean(activeRow && resultadoDia >= activeRow.metaDia && activeRow.resultadoRealizado !== null);
   const projecaoFinal = projetarJurosCompostos(config.bancaInicial, config.metaDiariaPercentual, config.periodoDias);
+  const activeBank = activeRow?.bancaInicial ?? config.bancaInicial;
 
   useEffect(() => { try { window.localStorage.setItem(BANKROLL_KEY, JSON.stringify(config)); } catch { /* storage opcional */ } }, [config]);
   useEffect(() => { try { window.localStorage.setItem(BANKROLL_DAYS_KEY, JSON.stringify(records)); } catch { /* storage opcional */ } }, [records]);
@@ -38,7 +39,7 @@ export function BankrollPanel() {
 
   const update = (patch: Partial<BankrollConfig>) => setConfig((current) => ({ ...current, ...patch }));
   const updateResult = (day: number, value: string) => setRecords((current) => ({ ...current, [day]: { ...current[day], resultadoRealizado: value.trim() === "" ? null : Number(value) } }));
-  const updateOpeningBalance = (day: number, value: string) => setRecords((current) => ({ ...current, [day]: { ...current[day], bancaInicialOverride: value.trim() === "" ? null : Math.max(0, Number(value)) } }));
+  const updateOpeningBalance = (day: number, value: string) => setRecords((current) => ({ ...current, [day]: { ...current[day], resultadoRealizado: current[day]?.resultadoRealizado ?? null, bancaInicialOverride: value.trim() === "" ? null : Math.max(0, Number(value)) } }));
   const stakeR1Total = config.stakeR1PorArea * 2;
   const stakeR2Total = stakeR1Total * 2;
   const blockSignals = config.bloquearSinaisMetaDiaria && metaDiaBatida;

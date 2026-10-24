@@ -10,19 +10,19 @@ export interface TrackedSignal {
   sourceSpinId: string;
   sourceIndex: number;
   strategy: StrategyId;
-  baseStrategy?: StrategyId;
-  confluence?: StrategyId[];
+  baseStrategy?: StrategyId | undefined;
+  confluence?: StrategyId[] | undefined;
   strategyLabel: string;
   target: string;
   action: string;
   explanation: string;
   status: SignalStatus;
   result: SignalResult;
-  galeReason?: string;
-  r1Number?: number;
-  resolvedNumber?: number;
+  galeReason?: string | undefined;
+  r1Number?: number | undefined;
+  resolvedNumber?: number | undefined;
   /** Giro exato que encerrou a entrada; usado para evitar dupla contagem. */
-  resultSpinId?: string;
+  resultSpinId?: string | undefined;
 }
 export interface SignalTrackingState {
   version: 1;

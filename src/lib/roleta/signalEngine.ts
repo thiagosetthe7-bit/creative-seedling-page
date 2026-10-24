@@ -12,9 +12,9 @@ export interface EntrySignal {
   action: string;
   sourceSpinId: string;
   /** Estratégia cuja entrada é acompanhada pelo BT concomitante. */
-  baseStrategy?: StrategyId;
+  baseStrategy?: StrategyId | undefined;
   /** Todas as estratégias que confluíram neste único cartão/entrada. */
-  confluence?: StrategyId[];
+  confluence?: StrategyId[] | undefined;
 }
 
 type CategoryKey = "cor" | "pi" | "ab" | "cavalo";
