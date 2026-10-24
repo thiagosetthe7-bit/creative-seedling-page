@@ -31,6 +31,7 @@ export function BankrollPanel() {
   const resultadoDia = activeRow?.resultadoRealizado ?? 0;
   const metaDiaBatida = Boolean(activeRow && resultadoDia >= activeRow.metaDia && activeRow.resultadoRealizado !== null);
   const projecaoFinal = projetarJurosCompostos(config.bancaInicial, config.metaDiariaPercentual, config.periodoDias);
+  const activeBank = activeRow?.bancaInicial ?? config.bancaInicial;
 
   useEffect(() => { try { window.localStorage.setItem(BANKROLL_KEY, JSON.stringify(config)); } catch { /* storage opcional */ } }, [config]);
   useEffect(() => { try { window.localStorage.setItem(BANKROLL_DAYS_KEY, JSON.stringify(records)); } catch { /* storage opcional */ } }, [records]);
