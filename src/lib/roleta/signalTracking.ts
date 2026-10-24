@@ -62,17 +62,35 @@ function toTracked(signal: EntrySignal, index: number): TrackedSignal {
 }
 
 /** Deterministic replay lets persisted sessions recover correctly after reload. */
-export function rebuildSignalTracking(spins: Spin[], bips: Record<string, TipoBip>): SignalTrackingState {
+export function rebuildSignalTracking(spins: Spin[], bips: Record<string, TipoBip>, zeroComoProtecao = true): SignalTrackingState {
   if (!spins.length) return EMPTY_SIGNAL_TRACKING;
   const signals: TrackedSignal[] = [];
   for (let index = 0; index < spins.length; index += 1) {
     const current = spins[index]!;
     // Resolve entries from earlier spins before discovering this spin's new signals.
+    const zeroReentries: TrackedSignal[] = [];
     for (let s = 0; s < signals.length; s += 1) {
       const tracked = signals[s]!;
       if (tracked.status === "CONCLUÍDO" || tracked.sourceSpinId === current.id) continue;
       if (tracked.status === "AGUARDANDO R1") {
-        if (targetHit(tracked, current)) {
+        const primaryStrategy = tracked.strategy === "bt-concomitante" ? tracked.baseStrategy : tracked.strategy;
+        if (zeroComoProtecao && current.numero === 0 && (primaryStrategy === "volt-duplo" || primaryStrategy === "delta")) {
+          signals[s] = { ...tracked, status: "CONCLUÍDO", result: "GREEN_R1", r1Number: 0, resolvedNumber: 0, resultSpinId: current.id, galeReason: "ZERO (0) tratado como GREEN/PROTEÇÃO; tendência anterior preservada para reentrada." };
+          zeroReentries.push({
+            ...tracked,
+            id: tracked.id + ":zero-reentry:" + current.id,
+            sourceSpinId: current.id,
+            sourceIndex: index + 1,
+            explanation: "ZERO (0) tratado como GREEN/PROTEÇÃO. Reentrada mantém a direção do padrão " + tracked.strategyLabel + ": " + tracked.target + ".",
+            action: "REENTRADA APÓS ZERO: MANTER " + tracked.target + " NO PRÓXIMO GIRO.",
+            status: "AGUARDANDO R1",
+            result: "NO_SIGNAL",
+            r1Number: undefined,
+            resolvedNumber: undefined,
+            resultSpinId: undefined,
+            galeReason: undefined,
+          });
+        } else if (targetHit(tracked, current)) {
           signals[s] = { ...tracked, status: "CONCLUÍDO", result: "GREEN_R1", r1Number: current.numero, resolvedNumber: current.numero, resultSpinId: current.id };
         } else {
           const decision = avaliarSmartGale1(spins.slice(0, index + 1), bips);
@@ -90,6 +108,9 @@ export function rebuildSignalTracking(spins: Spin[], bips: Record<string, TipoBi
           signals[s] = { ...tracked, status: "CONCLUÍDO", result: "RED", resolvedNumber: current.numero, resultSpinId: current.id };
         }
       }
+    }
+    for (const reentry of zeroReentries) {
+      if (!signals.some((item) => item.id === reentry.id)) signals.push(reentry);
     }
     const found = detectarSinaisEntrada(spins.slice(0, index + 1), bips);
     for (const signal of found) {
