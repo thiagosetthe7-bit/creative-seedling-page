@@ -20,11 +20,6 @@ export function BankrollPanel() {
 
   const update = (patch: Partial<BankrollConfig>) => setConfig((current) => ({ ...current, ...patch }));
   const active = tracking.signals.filter((signal) => signal.status !== "CONCLUÍDO");
-  const resetSession = () => {
-    if (window.confirm("Iniciar nova sessão? Isso zera apenas o cálculo financeiro da sessão e mantém o histórico de catalogação/sinais.")) {
-      setConfig((current) => ({ ...current, bancaInicial: current.bancaAtual ?? current.bancaInicial }));
-    }
-  };
 
   return (
     <div className="space-y-4">
