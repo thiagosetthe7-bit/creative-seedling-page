@@ -41,7 +41,7 @@ function Catalogacao() {
         <div role="alert" className="mb-4 rounded-lg border-2 border-rose-500 bg-rose-500/10 p-3 text-sm font-black text-rose-500">
           SINAIS BLOQUEADOS: {metaDiariaAtingida ? "META DIÁRIA ATINGIDA" : resumoBanca.metaBatida ? "META DA SESSÃO ATINGIDA" : "STOP LOSS CRÍTICO ATINGIDO"}. Encerre a sessão antes de considerar novas entradas.
         </div>
-      ) : <SignalPopup signals={sinais} smartGale={smartGale} />}
+      ) : <SignalPopup signals={sinais} smartGale={smartGale} stakeR1Total={stakeR1Popup} stakeR2Total={stakeR2Popup} />}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-lg font-black tracking-widest">CATALOGAÇÃO</h1>
