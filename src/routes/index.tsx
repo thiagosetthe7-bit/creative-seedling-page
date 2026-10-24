@@ -44,6 +44,23 @@ function Catalogacao() {
           EXPORTAR CSV
         </button>
       </div>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-3">
+        <div>
+          <p className="text-sm font-bold">Tratamento do ZERO (0)</p>
+          <p className="text-xs text-muted-foreground">Permite considerar o zero como proteção e avaliar reentrada VOLT/DELTA.</p>
+        </div>
+        <label className="flex cursor-pointer items-center gap-2 text-xs font-black">
+          <input
+            type="checkbox"
+            checked={estado.config.zeroComoProtecao}
+            onChange={(event) => {
+              const current = estado.config;
+              import("@/lib/roleta/store").then(({ acoes }) => acoes.atualizarConfig({ zeroComoProtecao: event.target.checked }));
+            }}
+          />
+          ZERO = PROTEÇÃO
+        </label>
+      </div>
       <div className="space-y-4">
         <SignalTrackingPanel signals={tracking.signals} />
         <EntradaNumeros total={estado.spins.length} />
