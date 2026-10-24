@@ -43,7 +43,7 @@ export interface BankrollSummary {
   metaBatida: boolean;
   stopLossCritico: boolean;
 }
-export interface DailyRecord { resultadoRealizado: number | null; }
+export interface DailyRecord { resultadoRealizado: number | null; bancaInicialOverride?: number | null; }
 export interface DailyRow {
   dia: number;
   data: string;
@@ -93,7 +93,8 @@ export function calcularTabelaJuros(config: BankrollConfig, records: Record<numb
   const activeDay = diaAtivo(config, hoje);
   const rows: DailyRow[] = [];
   for (let dia = 1; dia <= n; dia += 1) {
-    const bancaInicial = saldo;
+    const override = records[dia]?.bancaInicialOverride;
+    const bancaInicial = override !== undefined && override !== null && Number.isFinite(override) ? Math.max(0, override) : saldo;
     const metaDia = bancaInicial * Math.max(0, config.metaDiariaPercentual) / 100;
     const registro = records[dia];
     const resultadoRealizado = registro?.resultadoRealizado ?? null;
