@@ -33,7 +33,7 @@ function Catalogacao() {
   const diaAtual = Math.max(1, Math.min(configBanca.periodoDias, diaAtivo(configBanca, dataLocalISO())));
   const linhaDia = calcularTabelaJuros(configBanca, carregarDiasBanca(), dataLocalISO())[diaAtual - 1];
   const bancaDiaAtivo = linhaDia?.bancaInicial ?? configBanca.bancaInicial;
-  const stakeR1Popup = bancaDiaAtivo * configBanca.stakePercentual / 100;
+  const stakeR1Popup = configBanca.stakeR1PorArea * 2;
   const stakeR2Popup = stakeR1Popup * 2;
   const metaDiariaAtingida = Boolean(configBanca.bloquearSinaisMetaDiaria && linhaDia && linhaDia.resultadoRealizado !== null && linhaDia.resultadoRealizado >= linhaDia.metaDia);
   const bloqueioFinanceiro = resumoBanca.metaBatida || resumoBanca.stopLossCritico || metaDiariaAtingida;
