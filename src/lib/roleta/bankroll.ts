@@ -55,14 +55,14 @@ export interface DailyRow {
 }
 export const dinheiro = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 export function getMetaFinanceira(config: BankrollConfig): number {
-  return config.metaModo === "percentual" ? Math.max(0, config.bancaInicial * config.metaPercentual / 100) : Math.max(0, config.metaValor);
+  return config.metaModo === "percentual" ? Math.max(0, config.bancaInicial * config.metaDiariaPercentual / 100) : Math.max(0, config.metaValor);
 }
 export function calcularBanca(signals: TrackedSignal[], config: BankrollConfig): BankrollSummary {
   const resolved = signals.filter((s) => s.status === "CONCLUÍDO" && (s.result === "GREEN_R1" || s.result === "GREEN_GALE1" || s.result === "RED"));
   const unique = [...new Map(resolved.map((s) => [s.id, s])).values()];
-  const greens = unique.filter((s) => s.result === "GREEN_R1" || s.result === "GREEN_GALE1").length;
+  const greens = unique.filter((s) => s.result === "GREEN_R1").length;
   const reds = unique.filter((s) => s.result === "RED").length;
-  const lucroLiquido = greens * config.lucroAlvoPorEntrada - reds * config.stopLossMaximo;
+  const lucroLiquido = greens * config.stakeR1PorArea - reds * (config.stakeR1PorArea * 6);
   const metaFinanceira = getMetaFinanceira(config);
   return { lucroLiquido, bancaAtual: config.bancaInicial + lucroLiquido, metaFinanceira, progressoMeta: metaFinanceira > 0 ? Math.max(0, Math.min(100, lucroLiquido / metaFinanceira * 100)) : 0, greens, reds, metaBatida: metaFinanceira > 0 && lucroLiquido >= metaFinanceira, stopLossCritico: lucroLiquido <= -Math.abs(config.stopLossMaximo) };
 }
