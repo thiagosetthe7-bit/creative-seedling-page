@@ -4,7 +4,7 @@ import { useSinais } from "@/lib/roleta/useSinais";
 import type { TrackedSignal } from "@/lib/roleta/signalTracking";
 import { useEstado } from "@/lib/roleta/store";
 import { effectiveSignalResult, impactoFinanceiro, loadSessionFinance, SESSION_FINANCE_EVENT } from "@/lib/roleta/sessionFinance";
-import { BANKROLL_KEY, BANKROLL_DAYS_KEY, carregarConfigBanca, carregarDiasBanca, calcularBanca, calcularTabelaJuros, projetarJurosCompostos, diaAtivo, dinheiro, DEFAULT_BANKROLL_CONFIG, type BankrollConfig, type DailyRecord } from "@/lib/roleta/bankroll";
+import { BANKROLL_KEY, BANKROLL_DAYS_KEY, carregarConfigBanca, carregarDiasBanca, calcularBanca, calcularTabelaJuros, projetarJurosCompostos, diaAtivo, dinheiro, type BankrollConfig, type DailyRecord } from "@/lib/roleta/bankroll";
 
 const inputClass = "mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-amber-400";
 const dataLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
