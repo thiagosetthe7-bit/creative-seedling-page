@@ -72,25 +72,35 @@ export function rebuildSignalTracking(spins: Spin[], bips: Record<string, TipoBi
     for (let s = 0; s < signals.length; s += 1) {
       const tracked = signals[s]!;
       if (tracked.status === "CONCLUÍDO" || tracked.sourceSpinId === current.id) continue;
+      const primaryStrategy = tracked.strategy === "bt-concomitante" ? tracked.baseStrategy : tracked.strategy;
+      if (zeroComoProtecao && current.numero === 0 && (primaryStrategy === "volt-duplo" || primaryStrategy === "delta")) {
+        signals[s] = {
+          ...tracked,
+          status: "CONCLUÍDO",
+          result: tracked.status === "GALE 1 EM ANDAMENTO" ? "GREEN_GALE1" : "GREEN_R1",
+          r1Number: tracked.r1Number ?? 0,
+          resolvedNumber: 0,
+          resultSpinId: current.id,
+          galeReason: "ZERO (0) tratado como GREEN/PROTEÇÃO; tendência anterior preservada para reentrada.",
+        };
+        zeroReentries.push({
+          ...tracked,
+          id: tracked.id + ":zero-reentry:" + current.id,
+          sourceSpinId: current.id,
+          sourceIndex: index + 1,
+          explanation: "ZERO (0) tratado como GREEN/PROTEÇÃO. Reentrada mantém a direção do padrão " + tracked.strategyLabel + ": " + tracked.target + ".",
+          action: "REENTRADA APÓS ZERO: MANTER " + tracked.target + " NO PRÓXIMO GIRO.",
+          status: "AGUARDANDO R1",
+          result: "NO_SIGNAL",
+          r1Number: undefined,
+          resolvedNumber: undefined,
+          resultSpinId: undefined,
+          galeReason: undefined,
+        });
+        continue;
+      }
       if (tracked.status === "AGUARDANDO R1") {
-        const primaryStrategy = tracked.strategy === "bt-concomitante" ? tracked.baseStrategy : tracked.strategy;
-        if (zeroComoProtecao && current.numero === 0 && (primaryStrategy === "volt-duplo" || primaryStrategy === "delta")) {
-          signals[s] = { ...tracked, status: "CONCLUÍDO", result: "GREEN_R1", r1Number: 0, resolvedNumber: 0, resultSpinId: current.id, galeReason: "ZERO (0) tratado como GREEN/PROTEÇÃO; tendência anterior preservada para reentrada." };
-          zeroReentries.push({
-            ...tracked,
-            id: tracked.id + ":zero-reentry:" + current.id,
-            sourceSpinId: current.id,
-            sourceIndex: index + 1,
-            explanation: "ZERO (0) tratado como GREEN/PROTEÇÃO. Reentrada mantém a direção do padrão " + tracked.strategyLabel + ": " + tracked.target + ".",
-            action: "REENTRADA APÓS ZERO: MANTER " + tracked.target + " NO PRÓXIMO GIRO.",
-            status: "AGUARDANDO R1",
-            result: "NO_SIGNAL",
-            r1Number: undefined,
-            resolvedNumber: undefined,
-            resultSpinId: undefined,
-            galeReason: undefined,
-          });
-        } else if (targetHit(tracked, current)) {
+        if (targetHit(tracked, current)) {
           signals[s] = { ...tracked, status: "CONCLUÍDO", result: "GREEN_R1", r1Number: current.numero, resolvedNumber: current.numero, resultSpinId: current.id };
         } else {
           const decision = avaliarSmartGale1(spins.slice(0, index + 1), bips);
