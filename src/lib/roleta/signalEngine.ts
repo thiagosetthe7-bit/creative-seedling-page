@@ -90,8 +90,9 @@ function detectVolt(spins: Spin[], index: number): EntrySignal[] {
 }
 
 function detectDelta(spins: Spin[], index: number): EntrySignal[] {
-  // Minimum: five dominant spins + two break spins + the return spin.
-  if (index < 7) return [];
+  // Chances simples (COR, P/I e A/B): 5+ dominantes, 1 quebra e retorno.
+  // CAVALO mantém a regra anterior de 2 quebras antes do retorno.
+  if (index < 6) return [];
   const current = spins[index];
   if (!current) return [];
 
@@ -100,15 +101,24 @@ function detectDelta(spins: Spin[], index: number): EntrySignal[] {
     const dominant = valueOf(current, category.key);
     if (dominant === "ZERO" || dominant === "VERDE") continue;
 
-    const firstBreak = spins[index - 2];
-    const secondBreak = spins[index - 1];
-    const dominanceEnd = spins[index - 3];
-    if (!firstBreak || !secondBreak || !dominanceEnd) continue;
-    if (valueOf(firstBreak, category.key) === dominant) continue;
-    if (valueOf(secondBreak, category.key) === dominant) continue;
-    if (valueOf(dominanceEnd, category.key) !== dominant) continue;
+    const breaksRequired = category.key === "cavalo" ? 2 : 1;
+    const dominanceEndIndex = index - breaksRequired - 1;
+    const dominanceEnd = spins[dominanceEndIndex];
+    if (!dominanceEnd || valueOf(dominanceEnd, category.key) !== dominant) continue;
 
-    const run = countBackward(spins, index - 3, category.key, dominant);
+    let validBreak = true;
+    const breakValues: string[] = [];
+    for (let offset = breaksRequired; offset >= 1; offset -= 1) {
+      const breakSpin = spins[index - offset];
+      if (!breakSpin || valueOf(breakSpin, category.key) === dominant) {
+        validBreak = false;
+        break;
+      }
+      breakValues.push(valueOf(breakSpin, category.key));
+    }
+    if (!validBreak) continue;
+
+    const run = countBackward(spins, dominanceEndIndex, category.key, dominant);
     if (run < 5) continue;
 
     const target = `${category.targetLabel}: ${dominant}`;
@@ -117,7 +127,7 @@ function detectDelta(spins: Spin[], index: number): EntrySignal[] {
       strategy: "delta",
       name: "DELTA",
       target,
-      explanation: `Dominância de ${dominant} em ${category.label} por ${run} giros, seguida por 2 giros fora da área (${valueOf(firstBreak, category.key)} e ${valueOf(secondBreak, category.key)}) e retorno à área dominante.`,
+      explanation: `Dominância de ${dominant} em ${category.label} por ${run} giros, seguida por ${breaksRequired} giro(s) fora da área (${breakValues.join(" e ")}) e retorno à área dominante.`,
       action: `REPETIR ${dominant} EM ${category.targetLabel} NO PRÓXIMO GIRO.`,
       sourceSpinId: current.id,
     });
@@ -125,6 +135,31 @@ function detectDelta(spins: Spin[], index: number): EntrySignal[] {
   return found;
 }
 
+/**
+ * O ZERO não é tratado como área de tendência. Se cair imediatamente após
+ * um sinal VOLT/DELTA, conserva-se o alvo anterior e cria-se uma reentrada
+ * para o giro seguinte, desde que o sinal pré-zero esteja confirmado.
+ */
+export function detectarReentradaAposZero(spins: Spin[], bips: Record<string, TipoBip>): EntrySignal[] {
+  const index = spins.length - 1;
+  const zeroSpin = spins[index];
+  const previousSpin = spins[index - 1];
+  if (!zeroSpin || zeroSpin.numero !== 0 || !previousSpin || previousSpin.numero === 0) return [];
+
+  const previousSignals = detectarSinaisEntrada(spins.slice(0, -1), bips);
+  const trendSignal = previousSignals.find((signal) =>
+    signal.strategy === "volt-duplo" || signal.strategy === "delta"
+  );
+  if (!trendSignal) return [];
+
+  return [{
+    ...trendSignal,
+    id: `${zeroSpin.id}:zero-reentry:${trendSignal.id}`,
+    sourceSpinId: zeroSpin.id,
+    explanation: `ZERO (0) tratado como GREEN/PROTEÇÃO. O sinal ${trendSignal.name} estava confirmado imediatamente antes do zero; a reentrada mantém a direção do alvo anterior: ${trendSignal.target}.`,
+    action: `REENTRADA APÓS ZERO: MANTER ${trendSignal.target} NO PRÓXIMO GIRO.`,
+  }];
+}
 function hasThreeWayAlternation(spins: Spin[], key: AreaKey, endIndex: number): boolean {
   if (endIndex < 2) return false;
   const three = spins.slice(endIndex - 2, endIndex + 1).map((spin) => valueOf(spin, key));
