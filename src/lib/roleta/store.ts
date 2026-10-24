@@ -10,6 +10,7 @@ export interface Configuracoes {
   minimo: number;
   categoriasAtivas: CategoriaId[];
   alertasAtivos: boolean;
+  zeroComoProtecao: boolean;
 }
 
 export interface RegistroAuditoria {
@@ -54,6 +55,7 @@ const inicial: EstadoApp = {
     minimo: 4,
     categoriasAtivas: CATEGORIAS.map((c) => c.id),
     alertasAtivos: false,
+    zeroComoProtecao: true,
   },
   confirmados: [],
   cancelados: [],
@@ -76,7 +78,7 @@ function migrar(bruto: EstadoApp): EstadoApp {
   const chaves = Object.keys(antigo as Record<string, unknown>);
   const pareceNovo = chaves.every((k) => Number.isNaN(Number(k)));
   const semModeloFinanceiro: EstadoApp = {
-    spins: bruto.spins ?? [], config: { ...(bruto.config ?? inicial.config), alertasAtivos: false }, confirmados: bruto.confirmados ?? [],
+    spins: bruto.spins ?? [], config: { ...inicial.config, ...(bruto.config ?? {}), alertasAtivos: false, zeroComoProtecao: bruto.config?.zeroComoProtecao ?? true }, confirmados: bruto.confirmados ?? [],
     cancelados: bruto.cancelados ?? [], vistos: bruto.vistos ?? [], bips: bruto.bips ?? {},
     pendentes: bruto.pendentes ?? {}, auditoriaLog: bruto.auditoriaLog ?? {},
   };
