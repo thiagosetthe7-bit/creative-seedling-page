@@ -95,7 +95,7 @@ export function calcularTabelaJuros(config: BankrollConfig, records: Record<numb
   for (let dia = 1; dia <= n; dia += 1) {
     const override = records[dia]?.bancaInicialOverride;
     const bancaInicial = override !== undefined && override !== null && Number.isFinite(override) ? Math.max(0, override) : saldo;
-    const metaDia = bancaInicial * Math.max(0, config.metaDiariaPercentual) / 100;
+    const metaDia = config.metaModo === "valor" ? Math.max(0, config.metaValor) : bancaInicial * Math.max(0, config.metaDiariaPercentual) / 100;
     const registro = records[dia];
     const resultadoRealizado = registro?.resultadoRealizado ?? null;
     const passadoOuHoje = dia <= activeDay;
