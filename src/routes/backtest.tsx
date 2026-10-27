@@ -29,7 +29,7 @@ function Backtest() {
   }, [records]);
 
   const run = () => {
-    const lines = input.split(/\\r?\\n/).map((line) => line.trim()).filter(Boolean);
+    const lines = input.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
     if (!lines.length) {
       setError("Cole os números e seus horários, um item por linha: primeiro o número e, na linha seguinte, o horário HH:MM.");
       setRecords(null);
@@ -44,7 +44,7 @@ function Backtest() {
     for (let i = 0; i < lines.length; i += 2) {
       const numberLine = lines[i] ?? "";
       const timeLine = lines[i + 1] ?? "";
-      if (!/^\\d{1,2}$/.test(numberLine)) {
+      if (!/^\d{1,2}$/.test(numberLine)) {
         setError(`Linha ${i + 1}: esperado um número inteiro de 0 a 36, mas foi encontrado "${numberLine}".`);
         setRecords(null);
         return;
@@ -55,7 +55,7 @@ function Backtest() {
         setRecords(null);
         return;
       }
-      const match = /^(?:([01]\\d|2[0-3])):([0-5]\\d)$/.exec(timeLine);
+      const match = /^(?:([01]\d|2[0-3])):([0-5]\\d)$/.exec(timeLine);
       if (!match) {
         setError(`Linha ${i + 2}: horário inválido ("${timeLine}"). Use o formato HH:MM, por exemplo 09:42.`);
         setRecords(null);
@@ -90,7 +90,7 @@ function Backtest() {
       <header><p className="text-xs font-black tracking-[0.2em] text-amber-500">ANÁLISE RETROSPECTIVA</p><h1 className="mt-1 text-xl font-black tracking-widest">IMPORTAÇÃO DE HISTÓRICO · BACKTEST PREVENTIVO</h1><p className="mt-2 max-w-3xl text-sm text-muted-foreground">Cole até 100 resultados anteriores. A análise reproduz as regras de sinal atuais sobre a sequência informada; resultados passados não predizem giros futuros.</p></header>
       <section className="space-y-3 rounded-xl border border-border bg-card p-4">
         <label htmlFor="history-numbers" className="block text-sm font-bold">Histórico da roleta: número e horário em linhas alternadas</label>
-        <textarea id="history-numbers" value={input} onChange={(event) => setInput(event.target.value)} rows={5} placeholder={"12\\n18:42\\n7\\n18:41\\n0\\n18:40\\n24\\n18:39"} className="w-full rounded-lg border border-border bg-background p-3 font-mono text-sm outline-none focus:border-amber-400" />
+        <textarea id="history-numbers" value={input} onChange={(event) => setInput(event.target.value)} rows={5} placeholder={"12\n18:42\n7\n18:41\n0\n18:40\n24\n18:39"} className="w-full rounded-lg border border-border bg-background p-3 font-mono text-sm outline-none focus:border-amber-400" />
         <div className="flex flex-wrap items-center gap-3"><button type="button" onClick={run} className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-black text-black hover:bg-amber-300">PROCESSAR HISTÓRICO</button><button type="button" onClick={() => { setInput(""); setRecords(null); setError(""); }} className="rounded-lg border border-border px-4 py-2 text-sm font-bold">LIMPAR</button><span className="text-xs text-muted-foreground">Máximo: 100 giros · {input.trim() ? input.trim().split(/[\s,;|]+/).filter(Boolean).length : 0}/100</span></div>
         {error && <p role="alert" className="rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-sm font-bold text-rose-500">{error}</p>}
       </section>
