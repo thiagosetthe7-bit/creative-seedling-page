@@ -25,34 +25,8 @@ function Backtest() {
     const totalResolved = resolved.length;
     const winRate = totalResolved ? greens / totalResolved * 100 : 0;
     const verdict = totalResolved >= 3 && greens > reds ? "Ciclo Favorável" : "Ciclo de Armadilha/Exaustão";
-    const signalRows = tracking.signals.map((signal) => {
-      const source = records[signal.sourceIndex - 1];
-      const resultIndex = signal.resultSpinId ? spins.findIndex((spin) => spin.id === signal.resultSpinId) : -1;
-      const resultRecord = resultIndex >= 0 ? records[resultIndex] : undefined;
-      const outcome = signal.result === "GREEN_R1" ? "Green R1"
-        : signal.result === "GREEN_GALE1" ? "Green R2"
-        : signal.result === "RED" ? "Red" : "Sem desfecho";
-      const reason = signal.result === "GREEN_R1"
-        ? "Tiro direto certeiro. A bola atingiu o alvo na primeira tentativa, confirmando o fluxo limpo da tendência."
-        : signal.result === "GREEN_GALE1"
-          ? "Recuperação bem-sucedida (Smart Gale 1). O alvo bateu na segunda tentativa, absorvendo a oscilação inicial."
-          : signal.result === "RED"
-            ? "Quebra de ciclo / Exaustão. O padrão esticou além do limite de segurança e falhou nas duas tentativas."
-            : signal.galeReason || signal.explanation || "Sinal ainda sem desfecho confirmado dentro do histórico importado.";
-      return {
-        id: signal.id,
-        spinNumber: signal.sourceIndex,
-        sourceNumber: source?.number,
-        sourceTime: source?.time ?? "—",
-        strategy: signal.strategyLabel,
-        target: signal.target,
-        outcome,
-        reason,
-        resultNumber: resultRecord?.number,
-        resultTime: resultRecord?.time,
-      };
-    });
-    return { totalSignals: tracking.signals.length, totalResolved, greenR1, greenR2, reds, greens, winRate, verdict, signalRows };
+
+    return { totalSignals: tracking.signals.length, totalResolved, greenR1, greenR2, reds, greens, winRate, verdict };
   }, [records]);
 
   const run = () => {
@@ -129,25 +103,6 @@ function Backtest() {
         <div className="mt-3 flex flex-wrap gap-2">
           {records.map((record, index) => <span key={index} className="rounded-md border border-border bg-background px-2 py-1 font-mono text-xs">{record.number} <span className="text-muted-foreground">{record.time}</span></span>)}
         </div>
-      </section>}
-      {results && <section className="space-y-3 rounded-xl border border-border bg-card p-4">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div><h2 className="text-sm font-black tracking-widest">RASTREIO DETALHADO DE SINAIS</h2><p className="mt-1 text-xs text-muted-foreground">Cada linha representa um sinal detectado pelo motor durante a reprodução cronológica do histórico.</p></div>
-          <span className="rounded-full border border-border px-3 py-1 text-xs font-bold">{results.signalRows.length} sinais</span>
-        </div>
-        {results.signalRows.length === 0 ? <p className="rounded-lg border border-dashed border-border p-5 text-center text-sm text-muted-foreground">Nenhum sinal foi detectado nesta amostra.</p> : <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full min-w-[900px] border-collapse text-left text-sm">
-            <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-              <tr><th className="p-3">Nº do Giro / Horário</th><th className="p-3">Engine / Alvo</th><th className="p-3">Desfecho</th><th className="p-3">Explicação / Motivo Técnico</th></tr>
-            </thead>
-            <tbody>{results.signalRows.map((row) => <tr key={row.id} className="border-t border-border align-top">
-              <td className="whitespace-nowrap p-3"><div className="font-bold">Giro {row.spinNumber} · Nº {row.sourceNumber ?? "—"}</div><div className="mt-1 text-xs text-muted-foreground">{row.sourceTime}{row.resultTime ? ` → resultado: ${row.resultNumber} às ${row.resultTime}` : ""}</div></td>
-              <td className="p-3"><div className="font-bold">{row.strategy}</div><div className="mt-1 max-w-[240px] text-xs text-muted-foreground">{row.target}</div></td>
-              <td className="p-3"><span className={row.outcome === "Green R1" || row.outcome === "Green R2" ? "inline-flex rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-black text-emerald-500" : row.outcome === "Red" ? "inline-flex rounded-full bg-rose-500/10 px-2.5 py-1 text-xs font-black text-rose-500" : "inline-flex rounded-full bg-muted px-2.5 py-1 text-xs font-bold text-muted-foreground"}>{row.outcome}</span></td>
-              <td className="max-w-[520px] p-3 text-sm leading-relaxed">{row.reason}</td>
-            </tr>)}</tbody>
-          </table>
-        </div>}
       </section>}
       {results && <section className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
