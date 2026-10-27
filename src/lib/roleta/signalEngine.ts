@@ -246,7 +246,7 @@ function annotatePostZero(signals: EntrySignal[], spins: Spin[], index: number):
 
   return signals.map((signal) => {
     if (signal.strategy !== "volt-duplo" && signal.strategy !== "delta") return signal;
-    const run = Number(signal.explanation.match(/por (\\d+) giros/)?.[1] ?? 0);
+    const run = Number(signal.explanation.match(/por (\d+) giros/)?.[1] ?? 0);
     const isCavalo = signal.strategy === "delta" && signal.target.startsWith("CAVALO:");
     const breaksRequired = isCavalo ? 2 : 1;
     if (!run) return signal;
