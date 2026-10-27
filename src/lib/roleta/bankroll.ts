@@ -8,6 +8,7 @@ export interface BankrollConfig {
   metaPercentual: number;
   lucroAlvoPorEntrada: number;
   stopLossMaximo: number;
+  stopLossPercentual: number;
   stakeR1PorArea: number;
   stakeR2PorArea: number;
   metaDiariaPercentual: number;
@@ -25,6 +26,7 @@ export const DEFAULT_BANKROLL_CONFIG: BankrollConfig = {
   metaPercentual: 10,
   lucroAlvoPorEntrada: 2.5,
   stopLossMaximo: 15,
+  stopLossPercentual: 20,
   stakeR1PorArea: 2.5,
   stakeR2PorArea: 5,
   metaDiariaPercentual: 5,
@@ -63,8 +65,9 @@ export function calcularBanca(signals: TrackedSignal[], config: BankrollConfig):
   const greens = unique.filter((s) => s.result === "GREEN_R1").length;
   const reds = unique.filter((s) => s.result === "RED").length;
   const lucroLiquido = greens * config.stakeR1PorArea - reds * (config.stakeR1PorArea * 6);
+  const stopLossAtivo = Math.max(0, config.bancaInicial * (config.stopLossPercentual ?? 20) / 100);
   const metaFinanceira = getMetaFinanceira(config);
-  return { lucroLiquido, bancaAtual: config.bancaInicial + lucroLiquido, metaFinanceira, progressoMeta: metaFinanceira > 0 ? Math.max(0, Math.min(100, lucroLiquido / metaFinanceira * 100)) : 0, greens, reds, metaBatida: metaFinanceira > 0 && lucroLiquido >= metaFinanceira, stopLossCritico: lucroLiquido <= -Math.abs(config.stopLossMaximo) };
+  return { lucroLiquido, bancaAtual: config.bancaInicial + lucroLiquido, metaFinanceira, progressoMeta: metaFinanceira > 0 ? Math.max(0, Math.min(100, lucroLiquido / metaFinanceira * 100)) : 0, greens, reds, metaBatida: metaFinanceira > 0 && lucroLiquido >= metaFinanceira, stopLossCritico: reds > 0 && lucroLiquido <= -Math.abs(stopLossAtivo) };
 }
 export function carregarConfigBanca(): BankrollConfig {
   if (typeof window === "undefined") return DEFAULT_BANKROLL_CONFIG;
@@ -99,7 +102,8 @@ export function calcularTabelaJuros(config: BankrollConfig, records: Record<numb
     const registro = records[dia];
     const resultadoRealizado = registro?.resultadoRealizado ?? null;
     const passadoOuHoje = dia <= activeDay;
-    const status: DailyRow["status"] = resultadoRealizado === null ? "PENDENTE" : resultadoRealizado <= -Math.abs(config.stopLossMaximo) ? "STOP_LOSS" : resultadoRealizado >= metaDia ? "META_ATINGIDA" : "PARCIAL";
+    const stopLossAtivo = Math.max(0, bancaInicial * (config.stopLossPercentual ?? 20) / 100);
+    const status: DailyRow["status"] = resultadoRealizado === null ? "PENDENTE" : resultadoRealizado <= -stopLossAtivo ? "STOP_LOSS" : resultadoRealizado >= metaDia ? "META_ATINGIDA" : "PARCIAL";
     const bancaFinal = resultadoRealizado === null ? (passadoOuHoje ? bancaInicial : null) : Math.max(0, bancaInicial + resultadoRealizado);
     rows.push({ dia, data: dataDia(config.dataInicio, dia), bancaInicial, metaDia, resultadoRealizado, bancaFinal, status });
     // Futuro sem resultado fica projetado com a meta diária composta.
