@@ -15,6 +15,8 @@ export interface EntrySignal {
   baseStrategy?: StrategyId | undefined;
   /** Todas as estratégias que confluíram neste único cartão/entrada. */
   confluence?: StrategyId[] | undefined;
+  /** Contexto pós-zero validado: o ciclo completo de dominância, quebra e retorno ocorreu após o último zero. */
+  postZeroContext?: { zeroSpinId: string; distance: number } | undefined;
 }
 
 type CategoryKey = "cor" | "pi" | "ab" | "cavalo";
@@ -230,6 +232,31 @@ function fuseSignals(candidates: EntrySignal[]): EntrySignal[] {
   }];
 }
 
+/**
+ * Anexa contexto pós-zero apenas quando o ciclo inteiro de dominância, quebra e retorno
+ * ocorreu depois do último zero, dentro da janela máxima de 25 giros.
+ */
+function annotatePostZero(signals: EntrySignal[], spins: Spin[], index: number): EntrySignal[] {
+  const signalIndex = index;
+  let zeroIndex = -1;
+  for (let i = signalIndex - 1; i >= Math.max(0, signalIndex - 25); i -= 1) {
+    if (spins[i]?.numero === 0) { zeroIndex = i; break; }
+  }
+  if (zeroIndex < 0) return signals;
+
+  return signals.map((signal) => {
+    if (signal.strategy !== "volt-duplo" && signal.strategy !== "delta") return signal;
+    const run = Number(signal.explanation.match(/por (\\d+) giros/)?.[1] ?? 0);
+    const isCavalo = signal.strategy === "delta" && signal.target.startsWith("CAVALO:");
+    const breaksRequired = isCavalo ? 2 : 1;
+    if (!run) return signal;
+    // Dominância começa em index - quebras - run; precisa estar inteiramente depois do zero.
+    const patternStart = signalIndex - breaksRequired - run;
+    if (patternStart <= zeroIndex) return signal;
+    return { ...signal, postZeroContext: { zeroSpinId: spins[zeroIndex]!.id, distance: signalIndex - zeroIndex } };
+  });
+}
+
 /** Detecta e unifica os gatilhos do giro mais recente; nunca emite recomendações duplicadas. */
 export function detectarSinaisEntrada(spins: Spin[], bips: Record<string, TipoBip>): EntrySignal[] {
   const index = spins.length - 1;
@@ -241,9 +268,10 @@ export function detectarSinaisEntrada(spins: Spin[], bips: Record<string, TipoBi
   ];
   const fused = fuseSignals(primary);
   // BT é uma confluência do mesmo gatilho, não uma recomendação adicional.
-  return detectBtConcomitante(spins, bips, index, fused).length
+  const result = detectBtConcomitante(spins, bips, index, fused).length
     ? detectBtConcomitante(spins, bips, index, fused)
     : fused;
+  return annotatePostZero(result, spins, index);
 }
 
 /** VOLT Duplo + BR Antecedente concomitantes formam um Super Gatilho mesmo após fusão. */
