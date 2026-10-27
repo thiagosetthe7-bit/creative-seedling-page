@@ -2,7 +2,7 @@ import type { Spin } from "./roleta/catalogo";
 import type { TipoBip } from "./roleta/store";
 import type { TrackedSignal } from "./roleta/signalTracking";
 
-const CABECALHO = "Spin_Index;Number;Terminal;Cavalo;High_Low;Dozen;Column;Even_Odd;Type;Section;Axis_0_10;Axis_22_34;Color;BR_Flag;BT_Flag;Triggered_Strategy;Target_Bet;Signal_Result";
+const CABECALHO = "Spin_Index;Number;Terminal;Cavalo;High_Low;Dozen;Column;Even_Odd;Type;Section;Axis_0_10;Axis_22_34;Color;BR_Flag;BT_Flag;Triggered_Strategy;Target_Bet;Signal_Result;Post_Zero_Context;Last_Zero_Distance_Spins;Last_Zero_Spin_ID";
 
 function celulaCSV(valor: unknown): string {
   const texto = String(valor ?? "");
@@ -38,6 +38,10 @@ export function montarCSVCatalogacao(
       return ids.map((id) => id === "volt-duplo" ? "VOLT" : id === "delta" ? "DELTA" : id === "br-antecedente" ? "BR" : "None").filter((value) => value !== "None").join(" + ");
     }).filter(Boolean).join(" | ") || "None";
     const target = related.map((signal) => signal.target).join(" | ") || "";
+    const postZero = related.find((signal) => signal.postZeroContext);
+    const postZeroTag = postZero ? "POST_ZERO_CONFIRMED" : "NO";
+    const postZeroDistance = postZero?.postZeroContext?.distance ?? "";
+    const postZeroId = postZero?.postZeroContext?.zeroSpinId ?? "";
     const resolved = byResultSpin.get(spin.id) ?? [];
     const results = resolved.map((signal) => signal.result);
     const result = results.includes("GREEN_R1") ? "GREEN_R1"
@@ -63,6 +67,9 @@ export function montarCSVCatalogacao(
       strategy,
       target,
       result,
+      postZeroTag,
+      postZeroDistance,
+      postZeroId,
     ].map(celulaCSV).join(";"));
   });
 
