@@ -11,11 +11,11 @@ export const Route = createFileRoute("/backtest")({
 
 function Backtest() {
   const [input, setInput] = useState("");
-  const [numbers, setNumbers] = useState<number[] | null>(null);
+  const [records, setRecords] = useState<Array<{ number: number; time: string; timestamp: number }> | null>(null);
   const [error, setError] = useState("");
   const results = useMemo(() => {
-    if (!numbers?.length) return null;
-    const spins = numbers.map((number, index) => criarSpin(number, 1_700_000_000_000 + index * 60_000));
+    if (!records?.length) return null;
+    const spins = records.map((record) => criarSpin(record.number, record.timestamp));
     const tracking = rebuildSignalTracking(spins, {}, true);
     const resolved = tracking.signals.filter((signal) => signal.status === "CONCLUÍDO" && ["GREEN_R1", "GREEN_GALE1", "RED"].includes(signal.result));
     const greenR1 = resolved.filter((signal) => signal.result === "GREEN_R1").length;
@@ -26,27 +26,83 @@ function Backtest() {
     const winRate = totalResolved ? greens / totalResolved * 100 : 0;
     const verdict = totalResolved >= 3 && greens > reds ? "Ciclo Favorável" : "Ciclo de Armadilha/Exaustão";
     return { totalSignals: tracking.signals.length, totalResolved, greenR1, greenR2, reds, greens, winRate, verdict };
-  }, [numbers]);
+  }, [records]);
 
   const run = () => {
-    const tokens = input.trim().split(/[\s,;|]+/).filter(Boolean);
-    if (!tokens.length) { setError("Cole os números separados por espaço, vírgula ou quebra de linha."); setNumbers(null); return; }
-    if (tokens.length > 100) { setError("O limite desta análise é de 100 números por importação."); setNumbers(null); return; }
-    const parsed = tokens.map((token) => /^\d{1,2}$/.test(token) ? Number(token) : NaN);
-    if (parsed.some((number) => !Number.isInteger(number) || number < 0 || number > 36)) { setError("Use somente números inteiros de 0 a 36. Confira o histórico e tente novamente."); setNumbers(null); return; }
+    const lines = input.split(/\\r?\\n/).map((line) => line.trim()).filter(Boolean);
+    if (!lines.length) {
+      setError("Cole os números e seus horários, um item por linha: primeiro o número e, na linha seguinte, o horário HH:MM.");
+      setRecords(null);
+      return;
+    }
+    if (lines.length % 2 !== 0) {
+      setError("O histórico está incompleto: cada número precisa ser seguido pelo horário HH:MM na linha seguinte.");
+      setRecords(null);
+      return;
+    }
+    const parsed: Array<{ number: number; time: string; minutes: number; sourceIndex: number; timestamp: number }> = [];
+    for (let i = 0; i < lines.length; i += 2) {
+      const numberLine = lines[i] ?? "";
+      const timeLine = lines[i + 1] ?? "";
+      if (!/^\\d{1,2}$/.test(numberLine)) {
+        setError(`Linha ${i + 1}: esperado um número inteiro de 0 a 36, mas foi encontrado "${numberLine}".`);
+        setRecords(null);
+        return;
+      }
+      const number = Number(numberLine);
+      if (number < 0 || number > 36) {
+        setError(`Linha ${i + 1}: o número deve estar entre 0 e 36.`);
+        setRecords(null);
+        return;
+      }
+      const match = /^(?:([01]\\d|2[0-3])):([0-5]\\d)$/.exec(timeLine);
+      if (!match) {
+        setError(`Linha ${i + 2}: horário inválido ("${timeLine}"). Use o formato HH:MM, por exemplo 09:42.`);
+        setRecords(null);
+        return;
+      }
+      parsed.push({ number, time: timeLine, minutes: Number(match[1]) * 60 + Number(match[2]), sourceIndex: i / 2, timestamp: 0 });
+    }
+    if (parsed.length > 100) {
+      setError("O limite desta análise é de 100 pares número + horário por importação.");
+      setRecords(null);
+      return;
+    }
+
+    // A origem normalmente vem do mais recente para o mais antigo. Ao caminhar
+    // nessa ordem, um aumento de horário indica que cruzamos a meia-noite para trás.
+    let dayOffset = 0;
+    let previousMinutes: number | null = null;
+    for (const record of parsed) {
+      if (previousMinutes !== null && record.minutes > previousMinutes) dayOffset -= 1;
+      record.timestamp = (dayOffset * 1440 + record.minutes) * 60_000;
+      previousMinutes = record.minutes;
+    }
+    const chronological = parsed
+      .sort((a, b) => a.timestamp - b.timestamp || a.sourceIndex - b.sourceIndex)
+      .map(({ number, time, timestamp }) => ({ number, time, timestamp }));
     setError("");
-    setNumbers(parsed);
+    setRecords(chronological);
   };
 
   return <AppShell>
     <div className="mx-auto max-w-5xl space-y-5">
       <header><p className="text-xs font-black tracking-[0.2em] text-amber-500">ANÁLISE RETROSPECTIVA</p><h1 className="mt-1 text-xl font-black tracking-widest">IMPORTAÇÃO DE HISTÓRICO · BACKTEST PREVENTIVO</h1><p className="mt-2 max-w-3xl text-sm text-muted-foreground">Cole até 100 resultados anteriores. A análise reproduz as regras de sinal atuais sobre a sequência informada; resultados passados não predizem giros futuros.</p></header>
       <section className="space-y-3 rounded-xl border border-border bg-card p-4">
-        <label htmlFor="history-numbers" className="block text-sm font-bold">Últimos números da roleta (0–36)</label>
-        <textarea id="history-numbers" value={input} onChange={(event) => setInput(event.target.value)} rows={5} placeholder="Ex.: 12, 7, 0, 24, 18, 33..." className="w-full rounded-lg border border-border bg-background p-3 font-mono text-sm outline-none focus:border-amber-400" />
-        <div className="flex flex-wrap items-center gap-3"><button type="button" onClick={run} className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-black text-black hover:bg-amber-300">PROCESSAR HISTÓRICO</button><button type="button" onClick={() => { setInput(""); setNumbers(null); setError(""); }} className="rounded-lg border border-border px-4 py-2 text-sm font-bold">LIMPAR</button><span className="text-xs text-muted-foreground">Máximo: 100 giros · {input.trim() ? input.trim().split(/[\s,;|]+/).filter(Boolean).length : 0}/100</span></div>
+        <label htmlFor="history-numbers" className="block text-sm font-bold">Histórico da roleta: número e horário em linhas alternadas</label>
+        <textarea id="history-numbers" value={input} onChange={(event) => setInput(event.target.value)} rows={5} placeholder={"12\\n18:42\\n7\\n18:41\\n0\\n18:40\\n24\\n18:39"} className="w-full rounded-lg border border-border bg-background p-3 font-mono text-sm outline-none focus:border-amber-400" />
+        <div className="flex flex-wrap items-center gap-3"><button type="button" onClick={run} className="rounded-lg bg-amber-400 px-4 py-2 text-sm font-black text-black hover:bg-amber-300">PROCESSAR HISTÓRICO</button><button type="button" onClick={() => { setInput(""); setRecords(null); setError(""); }} className="rounded-lg border border-border px-4 py-2 text-sm font-bold">LIMPAR</button><span className="text-xs text-muted-foreground">Máximo: 100 giros · {input.trim() ? input.trim().split(/[\s,;|]+/).filter(Boolean).length : 0}/100</span></div>
         {error && <p role="alert" className="rounded-lg border border-rose-500/40 bg-rose-500/10 p-3 text-sm font-bold text-rose-500">{error}</p>}
       </section>
+      {records && <section className="rounded-xl border border-sky-500/40 bg-sky-500/5 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div><h2 className="text-sm font-black tracking-widest">HISTÓRICO VALIDADO E ORDENADO</h2><p className="mt-1 text-xs text-muted-foreground">A simulação usa a ordem cronológica, do giro mais antigo ao mais recente.</p></div>
+          <span className="rounded-full border border-sky-500/40 px-3 py-1 text-xs font-bold">{records.length} pares válidos</span>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {records.map((record, index) => <span key={index} className="rounded-md border border-border bg-background px-2 py-1 font-mono text-xs">{record.number} <span className="text-muted-foreground">{record.time}</span></span>)}
+        </div>
+      </section>}
       {results && <section className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Metric label="SINAIS DISPARADOS" value={String(results.totalSignals)} />
