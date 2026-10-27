@@ -79,11 +79,11 @@ describe("Contexto pós-zero", () => {
     expect(delta?.postZeroContext?.zeroSpinId).toBe(history[0]?.id);
   });
 
-  it("não marca pós-zero quando o padrão de dominância começou antes do zero", () => {
+  it("não confirma um ciclo quando o zero interrompe a sequência de dominância", () => {
     const history = spins(1, 3, 5, 7, 9, 0, 2, 12);
     const signals = detectarSinaisEntrada(history, {});
     const delta = signals.find((signal) => signal.strategy === "delta" && signal.target === "COR: VERMELHO");
-    expect(delta?.postZeroContext).toBeUndefined();
+    expect(delta).toBeUndefined();
   });
 
   it("não usa um zero fora da janela de 25 giros", () => {
