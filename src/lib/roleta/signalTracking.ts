@@ -131,7 +131,8 @@ export function rebuildSignalTracking(spins: Spin[], bips: Record<string, TipoBi
           if (decisionForSignal && decision.status === "APPROVED") {
             signals[s] = { ...tracked, status: "GALE 1 EM ANDAMENTO", result: "NO_SIGNAL", r1Number: current.numero, galeReason: decision.reason };
           } else {
-            signals[s] = { ...tracked, status: "CONCLUÍDO", result: "RED", r1Number: current.numero, resolvedNumber: current.numero, resultSpinId: current.id, galeReason: decision?.reason };
+            // R1 perdido sem Smart Gale 1 aprovado não é RED financeiro: R2 não foi executado.
+            signals[s] = { ...tracked, status: "CONCLUÍDO", result: "NO_SIGNAL", r1Number: current.numero, resolvedNumber: current.numero, galeReason: decision?.reason ?? "R1 não convertido; Gale 1 não aprovado/executado, portanto sem perda financeira." };
           }
         }
       } else if (tracked.status === "GALE 1 EM ANDAMENTO") {
