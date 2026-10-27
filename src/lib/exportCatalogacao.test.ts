@@ -4,7 +4,7 @@ import { montarCSVCatalogacao } from "./exportCatalogacao";
 import type { TrackedSignal } from "./roleta/signalTracking";
 
 describe("exportação da catalogação", () => {
-  it("exporta cabeçalho com as 18 colunas, BOM UTF-8 e sem linhas quando não há giros", () => {
+  it("exporta cabeçalho com as 21 colunas, BOM UTF-8 e sem linhas quando não há giros", () => {
     const csv = montarCSVCatalogacao([], {});
     expect(csv.charCodeAt(0)).toBe(0xfeff);
     expect(csv).toContain("Spin_Index;Number;Terminal;Cavalo;High_Low;Dozen;Column;Even_Odd;Type;Section;Axis_0_10;Axis_22_34;Color;BR_Flag;BT_Flag;Triggered_Strategy;Target_Bet;Signal_Result");
@@ -31,7 +31,7 @@ describe("exportação da catalogação", () => {
     expect(nova[1]).toBe("0");
     expect(nova[13]).toBe("1");
     expect(nova[14]).toBe("0");
-    expect(antiga).toHaveLength(18);
+    expect(antiga).toHaveLength(21);
   });
 
   it("registra o resultado no giro que resolveu o sinal, sem duplicar a recomendação", () => {
