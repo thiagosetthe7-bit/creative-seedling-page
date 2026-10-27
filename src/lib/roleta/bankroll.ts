@@ -12,7 +12,6 @@ export interface BankrollConfig {
   stakeR1PorArea: number;
   stakeR2PorArea: number;
   metaDiariaPercentual: number;
-  periodoDias: number;
   stakePercentual: number;
   bloquearSinaisMetaDiaria: boolean;
   dataInicio: string;
@@ -29,7 +28,6 @@ export const DEFAULT_BANKROLL_CONFIG: BankrollConfig = {
   stakeR1PorArea: 2.5,
   stakeR2PorArea: 5,
   metaDiariaPercentual: 5,
-  periodoDias: 30,
   stakePercentual: 2.5,
   bloquearSinaisMetaDiaria: false,
   dataInicio: new Date().toISOString().slice(0, 10),
