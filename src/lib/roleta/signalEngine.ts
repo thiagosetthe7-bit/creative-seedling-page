@@ -204,7 +204,7 @@ function detectBtConcomitante(
     strategy: "bt-concomitante" as const,
     baseStrategy: signal.strategy,
     name: "BT Concomitante",
-    explanation: `BT marcado no mesmo giro do sinal ${signal.name}. A reentrada, se R1 perder o alvo, será avaliada pelo filtro contextual Smart Gale 1.`,
+    explanation: `BT marcado no mesmo giro do sinal ${signal.name}. Padrão-base: ${signal.explanation} A reentrada, se R1 perder o alvo, será avaliada pelo filtro contextual Smart Gale 1.`,
   }));
 }
 
