@@ -65,9 +65,6 @@ function Catalogacao() {
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-lg font-black tracking-widest">CATALOGAÇÃO</h1>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Registro manual ativo · engine VOLT Duplo e DELTA.
-          </p>
         </div>
         <button
           type="button"
