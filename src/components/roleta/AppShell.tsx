@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 
-const LINKS = [{ to: "/", label: "CATALOGAÇÃO" }, { to: "/banca", label: "BANCA & JUROS COMPOSTOS" }, { to: "/backtest", label: "IMPORTAR HISTÓRICO / BACKTEST" }] as const;
+const LINKS = [{ to: "/", label: "CATALOGAÇÃO" }, { to: "/banca", label: "GERENCIAMENTO DE BANCA" }, { to: "/backtest", label: "IMPORTAR HISTÓRICO / BACKTEST" }] as const;
 
 function useTema() {
   const [escuro, setEscuro] = useState(false);
