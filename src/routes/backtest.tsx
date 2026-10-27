@@ -9,8 +9,6 @@ export const Route = createFileRoute("/backtest")({
   component: Backtest,
 });
 
-const brl = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
-
 function Backtest() {
   const [input, setInput] = useState("");
   const [numbers, setNumbers] = useState<number[] | null>(null);
