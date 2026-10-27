@@ -16,6 +16,7 @@ export interface TrackedSignal {
   target: string;
   action: string;
   explanation: string;
+  postZeroContext?: { zeroSpinId: string; distance: number } | undefined;
   status: SignalStatus;
   result: SignalResult;
   galeReason?: string | undefined;
@@ -78,7 +79,7 @@ function toTracked(signal: EntrySignal, index: number): TrackedSignal {
   return {
     id: signal.id, sourceSpinId: signal.sourceSpinId, sourceIndex: index + 1,
     strategy: signal.strategy, baseStrategy: signal.baseStrategy, confluence: signal.confluence, strategyLabel: label(signal.strategy), target: signal.target,
-    action: signal.action, explanation: signal.explanation, status: "AGUARDANDO R1", result: "NO_SIGNAL",
+    action: signal.action, explanation: signal.explanation, postZeroContext: signal.postZeroContext, status: "AGUARDANDO R1", result: "NO_SIGNAL",
   };
 }
 
