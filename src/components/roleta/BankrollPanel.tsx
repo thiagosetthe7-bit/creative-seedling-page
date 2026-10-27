@@ -25,15 +25,15 @@ export function BankrollPanel() {
   const effectiveRecords = useMemo(() => { const merged: Record<number, DailyRecord> = { ...records }; for (const [dayText, result] of Object.entries(autoDailyResults)) { const day = Number(dayText); if (merged[day]?.resultadoRealizado === null || merged[day]?.resultadoRealizado === undefined) merged[day] = { ...merged[day], resultadoRealizado: result }; } return merged; }, [records, autoDailyResults]);
   const rows = useMemo(() => calcularTabelaJuros(config, effectiveRecords, dataLocal()), [config, effectiveRecords]);
   const financialSignals = tracking.signals.filter((signal) => !financeLedger.removedSignalIds.includes(signal.id)).map((signal) => { const result = effectiveSignalResult(signal, financeLedger); return { ...signal, status: result === "PENDING" ? signal.status : "CONCLUÍDO" as const, result: result === "PENDING" ? "NO_SIGNAL" as const : result as TrackedSignal["result"] }; });
-  const stopLossAtivo = Math.max(0, activeRow?.bancaInicial ?? config.bancaInicial) * (config.stopLossPercentual ?? 20) / 100;
-  const configComStopAtivo = { ...config, bancaInicial: activeRow?.bancaInicial ?? config.bancaInicial, stopLossMaximo: stopLossAtivo };
-  const resumo = useMemo(() => calcularBanca(financialSignals, configComStopAtivo), [financialSignals, configComStopAtivo]);
   const activeDay = Math.max(1, Math.min(config.periodoDias, diaAtivo(config, dataLocal())));
   const activeRow = rows[activeDay - 1];
   const resultadoDia = activeRow?.resultadoRealizado ?? 0;
   const metaDiaBatida = Boolean(activeRow && resultadoDia >= activeRow.metaDia && activeRow.resultadoRealizado !== null);
   const projecaoFinal = projetarJurosCompostos(config.bancaInicial, config.metaDiariaPercentual, config.periodoDias);
   const activeBank = activeRow?.bancaInicial ?? config.bancaInicial;
+  const stopLossAtivo = Math.max(0, activeBank) * (config.stopLossPercentual ?? 20) / 100;
+  const configComStopAtivo = useMemo(() => ({ ...config, bancaInicial: activeBank, stopLossMaximo: stopLossAtivo }), [config, activeBank, stopLossAtivo]);
+  const resumo = useMemo(() => calcularBanca(financialSignals, configComStopAtivo), [financialSignals, configComStopAtivo]);
 
   useEffect(() => { try { window.localStorage.setItem(BANKROLL_KEY, JSON.stringify(config)); } catch { /* storage opcional */ } }, [config]);
   useEffect(() => { try { window.localStorage.setItem(BANKROLL_DAYS_KEY, JSON.stringify(records)); } catch { /* storage opcional */ } }, [records]);
