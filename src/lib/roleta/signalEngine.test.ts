@@ -69,3 +69,27 @@ describe("BR Antecedente", () => {
     expect(signals[0]?.target.startsWith("COLUNAS")).toBe(true);
   });
 });
+
+describe("Contexto pós-zero", () => {
+  it("marca DELTA quando a dominância, a quebra e o retorno acontecem após o último zero", () => {
+    const history = spins(0, 1, 3, 5, 7, 9, 2, 12);
+    const signals = detectarSinaisEntrada(history, {});
+    const delta = signals.find((signal) => signal.strategy === "delta" && signal.target === "COR: VERMELHO");
+    expect(delta?.postZeroContext?.distance).toBe(7);
+    expect(delta?.postZeroContext?.zeroSpinId).toBe(history[0]?.id);
+  });
+
+  it("não marca pós-zero quando o padrão de dominância começou antes do zero", () => {
+    const history = spins(1, 3, 5, 7, 9, 0, 2, 12);
+    const signals = detectarSinaisEntrada(history, {});
+    const delta = signals.find((signal) => signal.strategy === "delta" && signal.target === "COR: VERMELHO");
+    expect(delta?.postZeroContext).toBeUndefined();
+  });
+
+  it("não usa um zero fora da janela de 25 giros", () => {
+    const history = spins(0, ...Array.from({ length: 25 }, (_, i) => i % 2 === 0 ? 1 : 2), 1, 3, 5, 7, 9, 2, 12);
+    const signals = detectarSinaisEntrada(history, {});
+    const delta = signals.find((signal) => signal.strategy === "delta" && signal.target === "COR: VERMELHO");
+    expect(delta?.postZeroContext).toBeUndefined();
+  });
+});
