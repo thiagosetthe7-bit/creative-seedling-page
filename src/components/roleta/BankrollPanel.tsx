@@ -32,8 +32,8 @@ export function BankrollPanel() {
   const projecaoFinal = projetarJurosCompostos(config.bancaInicial, config.metaDiariaPercentual, config.periodoDias);
   const activeBank = activeRow?.bancaInicial ?? config.bancaInicial;
   const stopLossAtivo = Math.max(0, activeBank) * (config.stopLossPercentual ?? 20) / 100;
-  const configComStopAtivo = useMemo(() => ({ ...config, bancaInicial: activeBank, stopLossMaximo: stopLossAtivo }), [config, activeBank, stopLossAtivo]);
-  const resumo = useMemo(() => calcularBanca(financialSignals, configComStopAtivo), [financialSignals, configComStopAtivo]);
+  const resumoBase = useMemo(() => calcularBanca(financialSignals, config), [financialSignals, config]);
+  const resumo = { ...resumoBase, stopLossCritico: resumoBase.reds > 0 && resumoBase.lucroLiquido <= -stopLossAtivo };
 
   useEffect(() => { try { window.localStorage.setItem(BANKROLL_KEY, JSON.stringify(config)); } catch { /* storage opcional */ } }, [config]);
   useEffect(() => { try { window.localStorage.setItem(BANKROLL_DAYS_KEY, JSON.stringify(records)); } catch { /* storage opcional */ } }, [records]);
