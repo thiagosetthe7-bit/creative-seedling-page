@@ -25,7 +25,9 @@ export function BankrollPanel() {
   const effectiveRecords = useMemo(() => { const merged: Record<number, DailyRecord> = { ...records }; for (const [dayText, result] of Object.entries(autoDailyResults)) { const day = Number(dayText); if (merged[day]?.resultadoRealizado === null || merged[day]?.resultadoRealizado === undefined) merged[day] = { ...merged[day], resultadoRealizado: result }; } return merged; }, [records, autoDailyResults]);
   const rows = useMemo(() => calcularTabelaJuros(config, effectiveRecords, dataLocal()), [config, effectiveRecords]);
   const financialSignals = tracking.signals.filter((signal) => !financeLedger.removedSignalIds.includes(signal.id)).map((signal) => { const result = effectiveSignalResult(signal, financeLedger); return { ...signal, status: result === "PENDING" ? signal.status : "CONCLUÍDO" as const, result: result === "PENDING" ? "NO_SIGNAL" as const : result as TrackedSignal["result"] }; });
-  const resumo = useMemo(() => calcularBanca(financialSignals, config), [financialSignals, config]);
+  const stopLossAtivo = Math.max(0, activeRow?.bancaInicial ?? config.bancaInicial) * (config.stopLossPercentual ?? 20) / 100;
+  const configComStopAtivo = { ...config, bancaInicial: activeRow?.bancaInicial ?? config.bancaInicial, stopLossMaximo: stopLossAtivo };
+  const resumo = useMemo(() => calcularBanca(financialSignals, configComStopAtivo), [financialSignals, configComStopAtivo]);
   const activeDay = Math.max(1, Math.min(config.periodoDias, diaAtivo(config, dataLocal())));
   const activeRow = rows[activeDay - 1];
   const resultadoDia = activeRow?.resultadoRealizado ?? 0;
@@ -71,7 +73,7 @@ export function BankrollPanel() {
           <Field label="Período de Operação (dias)"><input className={inputClass} type="number" min="1" max="3650" step="1" value={config.periodoDias} onChange={(e) => update({ periodoDias: Math.max(1, Math.min(3650, Math.floor(Number(e.target.value) || 1))) })}/></Field>
           <Field label="Data inicial da operação"><input className={inputClass} type="date" value={config.dataInicio} onChange={(e) => update({ dataInicio: e.target.value || dataLocal() })}/></Field>
           <Field label="Stake Base R1 por Área (R$)"><input className={inputClass} type="number" min="0" step="0.5" value={config.stakeR1PorArea} onChange={(e) => update({ stakeR1PorArea: Math.max(0, Number(e.target.value)), stakeR2PorArea: Math.max(0, Number(e.target.value)) * 2 })}/></Field>
-          <Field label="Stop Loss diário (R$)"><input className={inputClass} type="number" min="0" step="any" value={config.stopLossMaximo} onChange={(e) => update({ stopLossMaximo: Math.max(0, Number(e.target.value)) })}/></Field>
+          <Field label="Stop Loss dinâmico (20% da banca do dia)"><div className={inputClass + " bg-muted/40"} aria-live="polite">{dinheiro(stopLossAtivo)}</div></Field>
         </div>
         <div className="mt-4 rounded-xl border-2 border-emerald-500/40 bg-emerald-500/5 p-4"><p className="text-xs font-black tracking-widest text-emerald-500">PROJEÇÃO DE JUROS COMPOSTOS</p><p className="mt-2 text-2xl font-black">Projeção Final acumulada em {config.periodoDias} dias: {dinheiro(projecaoFinal)}</p><p className="mt-1 text-xs text-muted-foreground">Cálculo teórico: banca inicial × (1 + meta diária) elevado ao número de dias.</p></div>
         <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3"><input type="checkbox" className="mt-1" checked={config.bloquearSinaisMetaDiaria} onChange={(e) => update({ bloquearSinaisMetaDiaria: e.target.checked })}/><span><strong className="block text-sm">Bloquear novos sinais ao atingir a meta diária</strong><span className="text-xs text-muted-foreground">Quando ativado, a catalogação oculta o popup de entrada após registrar resultado diário igual ou superior à meta.</span></span></label>
