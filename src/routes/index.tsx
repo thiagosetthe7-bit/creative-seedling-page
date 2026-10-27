@@ -36,10 +36,11 @@ function Catalogacao() {
   const configBanca = carregarConfigBanca();
   const financeLedger = loadSessionFinance();
   const sinaisFinanceiros = tracking.signals.filter((signal) => !financeLedger.removedSignalIds.includes(signal.id)).map((signal) => { const result = effectiveSignalResult(signal, financeLedger); return { ...signal, status: result === "PENDING" ? signal.status : "CONCLUÍDO" as const, result: result === "PENDING" ? "NO_SIGNAL" as const : result as typeof signal.result }; });
-  const resumoBanca = calcularBanca(sinaisFinanceiros, configBanca);
   const diaAtual = Math.max(1, Math.min(configBanca.periodoDias, diaAtivo(configBanca, dataLocalISO())));
   const linhaDia = calcularTabelaJuros(configBanca, carregarDiasBanca(), dataLocalISO())[diaAtual - 1];
   const bancaDiaAtivo = linhaDia?.bancaInicial ?? configBanca.bancaInicial;
+  const stopLossAtivo = bancaDiaAtivo * (configBanca.stopLossPercentual ?? 20) / 100;
+  const resumoBanca = calcularBanca(sinaisFinanceiros, { ...configBanca, bancaInicial: bancaDiaAtivo, stopLossMaximo: stopLossAtivo });
   const stakeR1Popup = configBanca.stakeR1PorArea * 2;
   const stakeR2Popup = stakeR1Popup * 2;
   const resultadoAutomaticoDia = tracking.signals.reduce((sum, signal) => { if (!signal.resultSpinId || financeLedger.removedSignalIds.includes(signal.id)) return sum; const spin = estado.spins.find((item) => item.id === signal.resultSpinId) ?? estado.spins.find((item) => item.id === signal.sourceSpinId); if (!spin) return sum; const d = new Date(spin.timestamp); const data = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; if (data !== dataLocalISO()) return sum; const result = effectiveSignalResult(signal, financeLedger); if (result === "PENDING" || result === "NO_SIGNAL" || result === "NOT_PICKED") return sum; return sum + (impactoFinanceiro(signal, configBanca, financeLedger) ?? 0); }, 0);
@@ -51,8 +52,15 @@ function Catalogacao() {
     <AppShell>
       {bloqueioFinanceiro ? (
         <div role="alert" className="mb-4 rounded-lg border-2 border-rose-500 bg-rose-500/10 p-3 text-sm font-black text-rose-500">
-          SINAIS BLOQUEADOS: {metaDiariaAtingida ? "META DIÁRIA ATINGIDA" : resumoBanca.metaBatida ? "META DA SESSÃO ATINGIDA" : "STOP LOSS CRÍTICO ATINGIDO"}. Encerre a sessão antes de considerar novas entradas.
+          SINAIS BLOQUEADOS: {metaDiariaAtingida ? "META DIÁRIA ATINGIDA" : "META DA SESSÃO ATINGIDA"}. Encerre a sessão antes de considerar novas entradas.
         </div>
+      ) : resumoBanca.stopLossCritico ? (
+        <>
+          <div role="alert" className="mb-4 rounded-lg border-2 border-rose-500 bg-rose-500/10 p-3 text-sm font-black text-rose-500">
+            🔴 STOP LOSS ATINGIDO APÓS RED CONFIRMADO NO R2. Novas entradas R1 ficam suspensas; a recomendação Smart Gale 1 continua sendo exibida para não ocultar um R2 em andamento.
+          </div>
+          <SignalPopup signals={[]} smartGale={smartGale} stakeR1Total={stakeR1Popup} stakeR2Total={stakeR2Popup} />
+        </>
       ) : <SignalPopup signals={sinais} smartGale={smartGale} stakeR1Total={stakeR1Popup} stakeR2Total={stakeR2Popup} />}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
