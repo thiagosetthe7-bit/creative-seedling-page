@@ -1,7 +1,6 @@
 import { CATEGORIAS, corDoNumero } from "@/lib/roleta/classificacao";
 import { estiloCelula } from "@/lib/roleta/paleta";
 import type { Spin } from "@/lib/roleta/catalogo";
-import { useEstado } from "@/lib/roleta/store";
 
 function estiloNumero(n: number) {
   const c = corDoNumero(n);
@@ -12,7 +11,6 @@ function estiloNumero(n: number) {
 
 /** Tabela de catalogação sem destaque, trigger ou associação a estratégias. */
 export function TabelaCatalogacao({ spins }: { spins: Spin[] }) {
-  useEstado();
   const linhas = spins.map((spin, i) => ({ spin, rodada: i + 1 })).reverse();
 
   return (
