@@ -57,10 +57,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
       <main className="mx-auto max-w-[1600px] px-4 py-4">{children}</main>
-      <footer className="mx-auto max-w-[1600px] px-4 pb-8 pt-2 text-[11px] leading-relaxed text-muted-foreground">
-        Ferramenta de análise estatística. Não realiza apostas, não movimenta dinheiro e não
-        prevê números. Identifica apenas o padrão configurado e registra o que teria ocorrido.
-      </footer>
     </div>
   );
 }
