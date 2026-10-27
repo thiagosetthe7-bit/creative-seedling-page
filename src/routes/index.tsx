@@ -8,7 +8,7 @@ import { TabelaCatalogacao } from "@/components/roleta/TabelaCatalogacao";
 import { useSinais } from "@/lib/roleta/useSinais";
 import { acoes, useEstado } from "@/lib/roleta/store";
 import { baixarCSVCatalogacao } from "@/lib/exportCatalogacao";
-import { calcularBanca, carregarConfigBanca, carregarDiasBanca, calcularTabelaJuros, diaAtivo } from "@/lib/roleta/bankroll";
+import { calcularBanca, carregarConfigBanca } from "@/lib/roleta/bankroll";
 import { effectiveSignalResult, impactoFinanceiro, loadSessionFinance, SESSION_FINANCE_EVENT } from "@/lib/roleta/sessionFinance";
 
 const dataLocalISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
@@ -36,16 +36,14 @@ function Catalogacao() {
   const configBanca = carregarConfigBanca();
   const financeLedger = loadSessionFinance();
   const sinaisFinanceiros = tracking.signals.filter((signal) => !financeLedger.removedSignalIds.includes(signal.id)).map((signal) => { const result = effectiveSignalResult(signal, financeLedger); return { ...signal, status: result === "PENDING" ? signal.status : "CONCLUÍDO" as const, result: result === "PENDING" ? "NO_SIGNAL" as const : result as typeof signal.result }; });
-  const diaAtual = Math.max(1, Math.min(configBanca.periodoDias, diaAtivo(configBanca, dataLocalISO())));
-  const linhaDia = calcularTabelaJuros(configBanca, carregarDiasBanca(), dataLocalISO())[diaAtual - 1];
-  const bancaDiaAtivo = linhaDia?.bancaInicial ?? configBanca.bancaInicial;
+  const bancaDiaAtivo = configBanca.bancaInicial;
   const stopLossAtivo = bancaDiaAtivo * (configBanca.stopLossPercentual ?? 20) / 100;
   const resumoFinanceiro = calcularBanca(sinaisFinanceiros, configBanca);
   const resumoBanca = { ...resumoFinanceiro, stopLossCritico: resumoFinanceiro.reds > 0 && resumoFinanceiro.lucroLiquido <= -stopLossAtivo };
   const stakeR1Popup = configBanca.stakeR1PorArea * 2;
   const stakeR2Popup = stakeR1Popup * 2;
   const resultadoAutomaticoDia = tracking.signals.reduce((sum, signal) => { if (!signal.resultSpinId || financeLedger.removedSignalIds.includes(signal.id)) return sum; const spin = estado.spins.find((item) => item.id === signal.resultSpinId) ?? estado.spins.find((item) => item.id === signal.sourceSpinId); if (!spin) return sum; const d = new Date(spin.timestamp); const data = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; if (data !== dataLocalISO()) return sum; const result = effectiveSignalResult(signal, financeLedger); if (result === "PENDING" || result === "NO_SIGNAL" || result === "NOT_PICKED") return sum; return sum + (impactoFinanceiro(signal, configBanca, financeLedger) ?? 0); }, 0);
-  const resultadoAtualDia = linhaDia?.resultadoRealizado ?? resultadoAutomaticoDia;
+  const resultadoAtualDia = resultadoAutomaticoDia;
   const metaDiariaAtingida = Boolean(configBanca.bloquearSinaisMetaDiaria && linhaDia && resultadoAtualDia >= linhaDia.metaDia);
   const bloqueioFinanceiro = resumoBanca.metaBatida || metaDiariaAtingida;
 
