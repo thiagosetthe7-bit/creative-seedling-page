@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, ShieldAlert, Wallet } from "lucide-react";
+import { CheckCircle2, ShieldAlert, Wallet } from "lucide-react";
 import { useSinais } from "@/lib/roleta/useSinais";
 import type { TrackedSignal } from "@/lib/roleta/signalTracking";
 import { useEstado } from "@/lib/roleta/store";
@@ -42,7 +42,6 @@ export function BankrollPanel() {
     <div className="space-y-4">
       <header>
         <h1 className="text-lg font-black tracking-widest">GERENCIAMENTO DE BANCA</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Planejamento diário editável, projeção composta e acompanhamento do realizado. Valores são simulações e não previsões de lucro.</p>
       </header>
 
       {blockSignals && <div role="alert" className="rounded-xl border-2 border-emerald-500 bg-emerald-500/10 p-4 font-black text-emerald-500">SINAIS BLOQUEADOS: META DIÁRIA ALCANÇADA. A opção de proteção de lucro está ativa.</div>}
@@ -78,7 +77,7 @@ export function BankrollPanel() {
         <div className="grid gap-3 sm:grid-cols-2"><div className="rounded-lg border border-sky-500/40 bg-sky-500/5 p-4"><p className="text-xs font-black text-sky-500">STAKE R1</p><p className="mt-2 text-2xl font-black">{dinheiro(stakeR1Total)}</p><p className="text-xs text-muted-foreground">2 áreas × {dinheiro(config.stakeR1PorArea)} por área · stake total sugerida</p></div><div className="rounded-lg border border-orange-500/40 bg-orange-500/5 p-4"><p className="text-xs font-black text-orange-500">STAKE R2 · SMART GALE 1</p><p className="mt-2 text-2xl font-black">{dinheiro(stakeR2Total)}</p><p className="text-xs text-muted-foreground">2× a stake R1</p></div></div>
       </section>
 
-      <section className="rounded-xl border border-border bg-card p-4"><h2 className="mb-2 text-sm font-black tracking-widest">RESUMO E SEGURANÇA</h2><div className="flex items-start gap-2 text-xs text-muted-foreground"><AlertTriangle className="h-4 w-4 shrink-0"/><p>Os resultados financeiros são calculados a partir dos sinais concluídos e das correções no histórico. A banca estimada pelo histórico de sinais é {dinheiro(resumo.bancaAtual)}. Stop Loss é um limite de risco, não uma garantia de proteção contra perdas.</p></div></section>
+
     </div>
   );
 }
