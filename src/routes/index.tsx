@@ -19,7 +19,7 @@ export const Route = createFileRoute("/")({
       { title: "Catalogação — Roleta" },
       { name: "description", content: "Registro e classificação dos giros da roleta." },
       { property: "og:title", content: "Catalogação — Roleta" },
-      { property: "og:description", content: "Registro manual de giros, classificações e marcações BT/BR." },
+      { property: "og:description", content: "Registro manual de giros, análise de sinais e importação de histórico." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -45,7 +45,7 @@ function Catalogacao() {
   const resultadoAutomaticoDia = tracking.signals.reduce((sum, signal) => { if (!signal.resultSpinId || financeLedger.removedSignalIds.includes(signal.id)) return sum; const spin = estado.spins.find((item) => item.id === signal.resultSpinId) ?? estado.spins.find((item) => item.id === signal.sourceSpinId); if (!spin) return sum; const d = new Date(spin.timestamp); const data = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; if (data !== dataLocalISO()) return sum; const result = effectiveSignalResult(signal, financeLedger); if (result === "PENDING" || result === "NO_SIGNAL" || result === "NOT_PICKED") return sum; return sum + (impactoFinanceiro(signal, configBanca, financeLedger) ?? 0); }, 0);
   const resultadoAtualDia = linhaDia?.resultadoRealizado ?? resultadoAutomaticoDia;
   const metaDiariaAtingida = Boolean(configBanca.bloquearSinaisMetaDiaria && linhaDia && resultadoAtualDia >= linhaDia.metaDia);
-  const bloqueioFinanceiro = resumoBanca.metaBatida || resumoBanca.stopLossCritico || metaDiariaAtingida;
+  const bloqueioFinanceiro = resumoBanca.metaBatida || metaDiariaAtingida;
 
   return (
     <AppShell>
@@ -58,7 +58,7 @@ function Catalogacao() {
         <div>
           <h1 className="text-lg font-black tracking-widest">CATALOGAÇÃO</h1>
           <p className="mt-1 text-xs text-muted-foreground">
-            Registro manual ativo · engine VOLT Duplo, DELTA e BR Antecedente.
+            Registro manual ativo · engine VOLT Duplo e DELTA.
           </p>
         </div>
         <button
