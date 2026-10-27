@@ -113,6 +113,13 @@ export function SignalPopup({ signals, smartGale = null, onDismiss, stakeR1Total
               ✨ SUPER GATILHO · VOLT + BR
             </div>
           )}
+          {signals.some((signal) => signal.postZeroContext) && (
+            <div className="mt-4 rounded-xl border-2 border-emerald-300 bg-gradient-to-r from-emerald-500/20 via-cyan-500/15 to-sky-500/20 px-4 py-3 text-sm font-black leading-relaxed text-emerald-100 shadow-[0_0_24px_rgba(16,185,129,0.2)]">
+              🌟 PADRÃO PÓS-ZERO CONFIRMADO: Alta assertividade estatística (Ciclo pós-reset limpo).
+              <span className="mt-1 block text-xs font-bold text-cyan-100">Zero mais recente há {signals.find((signal) => signal.postZeroContext)?.postZeroContext?.distance} giro(s) · ciclo de dominância, quebra e retorno consolidado após o zero.</span>
+              <span className="mt-1 block text-[10px] font-medium text-emerald-100/80">Selo contextual de padrão; não representa probabilidade medida nem garante acerto.</span>
+            </div>
+          )}
         </header>
 
         <div className="space-y-4 p-5 sm:p-7">
