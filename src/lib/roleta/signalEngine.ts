@@ -19,6 +19,74 @@ export interface EntrySignal {
   postZeroContext?: { zeroSpinId: string; distance: number } | undefined;
 }
 
+export interface MarketEntropyAssessment {
+  isMarketSafe: boolean;
+  dominantSector: string | null;
+  concentration: number;
+  hasIsolatedBreaks: boolean;
+}
+
+/**
+ * Defensive market filter over the last 10 catalogued spins.
+ * A sector is considered saturated at 6/10 or more, and chaotic when at least
+ * one single-spin interruption is surrounded by the same dominant sector.
+ * Zero is excluded from sector counts and interrupts a run.
+ */
+export function evaluateMarketEntropy(spins: Spin[]): MarketEntropyAssessment {
+  const last10 = spins.slice(-10);
+  if (last10.length < 10) {
+    return { isMarketSafe: true, dominantSector: null, concentration: 0, hasIsolatedBreaks: false };
+  }
+
+  const dimensions: { key: AreaKey; label: string }[] = [
+    { key: "duzia", label: "DÚZIA" },
+    { key: "coluna", label: "COLUNA" },
+  ];
+  let dominantSector: string | null = null;
+  let maxCount = 0;
+  let dominantValues = new Set<string>();
+
+  for (const dimension of dimensions) {
+    const counts = new Map<string, number>();
+    for (const spin of last10) {
+      const value = valueOf(spin, dimension.key);
+      if (value === "ZERO" || value === "VERDE") continue;
+      counts.set(value, (counts.get(value) ?? 0) + 1);
+    }
+    for (const [value, count] of counts) {
+      if (count > maxCount) {
+        maxCount = count;
+        dominantSector = `${dimension.label} ${value}`;
+        dominantValues = new Set([value]);
+      }
+    }
+  }
+
+  if (maxCount < 6 || !dominantSector) {
+    return { isMarketSafe: true, dominantSector, concentration: maxCount / 10, hasIsolatedBreaks: false };
+  }
+
+  const isDominant = (spin: Spin) => {
+    const [dimensionLabel, value] = dominantSector!.split(" ");
+    const key: AreaKey = dimensionLabel === "DÚZIA" ? "duzia" : "coluna";
+    return valueOf(spin, key) === value;
+  };
+  let hasIsolatedBreaks = false;
+  for (let i = 1; i < last10.length - 1; i += 1) {
+    if (!isDominant(last10[i]!) && isDominant(last10[i - 1]!) && isDominant(last10[i + 1]!)) {
+      hasIsolatedBreaks = true;
+      break;
+    }
+  }
+
+  return {
+    isMarketSafe: !(maxCount >= 6 && hasIsolatedBreaks),
+    dominantSector,
+    concentration: maxCount / 10,
+    hasIsolatedBreaks,
+  };
+}
+
 type CategoryKey = "cor" | "pi" | "ab" | "cavalo";
 type AreaKey = "duzia" | "coluna";
 
