@@ -3,7 +3,7 @@ import { detectarSinaisEntrada, isSuperGatilho } from "./signalEngine";
 import { avaliarSmartGale1 } from "./smartGale";
 import { useEstado } from "./store";
 import { rebuildSignalTracking, SIGNAL_TRACKING_KEY, type TrackedSignal } from "./signalTracking";
-import { loadSessionFinance } from "./sessionFinance";
+import { loadSessionFinance, saveSessionFinance, type EditableSignalResult } from "./sessionFinance";
 import type { Spin } from "./catalogo";
 
 function spinHitsTarget(signal: TrackedSignal, spin: Spin): boolean {
@@ -122,6 +122,32 @@ export function useSinais() {
     } catch {
       // O painel continua funcional em memória se o armazenamento estiver indisponível.
     }
+  }, [tracking]);
+
+  // Automatic settlement is idempotent and never overwrites an operator's manual choice.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const ledger = loadSessionFinance();
+    let changed = false;
+    const corrections = { ...ledger.corrections };
+    for (const signal of tracking.signals) {
+      if (ledger.removedSignalIds.includes(signal.id)) continue;
+      const existing = corrections[signal.id];
+      if (existing && existing !== "PENDING") continue;
+      let resolved: EditableSignalResult | undefined;
+      if (signal.result === "GREEN_R1") resolved = "GREEN_R1";
+      else if (signal.result === "GREEN_GALE1") resolved = "GREEN_GALE1";
+      else if (signal.result === "RED") resolved = "RED";
+      else if (signal.status === "CONCLUÍDO" && signal.result === "NO_SIGNAL" && signal.r1Number !== undefined) {
+        // R1 missed and Smart Gale 1 was not approved/executed: record a protective block, not a full RED.
+        resolved = "BLOCKED";
+      }
+      if (resolved && existing !== resolved) {
+        corrections[signal.id] = resolved;
+        changed = true;
+      }
+    }
+    if (changed) saveSessionFinance({ ...ledger, corrections });
   }, [tracking]);
 
   return { sinais: sinaisPermitidos, superGatilho, smartGale, tracking, blockedTargets };
