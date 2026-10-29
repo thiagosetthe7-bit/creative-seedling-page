@@ -31,7 +31,8 @@ describe("exportação da catalogação", () => {
     expect(nova[1]).toBe("0");
     expect(nova[13]).toBe("1");
     expect(nova[14]).toBe("0");
-    expect(antiga).toHaveLength(21);
+    expect(antiga).toHaveLength(22);
+    expect(antiga[21]).toBe("Não");
   });
 
   it("registra o resultado no giro que resolveu o sinal, sem duplicar a recomendação", () => {
@@ -58,6 +59,8 @@ describe("exportação da catalogação", () => {
     expect(sourceRow[16]).toBe("DÚZIA D2 + COLUNA C2");
     expect(sourceRow[17]).toBe("NO_SIGNAL");
     expect(resolutionRow[17]).toBe("GREEN_GALE1");
+    const auditedCsv = montarCSVCatalogacao([source, resolution], {}, [tracked], { "signal-1": "GALE_BLOCKED" }).replace(/^\uFEFF/, "").split("\r\n");
+    expect(auditedCsv[1]!.split(";")[21]).toBe("Gale Bloqueado");
   });
 
   it("não altera a sequência de entrada nem exige os módulos antigos de sinais", () => {
