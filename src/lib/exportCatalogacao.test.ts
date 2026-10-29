@@ -7,7 +7,7 @@ describe("exportação da catalogação", () => {
   it("exporta cabeçalho com as 21 colunas, BOM UTF-8 e sem linhas quando não há giros", () => {
     const csv = montarCSVCatalogacao([], {});
     expect(csv.charCodeAt(0)).toBe(0xfeff);
-    expect(csv).toContain("Spin_Index;Number;Terminal;Cavalo;High_Low;Dozen;Column;Even_Odd;Type;Section;Axis_0_10;Axis_22_34;Color;BR_Flag;BT_Flag;Triggered_Strategy;Target_Bet;Signal_Result");
+    expect(csv).toContain("Spin_Index;Number;Terminal;Cavalo;High_Low;Dozen;Column;Even_Odd;Type;Section;Axis_0_10;Axis_22_34;Color;BR_Flag;BT_Flag;Triggered_Strategy;Target_Bet;Signal_Result;Post_Zero_Context;Last_Zero_Distance_Spins;Last_Zero_Spin_ID;Gale_Bloqueado");
     expect(csv.split("\r\n")).toHaveLength(1);
   });
 
@@ -60,7 +60,8 @@ describe("exportação da catalogação", () => {
     expect(sourceRow[17]).toBe("NO_SIGNAL");
     expect(resolutionRow[17]).toBe("GREEN_GALE1");
     const auditedCsv = montarCSVCatalogacao([source, resolution], {}, [tracked], { "signal-1": "GALE_BLOCKED" }).replace(/^\uFEFF/, "").split("\r\n");
-    expect(auditedCsv[1]!.split(";")[21]).toBe("Gale Bloqueado");
+    expect(auditedCsv[1]!.split(";")[21]).toBe("TRUE");
+    expect(auditedCsv[1]!.split(";")[17]).toBe("NO_SIGNAL");
   });
 
   it("não altera a sequência de entrada nem exige os módulos antigos de sinais", () => {
