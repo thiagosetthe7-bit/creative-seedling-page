@@ -62,14 +62,14 @@ function Catalogacao() {
           <SignalPopup signals={[]} smartGale={smartGale} stakeR1Total={stakeR1Popup} stakeR2Total={stakeR2Popup} />
         </>
       ) : <SignalPopup signals={sinais} smartGale={smartGale} stakeR1Total={stakeR1Popup} stakeR2Total={stakeR2Popup} />}
-      {blockedTargets.map((target) => <div key={target} role="alert" aria-live="assertive" className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/20 p-3 text-sm font-black text-amber-400">⚠️ ALERTA DE EXAUSTÃO: O alvo {target} falhou recentemente nesta sessão. Entrada bloqueada para evitar repetição exausta.</div>)}
+      {blockedTargets.map(({ target, reason }) => <div key={`${target}-${reason}`} role="alert" aria-live="assertive" className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/20 p-3 text-sm font-black text-amber-400">{reason === "WIN" ? `⚠️ ALERTA DE EXAUSTÃO: O alvo ${target} já teve um WIN recente nesta sessão sem reset de Zero. Entrada bloqueada para evitar repetição exausta.` : reason === "FAILED" ? `⚠️ ALERTA DE EXAUSTÃO: O alvo ${target} teve RED ou Gale Bloqueado nesta sessão. Nova formação bloqueada para evitar repetição negativa.` : `⚠️ LIMITE DE EXAUSTÃO: O alvo ${target} já atingiu duas formações nesta sessão. Nova entrada bloqueada.`}</div>)}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-lg font-black tracking-widest">CATALOGAÇÃO</h1>
         </div>
         <button
           type="button"
-          onClick={() => baixarCSVCatalogacao(estado.spins, estado.bips, tracking.signals)}
+          onClick={() => baixarCSVCatalogacao(estado.spins, estado.bips, tracking.signals, financeLedger.corrections)}
           className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-black tracking-widest hover:bg-accent"
         >
           EXPORTAR CSV
