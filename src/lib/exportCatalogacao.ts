@@ -2,7 +2,7 @@ import type { Spin } from "./roleta/catalogo";
 import type { TipoBip } from "./roleta/store";
 import type { TrackedSignal } from "./roleta/signalTracking";
 
-const CABECALHO = "Spin_Index;Number;Terminal;Cavalo;High_Low;Dozen;Column;Even_Odd;Type;Section;Axis_0_10;Axis_22_34;Color;BR_Flag;BT_Flag;Triggered_Strategy;Target_Bet;Signal_Result;Post_Zero_Context;Last_Zero_Distance_Spins;Last_Zero_Spin_ID";
+const CABECALHO = "Spin_Index;Number;Terminal;Cavalo;High_Low;Dozen;Column;Even_Odd;Type;Section;Axis_0_10;Axis_22_34;Color;BR_Flag;BT_Flag;Triggered_Strategy;Target_Bet;Signal_Result;Post_Zero_Context;Last_Zero_Distance_Spins;Last_Zero_Spin_ID;Gale_Bloqueado";
 
 function celulaCSV(valor: unknown): string {
   const texto = String(valor ?? "");
@@ -14,6 +14,7 @@ export function montarCSVCatalogacao(
   spins: Spin[],
   bips: Record<string, TipoBip>,
   trackedSignals: TrackedSignal[] = [],
+  financeCorrections: Record<string, string> = {},
 ): string {
   const linhas = [CABECALHO];
   const bySourceSpin = new Map<string, TrackedSignal[]>();
@@ -38,6 +39,12 @@ export function montarCSVCatalogacao(
       return ids.map((id) => id === "volt-duplo" ? "VOLT" : id === "delta" ? "DELTA" : id === "br-antecedente" ? "BR" : "None").filter((value) => value !== "None").join(" + ");
     }).filter(Boolean).join(" | ") || "None";
     const target = related.map((signal) => signal.target).join(" | ") || "";
+    const galeBlocked = related.map((signal) => {
+      const correction = financeCorrections[signal.id];
+      if (correction === "GALE_BLOCKED") return "Gale Bloqueado";
+      if (correction === "PARTIAL_RED") return "Red Parcial";
+      return "Não";
+    }).find((value) => value !== "Não") ?? "Não";
     const postZero = related.find((signal) => signal.postZeroContext);
     const postZeroTag = postZero ? "POST_ZERO_CONFIRMED" : "NO";
     const postZeroDistance = postZero?.postZeroContext?.distance ?? "";
@@ -70,6 +77,7 @@ export function montarCSVCatalogacao(
       postZeroTag,
       postZeroDistance,
       postZeroId,
+      galeBlocked,
     ].map(celulaCSV).join(";"));
   });
 
@@ -80,12 +88,13 @@ export function baixarCSVCatalogacao(
   spins: Spin[],
   bips: Record<string, TipoBip>,
   trackedSignals: TrackedSignal[] = [],
+  financeCorrections: Record<string, string> = {},
 ): void {
   if (spins.length === 0) {
     window.alert("Nenhum dado para exportar");
     return;
   }
-  const csv = montarCSVCatalogacao(spins, bips, trackedSignals);
+  const csv = montarCSVCatalogacao(spins, bips, trackedSignals, financeCorrections);
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
