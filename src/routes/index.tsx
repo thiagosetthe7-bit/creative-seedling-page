@@ -32,7 +32,7 @@ function Catalogacao() {
   useEffect(() => { const sync = () => setFinanceRevision((n) => n + 1); window.addEventListener(SESSION_FINANCE_EVENT, sync); window.addEventListener("storage", sync); return () => { window.removeEventListener(SESSION_FINANCE_EVENT, sync); window.removeEventListener("storage", sync); }; }, []);
   void financeRevision;
   const estado = useEstado();
-  const { sinais, smartGale, tracking, blockedTargets } = useSinais();
+  const { sinais, smartGale, tracking, blockedTargets, marketEntropy } = useSinais();
   const configBanca = carregarConfigBanca();
   const financeLedger = loadSessionFinance();
   const sinaisFinanceiros = tracking.signals.filter((signal) => !financeLedger.removedSignalIds.includes(signal.id)).map((signal) => { const result = effectiveSignalResult(signal, financeLedger); return { ...signal, status: result === "PENDING" ? signal.status : "CONCLUÍDO" as const, result: result === "PENDING" ? "NO_SIGNAL" as const : result as typeof signal.result }; });
@@ -62,6 +62,11 @@ function Catalogacao() {
           <SignalPopup signals={[]} smartGale={smartGale} stakeR1Total={stakeR1Popup} stakeR2Total={stakeR2Popup} />
         </>
       ) : <SignalPopup signals={sinais} smartGale={smartGale} stakeR1Total={stakeR1Popup} stakeR2Total={stakeR2Popup} />}
+      <div role="status" aria-live="polite" className={`mb-3 flex items-center gap-2 rounded-lg border p-3 text-xs font-black ${marketEntropy.isMarketSafe ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-amber-500/30 bg-amber-500/20 text-amber-400"}`}>
+        {marketEntropy.isMarketSafe
+          ? "🟢 MERCADO ESTÁVEL — filtro de saturação liberado"
+          : `🛡️ MESA DE ALTA VOLATILIDADE / SATURAÇÃO EM ${marketEntropy.dominantSector ?? "SETOR"}. SINAIS VOLT/DELTA SUSPENSOS TEMPORARIAMENTE.`}
+      </div>
       {blockedTargets.map(({ target, reason }) => <div key={`${target}-${reason}`} role="alert" aria-live="assertive" className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/20 p-3 text-sm font-black text-amber-400">{reason === "WIN" ? `⚠️ ALERTA DE EXAUSTÃO: O alvo ${target} já teve um WIN recente nesta sessão sem reset de Zero. Entrada bloqueada para evitar repetição exausta.` : reason === "FAILED" ? `⚠️ ALERTA DE EXAUSTÃO: O alvo ${target} teve RED ou Gale Bloqueado nesta sessão. Nova formação bloqueada para evitar repetição negativa.` : `⚠️ LIMITE DE EXAUSTÃO: O alvo ${target} já atingiu duas formações nesta sessão. Nova entrada bloqueada.`}</div>)}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
