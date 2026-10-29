@@ -32,7 +32,7 @@ function Catalogacao() {
   useEffect(() => { const sync = () => setFinanceRevision((n) => n + 1); window.addEventListener(SESSION_FINANCE_EVENT, sync); window.addEventListener("storage", sync); return () => { window.removeEventListener(SESSION_FINANCE_EVENT, sync); window.removeEventListener("storage", sync); }; }, []);
   void financeRevision;
   const estado = useEstado();
-  const { sinais, smartGale, tracking } = useSinais();
+  const { sinais, smartGale, tracking, blockedTargets } = useSinais();
   const configBanca = carregarConfigBanca();
   const financeLedger = loadSessionFinance();
   const sinaisFinanceiros = tracking.signals.filter((signal) => !financeLedger.removedSignalIds.includes(signal.id)).map((signal) => { const result = effectiveSignalResult(signal, financeLedger); return { ...signal, status: result === "PENDING" ? signal.status : "CONCLUÍDO" as const, result: result === "PENDING" ? "NO_SIGNAL" as const : result as typeof signal.result }; });
@@ -62,6 +62,7 @@ function Catalogacao() {
           <SignalPopup signals={[]} smartGale={smartGale} stakeR1Total={stakeR1Popup} stakeR2Total={stakeR2Popup} />
         </>
       ) : <SignalPopup signals={sinais} smartGale={smartGale} stakeR1Total={stakeR1Popup} stakeR2Total={stakeR2Popup} />}
+      {blockedTargets.map((target) => <div key={target} role="alert" aria-live="assertive" className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/20 p-3 text-sm font-black text-amber-400">⚠️ ALERTA DE EXAUSTÃO: O alvo {target} falhou recentemente nesta sessão. Entrada bloqueada para evitar repetição exausta.</div>)}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-lg font-black tracking-widest">CATALOGAÇÃO</h1>
