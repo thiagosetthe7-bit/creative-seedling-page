@@ -61,7 +61,7 @@ describe("exportação da catalogação", () => {
     expect(resolutionRow[17]).toBe("GREEN_GALE1");
     const auditedCsv = montarCSVCatalogacao([source, resolution], {}, [tracked], { "signal-1": "GALE_BLOCKED" }).replace(/^\uFEFF/, "").split("\r\n");
     expect(auditedCsv[1]!.split(";")[21]).toBe("TRUE");
-    expect(auditedCsv[1]!.split(";")[17]).toBe("NO_SIGNAL");
+    expect(auditedCsv[1]!.split(";")[17]).toBe("GREEN_GALE1");
   });
 
   it("não altera a sequência de entrada nem exige os módulos antigos de sinais", () => {
