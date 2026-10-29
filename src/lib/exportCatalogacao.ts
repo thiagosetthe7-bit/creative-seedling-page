@@ -41,19 +41,20 @@ export function montarCSVCatalogacao(
     const target = related.map((signal) => signal.target).join(" | ") || "";
     const galeBlocked = related.map((signal) => {
       const correction = financeCorrections[signal.id];
-      if (correction === "GALE_BLOCKED") return "Gale Bloqueado";
-      if (correction === "PARTIAL_RED") return "Red Parcial";
-      return "Não";
+      if (correction === "GALE_BLOCKED" || correction === "BLOCKED" || correction === "PARTIAL_RED") return "TRUE";
+      return "FALSE";
     }).find((value) => value !== "Não") ?? "Não";
     const postZero = related.find((signal) => signal.postZeroContext);
     const postZeroTag = postZero ? "POST_ZERO_CONFIRMED" : "NO";
     const postZeroDistance = postZero?.postZeroContext?.distance ?? "";
     const postZeroId = postZero?.postZeroContext?.zeroSpinId ?? "";
     const resolved = byResultSpin.get(spin.id) ?? [];
-    const results = resolved.map((signal) => signal.result);
+    const results = resolved.map((signal) => financeCorrections[signal.id] ?? signal.result);
     const result = results.includes("GREEN_R1") ? "GREEN_R1"
       : results.includes("GREEN_GALE1") ? "GREEN_GALE1"
-      : results.includes("RED") ? "RED" : "NO_SIGNAL";
+      : results.includes("RED") ? "RED"
+      : results.includes("BLOCKED") || results.includes("GALE_BLOCKED") || results.includes("PARTIAL_RED") ? "BLOCKED"
+      : results.includes("NOT_PICKED") ? "NOT_PICKED" : "NO_SIGNAL";
 
     linhas.push([
       index + 1,
