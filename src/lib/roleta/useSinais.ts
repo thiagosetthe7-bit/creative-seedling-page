@@ -3,6 +3,7 @@ import { detectarSinaisEntrada, isSuperGatilho } from "./signalEngine";
 import { avaliarSmartGale1 } from "./smartGale";
 import { useEstado } from "./store";
 import { rebuildSignalTracking, SIGNAL_TRACKING_KEY, type TrackedSignal } from "./signalTracking";
+import { loadSessionFinance } from "./sessionFinance";
 import type { Spin } from "./catalogo";
 
 function spinHitsTarget(signal: TrackedSignal, spin: Spin): boolean {
@@ -22,12 +23,14 @@ function spinHitsTarget(signal: TrackedSignal, spin: Spin): boolean {
   return false;
 }
 
-function exhaustionBlocks(spins: Spin[], tracked: TrackedSignal[], zeroProtection: boolean): string[] {
+function exhaustionBlocks(spins: Spin[], tracked: TrackedSignal[], zeroProtection: boolean, corrections: Record<string, string>): string[] {
   const latest = spins[spins.length - 1];
   if (!latest) return [];
   const blocked: string[] = [];
   for (const failed of tracked) {
-    if (failed.result !== "RED" || !failed.resultSpinId) continue;
+    const correctedResult = corrections[failed.id];
+    const failedResult = correctedResult === "RED" || correctedResult === "GALE_BLOCKED" || correctedResult === "PARTIAL_RED" || failed.result === "RED";
+    if (!failedResult || !failed.resultSpinId) continue;
     const failureIndex = spins.findIndex((spin) => spin.id === failed.resultSpinId);
     if (failureIndex < 0 || failureIndex >= spins.length - 1) continue;
     const after = spins.slice(failureIndex + 1);
@@ -72,7 +75,8 @@ export function useSinais() {
       }));
     return [...detected.filter((signal) => !reentries.some((item) => item.id === signal.id)), ...reentries];
   }, [estado.spins, estado.bips, estado.config.zeroComoProtecao, tracking]);
-  const blockedTargets = useMemo(() => exhaustionBlocks(estado.spins, tracking.signals, estado.config.zeroComoProtecao), [estado.spins, tracking.signals, estado.config.zeroComoProtecao]);
+  const financeLedger = loadSessionFinance();
+  const blockedTargets = useMemo(() => exhaustionBlocks(estado.spins, tracking.signals, estado.config.zeroComoProtecao, financeLedger.corrections), [estado.spins, tracking.signals, estado.config.zeroComoProtecao, financeLedger]);
   const sinaisPermitidos = useMemo(() => sinais.filter((signal) => !blockedTargets.includes(signal.target)), [sinais, blockedTargets]);
   const superGatilho = useMemo(() => isSuperGatilho(sinaisPermitidos), [sinaisPermitidos]);
   const smartGale = useMemo(
