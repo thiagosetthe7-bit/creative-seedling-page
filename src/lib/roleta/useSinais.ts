@@ -30,8 +30,8 @@ function exhaustionBlocks(spins: Spin[], tracked: TrackedSignal[], zeroProtectio
   for (const failed of tracked) {
     const correctedResult = corrections[failed.id];
     const failedResult = correctedResult === "RED" || correctedResult === "GALE_BLOCKED" || correctedResult === "PARTIAL_RED" || failed.result === "RED";
-    if (!failedResult || !failed.resultSpinId) continue;
-    const failureIndex = spins.findIndex((spin) => spin.id === failed.resultSpinId);
+    if (!failedResult) continue;
+    const failureIndex = spins.findIndex((spin) => spin.id === (failed.resultSpinId ?? failed.sourceSpinId));
     if (failureIndex < 0 || failureIndex >= spins.length - 1) continue;
     const after = spins.slice(failureIndex + 1);
     if (zeroProtection && after.some((spin) => spin.numero === 0)) continue;
