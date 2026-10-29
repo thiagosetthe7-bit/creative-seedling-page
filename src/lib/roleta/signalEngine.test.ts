@@ -11,6 +11,15 @@ describe("VOLT Duplo", () => {
     expect(signals.some((s) => s.strategy === "volt-duplo" && s.target.includes("D1 + D2"))).toBe(true);
   });
 
+  it("keeps the true dominant column pair after one isolated break instead of pivoting to the break column", () => {
+    // C2/C3 dominate; C1 is a single break, then C3 returns.
+    const history = spins(2, 3, 5, 6, 8, 1, 3);
+    const signals = detectarSinaisEntrada(history, {});
+    const volt = signals.find((signal) => signal.strategy === "volt-duplo");
+    expect(volt?.target).toBe("COLUNAS C2 + C3");
+    expect(volt?.target).not.toBe("COLUNAS C1 + C3");
+  });
+
   it("blocks a return after two break spins", () => {
     const history = spins(1, 14, 2, 17, 14, 25, 26, 4);
     expect(detectarSinaisEntrada(history, {}).some((s) => s.strategy === "volt-duplo")).toBe(false);
