@@ -23,30 +23,60 @@ function spinHitsTarget(signal: TrackedSignal, spin: Spin): boolean {
   return false;
 }
 
-function exhaustionBlocks(spins: Spin[], tracked: TrackedSignal[], zeroProtection: boolean, corrections: Record<string, string>): string[] {
-  const latest = spins[spins.length - 1];
-  if (!latest) return [];
-  const blocked: string[] = [];
-  for (const failed of tracked) {
-    const correctedResult = corrections[failed.id];
-    const failedResult = correctedResult === "RED" || correctedResult === "GALE_BLOCKED" || correctedResult === "PARTIAL_RED" || failed.result === "RED";
-    if (!failedResult) continue;
-    const failureIndex = spins.findIndex((spin) => spin.id === (failed.resultSpinId ?? failed.sourceSpinId));
-    if (failureIndex < 0 || failureIndex >= spins.length - 1) continue;
-    const after = spins.slice(failureIndex + 1);
-    if (zeroProtection && after.some((spin) => spin.numero === 0)) continue;
-    // Reset only after a clear break: two consecutive spins outside the failed target.
-    let outsideRun = 0;
-    let reset = false;
-    for (const spin of after) {
-      if (spinHitsTarget(failed, spin)) outsideRun = 0;
-      else outsideRun += 1;
-      if (outsideRun >= 2) { reset = true; break; }
+type ExhaustionBlock = { target: string; reason: "WIN" | "FAILED" | "LIMIT" };
+
+function isVoltDelta(signal: TrackedSignal): boolean {
+  const strategy = signal.strategy === "bt-concomitante" ? signal.baseStrategy : signal.strategy;
+  return strategy === "volt-duplo" || strategy === "delta";
+}
+
+function normalizedOutcome(signal: TrackedSignal, corrections: Record<string, string>): "GREEN" | "RED" | "OTHER" {
+  const result = corrections[signal.id] ?? signal.result;
+  if (result === "GREEN_R1" || result === "GREEN_GALE1") return "GREEN";
+  if (result === "RED" || result === "GALE_BLOCKED" || result === "PARTIAL_RED") return "RED";
+  return "OTHER";
+}
+
+/**
+ * Uses only validated signals reconstructed by the engine (not raw short oscillations).
+ * A target can form at most twice per session; a second formation requires a GREEN
+ * first result and an intervening zero. A first RED/partial-red permanently locks
+ * that exact target for the current session.
+ */
+function exhaustionBlocks(spins: Spin[], tracked: TrackedSignal[], corrections: Record<string, string>): ExhaustionBlock[] {
+  if (!spins.length) return [];
+  const candidates = tracked.filter(isVoltDelta).slice().sort((a, b) => a.sourceIndex - b.sourceIndex);
+  const blocks = new Map<string, ExhaustionBlock>();
+  const sourcePosition = new Map(spins.map((spin, index) => [spin.id, index]));
+
+  for (const candidate of candidates) {
+    const previous = candidates.filter((item) => item.target === candidate.target && item.sourceIndex < candidate.sourceIndex);
+    if (!previous.length) continue;
+
+    const first = previous[0]!;
+    const firstOutcome = normalizedOutcome(first, corrections);
+    const candidatePosition = sourcePosition.get(candidate.sourceSpinId);
+    const firstPosition = sourcePosition.get(first.sourceSpinId);
+    const hasZeroReset = candidatePosition !== undefined && firstPosition !== undefined
+      && spins.slice(firstPosition + 1, candidatePosition).some((spin) => spin.numero === 0);
+
+    let reason: ExhaustionBlock["reason"] | undefined;
+    if (previous.length >= 2) {
+      reason = "LIMIT";
+    } else if (firstOutcome !== "GREEN") {
+      reason = "FAILED";
+    } else if (!hasZeroReset) {
+      reason = "WIN";
     }
-    if (reset) continue;
-    if (spinHitsTarget(failed, latest) && !blocked.includes(failed.target)) blocked.push(failed.target);
+
+    if (reason) blocks.set(candidate.id, { target: candidate.target, reason });
   }
-  return blocked;
+
+  // Only block current recommendations; historical formations are used as evidence.
+  const latestSpinId = spins[spins.length - 1]!.id;
+  return [...blocks.entries()]
+    .filter(([signalId]) => candidates.some((signal) => signal.id === signalId && signal.sourceSpinId === latestSpinId))
+    .map(([, block]) => block);
 }
 
 /** Recalcula sinais e resultados a partir do histórico; persiste o painel sem depender do popup. */
@@ -76,8 +106,9 @@ export function useSinais() {
     return [...detected.filter((signal) => !reentries.some((item) => item.id === signal.id)), ...reentries];
   }, [estado.spins, estado.bips, estado.config.zeroComoProtecao, tracking]);
   const financeLedger = loadSessionFinance();
-  const blockedTargets = useMemo(() => exhaustionBlocks(estado.spins, tracking.signals, estado.config.zeroComoProtecao, financeLedger.corrections), [estado.spins, tracking.signals, estado.config.zeroComoProtecao, financeLedger]);
-  const sinaisPermitidos = useMemo(() => sinais.filter((signal) => !blockedTargets.includes(signal.target)), [sinais, blockedTargets]);
+  const blockedTargets = useMemo(() => exhaustionBlocks(estado.spins, tracking.signals, financeLedger.corrections), [estado.spins, tracking.signals, financeLedger.corrections]);
+  const blockedSignalIds = useMemo(() => new Set(blockedTargets.map((item) => item.target)), [blockedTargets]);
+  const sinaisPermitidos = useMemo(() => sinais.filter((signal) => !blockedSignalIds.has(signal.target)), [sinais, blockedSignalIds]);
   const superGatilho = useMemo(() => isSuperGatilho(sinaisPermitidos), [sinaisPermitidos]);
   const smartGale = useMemo(
     () => avaliarSmartGale1(estado.spins, estado.bips),
