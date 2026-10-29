@@ -1,8 +1,27 @@
 import { describe, expect, it } from "vitest";
 import { criarSpin } from "./catalogo";
-import { detectarSinaisEntrada, isSuperGatilho } from "./signalEngine";
+import { detectarSinaisEntrada, evaluateMarketEntropy, isSuperGatilho } from "./signalEngine";
 
 const spins = (...numbers: number[]) => numbers.map((n, i) => criarSpin(n, 1_700_000_000_000 + i));
+
+describe("Market entropy defensive filter", () => {
+  it("allows analysis with fewer than ten spins", () => {
+    expect(evaluateMarketEntropy(spins(1, 2, 3, 4, 5)).isMarketSafe).toBe(true);
+  });
+
+  it("blocks a dominant sector with six of ten spins and an isolated one-spin break", () => {
+    // D1 is dominant with isolated non-D1 breaks between D1 results.
+    const result = evaluateMarketEntropy(spins(1, 4, 1, 7, 1, 10, 1, 13, 1, 16));
+    expect(result.isMarketSafe).toBe(false);
+    expect(result.dominantSector).toBe("DÚZIA D1");
+    expect(result.hasIsolatedBreaks).toBe(true);
+  });
+
+  it("does not block pure concentration without an isolated break", () => {
+    const result = evaluateMarketEntropy(spins(1, 2, 4, 5, 7, 8, 10, 11, 13, 14));
+    expect(result.isMarketSafe).toBe(true);
+  });
+});
 
 describe("VOLT Duplo", () => {
   it("fires after five dominant spins, one break and a return", () => {
