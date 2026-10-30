@@ -58,9 +58,9 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 8 }: Signal
   const triggerName = signal.strategy === "volt-delta" ? "VOLT + DELTA" : signal.strategy === "delta" ? "DELTA" : signal.name.toUpperCase().includes("DUPLO") ? "VOLT DUPLO" : "VOLT";
   const formatTarget = (raw: string) => {
     const value = raw.trim();
-    if (/^COR\\s+/i.test(value)) return value.replace(/^COR\\s+/i, "COR: ");
-    if (/^PAR\\/ÍMPAR\\s+/i.test(value)) return value.replace(/^PAR\\/ÍMPAR\\s+/i, "P/I: ");
-    if (/^ALTO\\/BAIXO\\s+/i.test(value)) return value.replace(/^ALTO\\/BAIXO\\s+/i, "A/B: ");
+    if (/^COR\s+/i.test(value)) return value.replace(/^COR\s+/i, "COR: ");
+    if (/^PAR\/ÍMPAR\s+/i.test(value)) return value.replace(/^PAR\/ÍMPAR\s+/i, "P/I: ");
+    if (/^ALTO\/BAIXO\s+/i.test(value)) return value.replace(/^ALTO\/BAIXO\s+/i, "A/B: ");
     return value;
   };
   const displayTarget = [signal.target, signal.deltaTarget].filter(Boolean).map(formatTarget).join(" + ");
