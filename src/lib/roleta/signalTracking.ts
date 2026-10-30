@@ -2,8 +2,8 @@ import type { Spin } from "./catalogo";
 import type { TipoBip } from "./store";
 import { detectarSinaisEntrada, type EntrySignal, type StrategyId } from "./signalEngine";
 
-export type SignalStatus = "AGUARDANDO R1" | "GALE 1 EM ANDAMENTO" | "CONCLUÍDO";
-export type SignalResult = "GREEN_R1" | "GREEN_GALE1" | "RED" | "NO_SIGNAL";
+export type SignalStatus = "AGUARDANDO R1" | "GALE 1 EM ANDAMENTO" | "GALE 2 EM ANDAMENTO" | "CONCLUÍDO";
+export type SignalResult = "GREEN_R1" | "GREEN_GALE1" | "GREEN_GALE2" | "RED" | "NO_SIGNAL";
 export interface TrackedSignal {
   id: string;
   sourceSpinId: string;
@@ -49,11 +49,20 @@ export function rebuildSignalTracking(spins: Spin[], _bips: Record<string, TipoB
     for (let s = 0; s < signals.length; s += 1) {
       const signal = signals[s]!;
       if (signal.status === "CONCLUÍDO" || signal.sourceSpinId === current.id) continue;
-      if (targetHit(signal, current)) {
-        signals[s] = { ...signal, status: "CONCLUÍDO", result: "GREEN_R1", resolvedNumber: current.numero, resultSpinId: current.id };
-      } else if (current.numero === 0) {
-        // O zero encerra a janela de observação sem atribuir resultado financeiro automático.
+      if (current.numero === 0) {
+        // Marco Zero cancela o ciclo sem registrar vitória ou perda.
         signals[s] = { ...signal, status: "CONCLUÍDO", result: "NO_SIGNAL", resolvedNumber: 0, resultSpinId: current.id };
+        continue;
+      }
+      if (targetHit(signal, current)) {
+        const result: SignalResult = signal.status === "AGUARDANDO R1" ? "GREEN_R1" : signal.status === "GALE 1 EM ANDAMENTO" ? "GREEN_GALE1" : "GREEN_GALE2";
+        signals[s] = { ...signal, status: "CONCLUÍDO", result, resolvedNumber: current.numero, resultSpinId: current.id };
+      } else if (signal.status === "AGUARDANDO R1") {
+        signals[s] = { ...signal, status: "GALE 1 EM ANDAMENTO" };
+      } else if (signal.status === "GALE 1 EM ANDAMENTO") {
+        signals[s] = { ...signal, status: "GALE 2 EM ANDAMENTO" };
+      } else {
+        signals[s] = { ...signal, status: "CONCLUÍDO", result: "RED", resolvedNumber: current.numero, resultSpinId: current.id };
       }
     }
     for (const signal of detectarSinaisEntrada(spins.slice(0, index + 1), {})) {
