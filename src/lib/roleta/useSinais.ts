@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { detectarSinaisEntrada, isSuperGatilho } from "./signalEngine";
+import { detectarSinaisEntrada, isPostZeroQuarantineActive, isSuperGatilho } from "./signalEngine";
 import { avaliarSmartGale1 } from "./smartGale";
 import { useEstado } from "./store";
 import { rebuildSignalTracking, SIGNAL_TRACKING_KEY, type TrackedSignal } from "./signalTracking";
@@ -105,10 +105,12 @@ export function useSinais() {
       }));
     return [...detected.filter((signal) => !reentries.some((item) => item.id === signal.id)), ...reentries];
   }, [estado.spins, estado.bips, estado.config.zeroComoProtecao, tracking]);
+  const marketEntropy = useMemo(() => evaluateMarketEntropy(estado.spins), [estado.spins]);
+  const zeroQuarantineActive = useMemo(() => isPostZeroQuarantineActive(estado.spins), [estado.spins]);
   const financeLedger = loadSessionFinance();
   const blockedTargets = useMemo(() => exhaustionBlocks(estado.spins, tracking.signals, financeLedger.corrections), [estado.spins, tracking.signals, financeLedger.corrections]);
   const blockedSignalIds = useMemo(() => new Set(blockedTargets.map((item) => item.target)), [blockedTargets]);
-  const sinaisPermitidos = useMemo(() => sinais.filter((signal) => !blockedSignalIds.has(signal.target)), [sinais, blockedSignalIds]);
+  const sinaisPermitidos = useMemo(() => marketEntropy.isMarketSafe ? sinais.filter((signal) => !blockedSignalIds.has(signal.target)) : sinais.filter((signal) => signal.strategy !== "volt-duplo" && signal.strategy !== "delta"), [sinais, blockedSignalIds, marketEntropy.isMarketSafe]);
   const superGatilho = useMemo(() => isSuperGatilho(sinaisPermitidos), [sinaisPermitidos]);
   const smartGale = useMemo(
     () => avaliarSmartGale1(estado.spins, estado.bips),
@@ -150,5 +152,5 @@ export function useSinais() {
     if (changed) saveSessionFinance({ ...ledger, corrections });
   }, [tracking]);
 
-  return { sinais: sinaisPermitidos, superGatilho, smartGale, tracking, blockedTargets };
+  return { sinais: zeroQuarantineActive ? [] : sinaisPermitidos, superGatilho: zeroQuarantineActive ? false : superGatilho, smartGale, tracking, blockedTargets, marketEntropy, zeroQuarantineActive };
 }
