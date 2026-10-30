@@ -10,7 +10,7 @@ import { acoes, useEstado } from "@/lib/roleta/store";
 import { baixarCSVCatalogacao } from "@/lib/exportCatalogacao";
 import { calcularBanca, carregarConfigBanca } from "@/lib/roleta/bankroll";
 import { effectiveSignalResult, impactoFinanceiro, loadSessionFinance, SESSION_FINANCE_EVENT } from "@/lib/roleta/sessionFinance";
-import { checkColumnDozenStagnation } from "@/lib/roleta/signalEngine";
+
 
 const dataLocalISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
@@ -51,21 +51,23 @@ function Catalogacao() {
   const metaDoDia = configBanca.metaModo === "valor" ? configBanca.metaValor : bancaDiaAtivo * configBanca.metaDiariaPercentual / 100;
   const metaDiariaAtingida = Boolean(configBanca.bloquearSinaisMetaDiaria && metaDoDia > 0 && resultadoAtualDia >= metaDoDia);
   const bloqueioFinanceiro = resumoBanca.metaBatida || metaDiariaAtingida;
-  const lastThreeForStagnation = estado.spins.slice(-3);
-  const columnDozenStagnant = estado.spins.length >= 3 && !checkColumnDozenStagnation(lastThreeForStagnation.map((spin) => ({
-    Column: spin.classificacao.coluna,
-    Dozen: spin.classificacao.duzia,
-  })));
-  const attentionMessages = [
-    ...(columnDozenStagnant ? ["⚠️ ATENÇÃO: Mesa apresentando estagnação na mesma Coluna/Dúzia nos últimos três giros. Sinais VOLT/DELTA temporariamente pausados."] : []),
-    ...(zeroQuarantineActive ? ["🛡️ QUARENTENA PÓS-ZERO: entradas suspensas até que a janela de segurança seja concluída."] : []),
-    ...(!marketEntropy.isMarketSafe ? [`⚠️ DISPERSÃO DE RISCO: mesa de alta volatilidade/saturação em ${marketEntropy.dominantSector ?? "SETOR"}. Sinais VOLT/DELTA suspensos temporariamente.`] : []),
-    ...blockedTargets.map(({ target, reason }) => reason === "WIN"
-      ? `⚠️ ALERTA DE EXAUSTÃO: o alvo ${target} teve WIN recente sem reset de Zero. Entrada bloqueada.`
-      : reason === "FAILED"
-        ? `⚠️ ALERTA DE EXAUSTÃO: o alvo ${target} teve RED ou Gale bloqueado nesta sessão.`
-        : `⚠️ ALERTA DE EXAUSTÃO: o alvo ${target} atingiu o limite de formações nesta sessão.`),
-  ];
+  const lastTenForStagnation = estado.spins.slice(-10);
+  const strictColumnDozenStagnant = ["coluna", "duzia"].some((key) => {
+    let run = 0;
+    let previous = "";
+    for (const spin of lastTenForStagnation) {
+      const value = key === "coluna" ? spin.classificacao.coluna : spin.classificacao.duzia;
+      if (!value || value === "ZERO" || value === "VERDE") { run = 0; previous = ""; continue; }
+      run = value === previous ? run + 1 : 1;
+      previous = value;
+      if (run >= 4) return true;
+    }
+    return false;
+  });
+  // O modal de ATENÇÃO só é acionado pela estagnação linear estrita; é informativo.
+  const attentionMessages = strictColumnDozenStagnant
+    ? ["⚠️ ATENÇÃO: Mesa apresentando estagnação linear estrita na mesma Coluna/Dúzia por quatro ou mais giros consecutivos. Aviso informativo; sinais permanecem ativos."]
+    : [];
   const attentionKey = attentionMessages.join("\\n");
   useEffect(() => {
     if (!attentionKey) {
@@ -106,13 +108,13 @@ function Catalogacao() {
       ) : <SignalPopup signals={sinais} smartGale={smartGale} stakeR1Total={stakeR1Popup} stakeR2Total={stakeR2Popup} />}
       {zeroQuarantineActive && (
         <div role="alert" aria-live="assertive" className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/20 p-3 text-xs font-black text-amber-400">
-          🛡️ QUARENTENA PÓS-ZERO: entradas suspensas. O motor só será reativado após quatro giros limpos e uma janela de padrão sem Zero.
+          🔄 MARCO ZERO: o ciclo de dominância foi reiniciado. Somente giros posteriores ao Zero entram na contagem; os sinais continuam sujeitos ao padrão completo.
         </div>
       )}
       <div role="status" aria-live="polite" className={`mb-3 flex items-center gap-2 rounded-lg border p-3 text-xs font-black ${marketEntropy.isMarketSafe ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-amber-500/30 bg-amber-500/20 text-amber-400"}`}>
         {marketEntropy.isMarketSafe
-          ? "🟢 MERCADO ESTÁVEL — filtro de saturação liberado"
-          : `🛡️ MESA DE ALTA VOLATILIDADE / SATURAÇÃO EM ${marketEntropy.dominantSector ?? "SETOR"}. SINAIS VOLT/DELTA SUSPENSOS TEMPORARIAMENTE.`}
+          ? "ℹ️ CONCENTRAÇÃO DE TENDÊNCIA — sinais permanecem ativos"
+          : `ℹ️ CONCENTRAÇÃO OBSERVADA EM ${marketEntropy.dominantSector ?? "SETOR"} (${Math.round(marketEntropy.concentration * 100)}%). Sinais VOLT/DELTA permanecem ativos.`}
       </div>
       {blockedTargets.map(({ target, reason }) => <div key={`${target}-${reason}`} role="alert" aria-live="assertive" className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/20 p-3 text-sm font-black text-amber-400">{reason === "WIN" ? `⚠️ ALERTA DE EXAUSTÃO: O alvo ${target} já teve um WIN recente nesta sessão sem reset de Zero. Entrada bloqueada para evitar repetição exausta.` : reason === "FAILED" ? `⚠️ ALERTA DE EXAUSTÃO: O alvo ${target} teve RED ou Gale Bloqueado nesta sessão. Nova formação bloqueada para evitar repetição negativa.` : `⚠️ LIMITE DE EXAUSTÃO: O alvo ${target} já atingiu duas formações nesta sessão. Nova entrada bloqueada.`}</div>)}
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
