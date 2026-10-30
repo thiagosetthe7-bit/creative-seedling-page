@@ -12,8 +12,7 @@ function Dashboard() {
       <section className="rounded-lg border border-border bg-card p-4">
         <h1 className="text-lg font-black tracking-widest">PAINEL ESTATÍSTICO EM REESTRUTURAÇÃO</h1>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          O painel antigo de desempenho de apostas foi desativado. A nova engine de gatilhos está disponível
-          na catalogação e detecta VOLT Duplo, DELTA e BR Antecedente com as regras configuradas.
+          O painel estatístico está em reestruturação. A catalogação contém análise descritiva VOLT em janela móvel de até 20 giros, com reinício da janela após o zero e histórico financeiro corrigível manualmente.
         </p>
         <Link to="/" className="mt-4 inline-flex rounded-lg bg-brand px-4 py-2 text-sm font-bold text-brand-foreground">
           ABRIR CATALOGAÇÃO
