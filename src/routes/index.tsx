@@ -10,6 +10,7 @@ import { acoes, useEstado } from "@/lib/roleta/store";
 import { baixarCSVCatalogacao } from "@/lib/exportCatalogacao";
 import { calcularBanca, carregarConfigBanca } from "@/lib/roleta/bankroll";
 import { effectiveSignalResult, impactoFinanceiro, loadSessionFinance, SESSION_FINANCE_EVENT } from "@/lib/roleta/sessionFinance";
+import { checkColumnDozenStagnation } from "@/lib/roleta/signalEngine";
 
 const dataLocalISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
@@ -29,6 +30,9 @@ export const Route = createFileRoute("/")({
 
 function Catalogacao() {
   const [financeRevision, setFinanceRevision] = useState(0);
+  const [attentionMessage, setAttentionMessage] = useState("");
+  const [dismissedAttention, setDismissedAttention] = useState("");
+
   useEffect(() => { const sync = () => setFinanceRevision((n) => n + 1); window.addEventListener(SESSION_FINANCE_EVENT, sync); window.addEventListener("storage", sync); return () => { window.removeEventListener(SESSION_FINANCE_EVENT, sync); window.removeEventListener("storage", sync); }; }, []);
   void financeRevision;
   const estado = useEstado();
@@ -47,9 +51,47 @@ function Catalogacao() {
   const metaDoDia = configBanca.metaModo === "valor" ? configBanca.metaValor : bancaDiaAtivo * configBanca.metaDiariaPercentual / 100;
   const metaDiariaAtingida = Boolean(configBanca.bloquearSinaisMetaDiaria && metaDoDia > 0 && resultadoAtualDia >= metaDoDia);
   const bloqueioFinanceiro = resumoBanca.metaBatida || metaDiariaAtingida;
+  const lastThreeForStagnation = estado.spins.slice(-3);
+  const columnDozenStagnant = estado.spins.length >= 3 && !checkColumnDozenStagnation(lastThreeForStagnation.map((spin) => ({
+    Column: spin.classificacao.coluna,
+    Dozen: spin.classificacao.duzia,
+  })));
+  const attentionMessages = [
+    ...(columnDozenStagnant ? ["⚠️ ATENÇÃO: Mesa apresentando estagnação na mesma Coluna/Dúzia nos últimos três giros. Sinais VOLT/DELTA temporariamente pausados."] : []),
+    ...(zeroQuarantineActive ? ["🛡️ QUARENTENA PÓS-ZERO: entradas suspensas até que a janela de segurança seja concluída."] : []),
+    ...(!marketEntropy.isMarketSafe ? [`⚠️ DISPERSÃO DE RISCO: mesa de alta volatilidade/saturação em ${marketEntropy.dominantSector ?? "SETOR"}. Sinais VOLT/DELTA suspensos temporariamente.`] : []),
+    ...blockedTargets.map(({ target, reason }) => reason === "WIN"
+      ? `⚠️ ALERTA DE EXAUSTÃO: o alvo ${target} teve WIN recente sem reset de Zero. Entrada bloqueada.`
+      : reason === "FAILED"
+        ? `⚠️ ALERTA DE EXAUSTÃO: o alvo ${target} teve RED ou Gale bloqueado nesta sessão.`
+        : `⚠️ ALERTA DE EXAUSTÃO: o alvo ${target} atingiu o limite de formações nesta sessão.`),
+  ];
+  const attentionKey = attentionMessages.join("\\n");
+  useEffect(() => {
+    if (!attentionKey) {
+      setAttentionMessage("");
+      setDismissedAttention("");
+      return;
+    }
+    if (attentionKey !== dismissedAttention) setAttentionMessage(attentionKey);
+  }, [attentionKey, dismissedAttention]);
 
   return (
     <AppShell>
+      {attentionMessage && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm" role="presentation">
+          <section role="alertdialog" aria-modal="true" aria-labelledby="attention-modal-title" className="w-full max-w-2xl rounded-2xl border-4 border-amber-400 bg-slate-950 text-white shadow-[0_0_70px_rgba(251,146,60,0.35)]">
+            <header className="border-b border-amber-400/40 bg-gradient-to-r from-amber-500/25 to-orange-500/10 p-5 sm:p-7">
+              <h2 id="attention-modal-title" className="text-xl font-black text-amber-200 sm:text-3xl">⚠️ ALERTA DE ATENÇÃO DA MESA</h2>
+              <p className="mt-2 text-sm text-amber-100">Leia os avisos antes de continuar.</p>
+            </header>
+            <div className="space-y-3 p-5 sm:p-7">
+              {attentionMessage.split("\\n").filter(Boolean).map((message, index) => <p key={index} className="rounded-lg border border-amber-300/40 bg-amber-400/10 p-4 text-sm font-bold leading-relaxed text-amber-100">{message}</p>)}
+              <button type="button" onClick={() => { setDismissedAttention(attentionKey); setAttentionMessage(""); }} className="w-full rounded-xl bg-amber-400 px-5 py-3 font-black text-slate-950 hover:bg-amber-300">Entendido / Ciente</button>
+            </div>
+          </section>
+        </div>
+      )}
       {bloqueioFinanceiro ? (
         <div role="alert" className="mb-4 rounded-lg border-2 border-rose-500 bg-rose-500/10 p-3 text-sm font-black text-rose-500">
           SINAIS BLOQUEADOS: {metaDiariaAtingida ? "META DIÁRIA ATINGIDA" : "META DA SESSÃO ATINGIDA"}. Encerre a sessão antes de considerar novas entradas.
