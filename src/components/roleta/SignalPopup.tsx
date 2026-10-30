@@ -15,10 +15,17 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 8 }: Signal
   const [visible, setVisible] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(autoCloseSeconds);
   const lastSignalKey = useRef("");
+  const initialized = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const key = signals.map((signal) => signal.id).sort().join("|");
 
   useEffect(() => {
+    // Não alertar por sinais antigos já presentes ao abrir/recarregar a página.
+    if (!initialized.current) {
+      initialized.current = true;
+      lastSignalKey.current = key;
+      return;
+    }
     if (!key) {
       lastSignalKey.current = "";
       setVisible(false);

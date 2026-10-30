@@ -66,7 +66,7 @@ function evaluateAxis(spins: Spin[], axis: Axis): EntrySignal | null {
     name: "VOLT PURO",
     target,
     explanation: `Janela de até ${WINDOW_SIZE} giros após o zero mais recente: dominância da dupla, uma quebra isolada e retorno observado.`,
-    action: `Alvo estatístico observado: ${target}. Resultado passado não garante o próximo giro.`,
+    action: `Entrada sugerida para o próximo giro (R1): apostar em ${pair[0]} e ${pair[1]}. Padrão observado não garante o resultado.`,
     sourceSpinId: source.id,
   };
 }
