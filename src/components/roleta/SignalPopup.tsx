@@ -160,9 +160,25 @@ export function SignalPopup({ signals, smartGale = null, onDismiss, stakeR1Total
                     MATRIZ UNIFICADA: {signal.confluence.map((id) => id === "volt-duplo" ? "VOLT" : id === "delta" ? "DELTA" : id === "br-antecedente" ? "BR" : "BT").join(" + ")}
                   </span>
                 )}
+                {signal.evenOddConfluence === "high" && (
+                  <span role="status" className="rounded-full border border-emerald-300/60 bg-emerald-400/10 px-3 py-1 text-xs font-black text-emerald-200">
+                    🟢 ALTERNÂNCIA PAR/ÍMPAR · CONFLUÊNCIA POSITIVA
+                  </span>
+                )}
+                {signal.evenOddConfluence === "dispersion" && (
+                  <span role="status" className="rounded-full border border-amber-300/60 bg-amber-400/10 px-3 py-1 text-xs font-black text-amber-200">
+                    ⚠️ ATENÇÃO: 4 RESULTADOS IGUAIS EM PAR/ÍMPAR
+                  </span>
+                )}
               </div>
               <p className="mt-2 text-xs font-bold tracking-wide text-cyan-200">CONFIANÇA DO PADRÃO: REGRAS CONFIGURADAS ATENDIDAS (NÃO É PROBABILIDADE DE GANHO)</p>
               <p className="mt-3 text-sm leading-relaxed text-slate-300">{signal.explanation}</p>
+              {signal.evenOddWindow && signal.evenOddWindow.length > 0 && (
+                <p className="mt-2 text-xs text-slate-400">
+                  Janela P/I anterior ao gatilho: {signal.evenOddWindow.join(" → ")}.
+                  {signal.evenOddConfluence === "high" ? " Alternância estrita observada." : signal.evenOddConfluence === "dispersion" ? " Repetição total observada; atenção à concentração." : " Sem alternância estrita nem repetição total."}
+                </p>
+              )}
               <div className="mt-4 rounded-lg border border-amber-300/50 bg-amber-300/10 p-4">
                 <p className="text-[10px] font-black tracking-[0.2em] text-amber-200">ALVO IDENTIFICADO</p>
                 <p className="mt-1 text-lg font-black">{signal.target}</p>
