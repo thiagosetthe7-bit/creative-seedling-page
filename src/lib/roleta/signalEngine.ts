@@ -17,9 +17,38 @@ export interface EntrySignal {
   confluence?: StrategyId[] | undefined;
   /** Contexto pós-zero validado: o ciclo completo de dominância, quebra e retorno ocorreu após o último zero. */
   postZeroContext?: { zeroSpinId: string; distance: number } | undefined;
+  /** Confluência descritiva baseada nos quatro giros anteriores ao gatilho. */
+  evenOddConfluence?: "high" | "standard" | "dispersion" | undefined;
+  evenOddWindow?: string[] | undefined;
 }
 
 export const ZERO_COOLOFF_SPINS = 3;
+
+/**
+ * Detecta alternância estrita PAR/ÍMPAR nos quatro resultados mais recentes.
+ * O resultado descreve o histórico observado; não estima nem garante ganhos futuros.
+ */
+export function evaluateEvenOddAlternation(history: { Even_Odd: string }[]): boolean {
+  if (history.length < 4) return false;
+  const last4 = history.slice(-4).map((item) => item.Even_Odd);
+  return last4[0] !== last4[1] && last4[1] !== last4[2] && last4[2] !== last4[3];
+}
+
+function assessEvenOddConfluence(spins: Spin[], triggerIndex: number): Pick<EntrySignal, "evenOddConfluence" | "evenOddWindow"> {
+  // Exclui o giro que disparou o sinal: são os quatro giros anteriores ao gatilho.
+  const previous4 = spins.slice(Math.max(0, triggerIndex - 4), triggerIndex);
+  const values = previous4.map((spin) => spin.classificacao.pi);
+  if (previous4.length < 4 || values.some((value) => value !== "PAR" && value !== "IMPAR")) {
+    return { evenOddConfluence: "standard", evenOddWindow: values };
+  }
+  if (evaluateEvenOddAlternation(values.map((Even_Odd) => ({ Even_Odd })))) {
+    return { evenOddConfluence: "high", evenOddWindow: values };
+  }
+  if (values.every((value) => value === values[0])) {
+    return { evenOddConfluence: "dispersion", evenOddWindow: values };
+  }
+  return { evenOddConfluence: "standard", evenOddWindow: values };
+}
 
 /** True when a zero appears inside the recent window used to form a signal. */
 export function isZeroInPatternWindow(spins: Spin[], windowSize = 5): boolean {
@@ -364,7 +393,9 @@ export function detectarSinaisEntrada(spins: Spin[], bips: Record<string, TipoBi
   const result = detectBtConcomitante(spins, bips, index, fused).length
     ? detectBtConcomitante(spins, bips, index, fused)
     : fused;
-  return annotatePostZero(result, spins, index);
+  const confluence = assessEvenOddConfluence(spins, index);
+  const annotated = result.map((signal) => ({ ...signal, ...confluence }));
+  return annotatePostZero(annotated, spins, index);
 }
 
 /** VOLT Duplo + BR Antecedente concomitantes formam um Super Gatilho mesmo após fusão. */
