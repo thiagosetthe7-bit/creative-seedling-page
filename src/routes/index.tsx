@@ -36,7 +36,7 @@ function Catalogacao() {
   useEffect(() => { const sync = () => setFinanceRevision((n) => n + 1); window.addEventListener(SESSION_FINANCE_EVENT, sync); window.addEventListener("storage", sync); return () => { window.removeEventListener(SESSION_FINANCE_EVENT, sync); window.removeEventListener("storage", sync); }; }, []);
   void financeRevision;
   const estado = useEstado();
-  const { sinais, smartGale, tracking, blockedTargets, marketEntropy, zeroQuarantineActive } = useSinais();
+  const { sinais, smartGale, tracking, blockedTargets, marketEntropy, zeroQuarantineActive, sessionAssessment } = useSinais();
   const configBanca = carregarConfigBanca();
   const financeLedger = loadSessionFinance();
   const sinaisFinanceiros = tracking.signals.filter((signal) => !financeLedger.removedSignalIds.includes(signal.id)).map((signal) => { const result = effectiveSignalResult(signal, financeLedger); return { ...signal, status: result === "PENDING" ? signal.status : "CONCLUÍDO" as const, result: result === "PENDING" ? "NO_SIGNAL" as const : result as typeof signal.result }; });
@@ -111,6 +111,10 @@ function Catalogacao() {
           🔄 MARCO ZERO: o ciclo de dominância foi reiniciado. Somente giros posteriores ao Zero entram na contagem; os sinais continuam sujeitos ao padrão completo.
         </div>
       )}
+      <div role="status" aria-live="polite" className={`mb-3 rounded-lg border p-3 text-sm font-black ${sessionAssessment.sessionStatus === "OPEN" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : sessionAssessment.sessionStatus === "CLOSED" ? "border-rose-500/40 bg-rose-500/10 text-rose-300" : "border-amber-500/40 bg-amber-500/10 text-amber-200"}`}>
+        {sessionAssessment.message}
+        <span className="mt-1 block text-xs font-semibold opacity-80">Amostra: {sessionAssessment.sampleSize} giros · Repetições estruturais: {sessionAssessment.repeatedAreaTransitions}</span>
+      </div>
       <div role="status" aria-live="polite" className={`mb-3 flex items-center gap-2 rounded-lg border p-3 text-xs font-black ${marketEntropy.isMarketSafe ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-amber-500/30 bg-amber-500/20 text-amber-400"}`}>
         {marketEntropy.isMarketSafe
           ? "ℹ️ CONCENTRAÇÃO DE TENDÊNCIA — sinais permanecem ativos"
