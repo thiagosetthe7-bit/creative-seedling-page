@@ -80,10 +80,26 @@ function assessEvenOddConfluence(spins: Spin[], triggerIndex: number): Pick<Entr
   return { evenOddConfluence: "standard", evenOddWindow: values };
 }
 
-/** True when a zero appears inside the recent window used to form a signal. */
+/** True when a zero appears in the recent pattern window. Incomplete history fails closed. */
 export function isZeroInPatternWindow(spins: Spin[], windowSize = 5): boolean {
   if (spins.length < windowSize) return true;
   return spins.slice(-windowSize).some((spin) => spin.numero === 0);
+}
+
+/**
+ * Returns only the valid spins after the latest zero, once three full spins
+ * have elapsed. The fourth post-zero spin can be evaluated using its valid
+ * post-zero history; a pre-zero spin cannot contaminate the dominance count.
+ */
+function getPostZeroEligibleHistory(spins: Spin[]): Spin[] | null {
+  let lastZeroIndex = -1;
+  for (let i = spins.length - 1; i >= 0; i -= 1) {
+    if (spins[i]?.numero === 0) { lastZeroIndex = i; break; }
+  }
+  if (lastZeroIndex < 0) return spins;
+  const spinsSinceZero = spins.length - 1 - lastZeroIndex;
+  if (spinsSinceZero <= ZERO_COOLOFF_SPINS) return null;
+  return spins.slice(lastZeroIndex + 1);
 }
 
 /**
@@ -225,6 +241,14 @@ function detectVolt(spins: Spin[], index: number): EntrySignal[] {
       const run = countBackward(spins, dominanceEnd, group.key, accepted);
       if (run < 5) continue;
 
+      // Apenas pares cujos dois membros tiveram presença real na janela dominante.
+      // Evita incluir uma área sem ocorrência recente no par recomendado.
+      const dominanceWindow = spins.slice(dominanceEnd - run + 1, dominanceEnd + 1);
+      const memberCounts = pair.map((member) =>
+        dominanceWindow.filter((spin) => valueOf(spin, group.key) === member).length
+      );
+      if (memberCounts.some((count) => count === 0)) continue;
+
       const pairText = pair.join(" + ");
       const areaText = group.key === "duzia" ? "DÚZIAS" : "COLUNAS";
       found.push({
@@ -362,16 +386,28 @@ function strategySet(signal: EntrySignal): StrategyId[] {
   return [...new Set([signal.strategy, ...(signal.confluence ?? []), ...(signal.baseStrategy ? [signal.baseStrategy] : [])])];
 }
 
-/** Funde todos os gatilhos do mesmo giro em uma única recomendação. Colunas têm prioridade máxima. */
-function fuseSignals(candidates: EntrySignal[]): EntrySignal[] {
+/** Funde gatilhos do mesmo giro priorizando menor estagnação e maior inércia observada. */
+function fuseSignals(candidates: EntrySignal[], spins: Spin[], index: number): EntrySignal[] {
   if (!candidates.length) return [];
-  const columnVolt = candidates.filter((signal) => signal.strategy === "volt-duplo" && signal.target.startsWith("COLUNAS"));
-  const dozenVolt = candidates.filter((signal) => signal.strategy === "volt-duplo" && signal.target.startsWith("DÚZIAS"));
-  const preferredPool = columnVolt.length ? columnVolt : dozenVolt.length ? dozenVolt : candidates;
-  // Em caso de vários pares na mesma matriz, favorece o bloco com maior duração dominante.
   const runLength = (signal: EntrySignal) => Number(signal.explanation.match(/por (\d+) giros/)?.[1] ?? 0);
+  const matrixOf = (signal: EntrySignal): AreaKey | null =>
+    signal.strategy === "volt-duplo" ? (signal.target.startsWith("COLUNAS") ? "coluna" : signal.target.startsWith("DÚZIAS") ? "duzia" : null) : null;
+  const stagnation = (signal: EntrySignal) => {
+    const key = matrixOf(signal);
+    if (!key) return 0;
+    const targetValues = signal.target.replace(/^COLUNAS\s+|^DÚZIAS\s+/, "").split(/\s*\+\s*/);
+    let count = 0;
+    for (let i = index; i >= Math.max(0, index - 9); i--) {
+      const value = valueOf(spins[i]!, key);
+      if (!targetValues.includes(value)) break;
+      count++;
+    }
+    return count;
+  };
   const rank = (signal: EntrySignal) => signal.strategy === "volt-duplo" ? 0 : signal.strategy === "br-antecedente" ? 1 : signal.strategy === "delta" ? 2 : 3;
-  const chosen = [...preferredPool].sort((a, b) => runLength(b) - runLength(a) || rank(a) - rank(b))[0]!;
+  const chosen = [...candidates].sort((a, b) =>
+    stagnation(a) - stagnation(b) || runLength(b) - runLength(a) || rank(a) - rank(b)
+  )[0]!;
   const confluence = [...new Set(candidates.flatMap(strategySet))];
   return [{
     ...chosen,
@@ -411,15 +447,18 @@ function annotatePostZero(signals: EntrySignal[], spins: Spin[], index: number):
 export function detectarSinaisEntrada(spins: Spin[], bips: Record<string, TipoBip>): EntrySignal[] {
   const index = spins.length - 1;
   if (index < 0) return [];
-  // Never allow zero into a pattern window; after a zero, wait three full spins.
-  if (isPostZeroQuarantineActive(spins) || isZeroInPatternWindow(spins, 4)) return [];
-  // A three-spin repeated column or dozen blocks VOLT/DELTA entry candidates.
-  const blockColumnDozenStagnation = hasColumnDozenStagnation(spins);
+  // Zero quarantine lasts for exactly three complete spins. Thereafter, only
+  // post-zero spins are considered so pre-zero history cannot pollute VOLT/DELTA.
+  if (isPostZeroQuarantineActive(spins)) return [];
+  const eligibleHistory = getPostZeroEligibleHistory(spins);
+  if (!eligibleHistory || eligibleHistory.length < 1) return [];
+  const eligibleIndex = eligibleHistory.length - 1;
+  const blockColumnDozenStagnation = hasColumnDozenStagnation(eligibleHistory);
   const primary = [
-    ...(blockColumnDozenStagnation ? [] : [...detectVolt(spins, index), ...detectDelta(spins, index)]),
+    ...(blockColumnDozenStagnation ? [] : [...detectVolt(eligibleHistory, eligibleIndex), ...detectDelta(eligibleHistory, eligibleIndex)]),
     ...detectBrAntecedente(spins, bips, index),
   ];
-  const fused = fuseSignals(primary);
+  const fused = fuseSignals(primary, eligibleHistory, eligibleIndex);
   // BT é uma confluência do mesmo gatilho, não uma recomendação adicional.
   const result = detectBtConcomitante(spins, bips, index, fused).length
     ? detectBtConcomitante(spins, bips, index, fused)
