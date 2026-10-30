@@ -39,7 +39,7 @@ export function montarCSVCatalogacao(
       return ids.map((id) => id === "volt-duplo" ? "VOLT" : id === "delta" ? "DELTA" : id === "br-antecedente" ? "BR" : "None").filter((value) => value !== "None").join(" + ");
     }).filter(Boolean).join(" | ") || "None";
     const target = related.map((signal) => signal.target).join(" | ") || "";
-    const galeBlocked = related.map((signal) => {
+    const galeBlocked = related.map((signal): string => {
       const correction = financeCorrections[signal.id];
       if (correction === "GALE_BLOCKED" || correction === "BLOCKED" || correction === "PARTIAL_RED") return "TRUE";
       return "FALSE";
