@@ -350,7 +350,7 @@ export function detectarSinaisEntrada(spins: Spin[], bips: Record<string, TipoBi
   const index = spins.length - 1;
   if (index < 0) return [];
   // Never allow zero into a pattern window; after a zero, wait three full spins.
-  if (isPostZeroQuarantineActive(spins) || isZeroInPatternWindow(spins, 5)) return [];
+  if (isPostZeroQuarantineActive(spins) || isZeroInPatternWindow(spins, 4)) return [];
   const primary = [
     ...detectVolt(spins, index),
     ...detectDelta(spins, index),
