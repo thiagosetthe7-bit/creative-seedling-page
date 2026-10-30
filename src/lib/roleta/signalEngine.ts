@@ -47,6 +47,13 @@ function hasColumnDozenStagnation(spins: Spin[]): boolean {
   })));
 }
 
+/** Bloqueia Gale 1 somente quando estagnação e risco estocástico coexistem. */
+export function shouldBlockGale1(spins: Spin[]): boolean {
+  const isStagnant = hasColumnDozenStagnation(spins);
+  const hasZeroRisk = isZeroInPatternWindow(spins, 3);
+  return isStagnant && hasZeroRisk;
+}
+
 /**
  * Detecta alternância estrita PAR/ÍMPAR nos quatro resultados mais recentes.
  * O resultado descreve o histórico observado; não estima nem garante ganhos futuros.
