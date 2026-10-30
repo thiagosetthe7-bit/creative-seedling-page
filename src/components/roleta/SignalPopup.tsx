@@ -56,7 +56,15 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 8 }: Signal
   if (!visible || !signals.length) return null;
   const signal = signals[signals.length - 1]!;
   const triggerName = signal.strategy === "volt-delta" ? "VOLT + DELTA" : signal.strategy === "delta" ? "DELTA" : signal.name.toUpperCase().includes("DUPLO") ? "VOLT DUPLO" : "VOLT";
-  const targetAction = [signal.target, signal.deltaTarget].filter(Boolean).join(" + ").replace(/\s+\+\s+/g, " E ");
+  const formatTarget = (raw: string) => {
+    const value = raw.trim();
+    if (/^COR\\s+/i.test(value)) return value.replace(/^COR\\s+/i, "COR: ");
+    if (/^PAR\\/ÍMPAR\\s+/i.test(value)) return value.replace(/^PAR\\/ÍMPAR\\s+/i, "P/I: ");
+    if (/^ALTO\\/BAIXO\\s+/i.test(value)) return value.replace(/^ALTO\\/BAIXO\\s+/i, "A/B: ");
+    return value;
+  };
+  const displayTarget = [signal.target, signal.deltaTarget].filter(Boolean).map(formatTarget).join(" + ");
+  const targetAction = [signal.target, signal.deltaTarget].filter(Boolean).map((target) => formatTarget(target).replace(/: /g, " ")).join(" E ");
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[100] flex items-start justify-center bg-black/35 px-4 py-20 backdrop-blur-[2px]" aria-live="assertive">
@@ -69,7 +77,7 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 8 }: Signal
           </div>
           <div className="mt-5 rounded-xl border border-amber-300/50 bg-amber-300/[0.07] px-4 py-5">
             <p className="text-[10px] font-bold tracking-[0.2em] text-amber-200/80">ALVO IDENTIFICADO</p>
-            <p className="mt-2 text-2xl font-black leading-tight text-amber-300">{signal.target}</p>
+            <p className="mt-2 text-2xl font-black leading-tight text-amber-300">{displayTarget}</p>
             <p className="mt-3 text-sm font-extrabold uppercase leading-relaxed text-white">APOSTAR EM {targetAction} NO PRÓXIMO GIRO.</p>
           </div>
           <p className="mt-5 text-[10px] font-semibold tracking-wide text-slate-400">CONFIANÇA DO PADRÃO: REGRAS CONFIGURADAS ATENDIDAS</p>

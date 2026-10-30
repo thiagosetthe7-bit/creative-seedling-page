@@ -2,7 +2,7 @@ import type { Spin } from "./catalogo";
 import type { TipoBip } from "./store";
 
 /** Motor VOLT Puro: analisa somente dúzias e colunas na janela recente. */
-export type StrategyId = "volt-duplo" | "delta" | "volt-delta";
+export type StrategyId = "volt-duplo";
 export interface EntrySignal {
   id: string;
   strategy: StrategyId;
@@ -11,7 +11,6 @@ export interface EntrySignal {
   explanation: string;
   action: string;
   sourceSpinId: string;
-  deltaTarget?: string;
 }
 export const ZERO_COOLOFF_SPINS = 0;
 export interface MarketEntropyAssessment {
@@ -72,37 +71,6 @@ function evaluateAxis(spins: Spin[], axis: Axis): EntrySignal | null {
   };
 }
 
-type DeltaAxis = "cor" | "pi" | "ab";
-const DELTA_AXES: { id: DeltaAxis; label: string }[] = [
-  { id: "cor", label: "COR" },
-  { id: "pi", label: "PAR/ÍMPAR" },
-  { id: "ab", label: "ALTO/BAIXO" },
-];
-
-function evaluateDeltaAxis(spins: Spin[], axis: DeltaAxis): EntrySignal | null {
-  const zeroIndex = lastZeroIndex(spins);
-  const sample = spins.slice(zeroIndex + 1).slice(-WINDOW_SIZE);
-  if (sample.length < 7 || sample[sample.length - 1]?.numero === 0) return null;
-  const values = sample.map((spin) => spin.classificacao[axis]).slice(-7);
-  const prior = values.slice(0, 5);
-  const breakValue = values[5];
-  const returned = values[6];
-  if (!prior[0] || prior[0] === "ZERO" || !prior.every((value) => value === prior[0])) return null;
-  if (breakValue === prior[0] || breakValue === "ZERO" || returned !== prior[0]) return null;
-  const definition = DELTA_AXES.find((item) => item.id === axis)!;
-  const target = `${definition.label} ${prior[0]}`;
-  const source = sample[sample.length - 1]!;
-  return {
-    id: `delta:${axis}:${source.id}:${prior[0]}`,
-    strategy: "delta",
-    name: "DELTA",
-    target,
-    explanation: "Padrão DELTA confirmado após cinco resultados iguais, uma quebra e retorno; amostragem reiniciada no zero.",
-    action: `Entrada R1 no próximo giro: ${target}. O padrão observado não garante o resultado.`,
-    sourceSpinId: source.id,
-  };
-}
-
 export function checkColumnDozenStagnation(history: { Column: string; Dozen: string }[]): boolean {
   return history.length >= MIN_DOMINANCE;
 }
@@ -127,22 +95,7 @@ export function detectarSinaisEntrada(spins: Spin[], _bips: Record<string, TipoB
   if (!spins.length || spins.at(-1)?.numero === 0) return [];
   const dozen = evaluateAxis(spins, "duzia");
   const column = evaluateAxis(spins, "coluna");
-  const volt = column ?? dozen;
-  const delta = DELTA_AXES.map((axis) => evaluateDeltaAxis(spins, axis.id)).find((signal) => signal !== null) ?? null;
-  // A convergência VOLT + DELTA tem prioridade máxima no mesmo giro.
-  if (volt && delta) {
-    const currentId = spins[spins.length - 1]!.id;
-    return [{
-      ...volt,
-      id: `volt-delta:${currentId}:${volt.id}:${delta.id}`,
-      strategy: "volt-delta",
-      name: "VOLT + DELTA",
-      deltaTarget: delta.target,
-      explanation: "Convergência confirmada: alvo VOLT em dúzias/colunas e padrão DELTA em chances simples no mesmo giro.",
-      action: `Entrada R1 no próximo giro: ${volt.target} + ${delta.target}. Confirme o alvo antes de decidir.`,
-    }];
-  }
-  if (delta) return [delta];
-  return volt ? [volt] : [];
+  // Prioriza coluna quando os dois eixos confirmam no mesmo giro, evitando duplicação.
+  return column ? [column] : dozen ? [dozen] : [];
 }
 export function isSuperGatilho(_signals: EntrySignal[]): boolean { return false; }
