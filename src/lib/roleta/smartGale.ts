@@ -1,6 +1,6 @@
 import type { Spin } from "./catalogo";
 import type { TipoBip } from "./store";
-import { detectarSinaisEntrada, type EntrySignal, type StrategyId } from "./signalEngine";
+import { detectarSinaisEntrada, shouldBlockGale1, type EntrySignal, type StrategyId } from "./signalEngine";
 
 export type SmartGaleStatus = "APPROVED" | "BLOCKED";
 export interface SmartGaleDecision {
@@ -131,7 +131,9 @@ export function avaliarSmartGale1(spins: Spin[], bips: Record<string, TipoBip>):
 
   let result: { status: SmartGaleStatus; reason: string };
   const primaryStrategy = signal.strategy === "bt-concomitante" ? signal.baseStrategy : signal.strategy;
-  if (signal.strategy === "bt-concomitante") {
+  if (shouldBlockGale1(history)) {
+    result = { status: "BLOCKED", reason: "Confluência dupla de risco confirmada: estagnação de coluna/dúzia e Zero na janela recente. Gale 1 bloqueado por proteção." };
+  } else if (signal.strategy === "bt-concomitante") {
     result = btDecision(signal, history, r1);
   } else if (primaryStrategy === "volt-duplo") {
     result = voltDecision(signal, history, r1);
