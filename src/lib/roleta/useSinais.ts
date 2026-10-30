@@ -1,13 +1,9 @@
 import { useMemo } from "react";
 import { detectarSinaisEntrada, isSuperGatilho } from "./signalEngine";
 import { useEstado } from "./store";
-import { rebuildSignalTracking, SIGNAL_TRACKING_KEY } from "./signalTracking";
+import { rebuildSignalTracking } from "./signalTracking";
 
-/**
- * Adaptador de compatibilidade: o motor está desativado e não emite sinais.
- * Mantém apenas a estrutura do histórico legado; não aplica estratégias,
- * filtros de sessão, bloqueios, exaustão, delay ou regras de gale.
- */
+/** Integra exclusivamente o motor VOLT Puro e reconstrói o histórico financeiro. */
 export function useSinais() {
   const estado = useEstado();
   const tracking = useMemo(

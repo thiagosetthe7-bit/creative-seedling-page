@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import type { TrackedSignal } from "@/lib/roleta/signalTracking";
+import { carregarConfigBanca, dinheiro } from "@/lib/roleta/bankroll";
+import { impactoFinanceiro } from "@/lib/roleta/sessionFinance";
 import { effectiveSignalResult, loadSessionFinance, saveSessionFinance, SESSION_FINANCE_EVENT, type EditableSignalResult, type SessionFinanceLedger } from "@/lib/roleta/sessionFinance";
 
 interface SignalTrackingPanelProps { signals: TrackedSignal[]; }
@@ -22,6 +24,7 @@ export function SignalTrackingPanel({ signals }: SignalTrackingPanelProps) {
     updateLedger({ ...ledger, removedSignalIds: [...new Set([...ledger.removedSignalIds, id])] });
   };
   const history = visible.slice().reverse();
+  const bankroll = carregarConfigBanca();
   return (
     <section className="space-y-3 rounded-xl border border-border bg-card p-4" aria-label="Histórico de sinais da catalogação">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -35,9 +38,9 @@ export function SignalTrackingPanel({ signals }: SignalTrackingPanelProps) {
       ))}
       <details className="rounded-lg border border-border" open>
         <summary className="cursor-pointer px-3 py-2 text-xs font-bold">HISTÓRICO FINANCEIRO · {history.length} ENTRADAS</summary>
-        <div className="overflow-x-auto"><table className="w-full min-w-[950px] text-left text-xs"><thead><tr className="border-b border-border text-muted-foreground">{["Giro","Estratégia","Alvo","Status / correção","Ações"].map((x) => <th key={x} className="px-3 py-3">{x}</th>)}</tr></thead><tbody>{history.map((signal) => {
+        <div className="overflow-x-auto"><table className="w-full min-w-[950px] text-left text-xs"><thead><tr className="border-b border-border text-muted-foreground">{["Giro","Estratégia","Alvo","Status / correção","Impacto financeiro","Ações"].map((x) => <th key={x} className="px-3 py-3">{x}</th>)}</tr></thead><tbody>{history.map((signal) => {
           const result = effectiveSignalResult(signal, ledger);
-          return <tr key={signal.id} className="border-b border-border/60"><td className="px-3 py-3">#{signal.sourceIndex}</td><td className="px-3 py-3 font-bold">{signal.strategyLabel}</td><td className="px-3 py-3">{signal.target}</td><td className="px-3 py-3"><select aria-label={`Corrigir resultado da entrada ${signal.sourceIndex}`} className="max-w-52 rounded border border-border bg-background px-2 py-2" value={result} onChange={(e) => correct(signal.id, e.target.value as EditableSignalResult)}>{Object.entries(resultLabel).filter(([key]) => key !== "NO_SIGNAL" && (key !== "RED" || signal.result === "RED" || signal.result === "GREEN_GALE1" || result === "GREEN_GALE2" || signal.status === "GALE 1 EM ANDAMENTO" || result === "RED" || result === "GREEN_GALE1")).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></td><td className="px-3 py-3"><button type="button" onClick={() => remove(signal.id)} className="rounded border border-rose-500/50 px-3 py-2 font-bold text-rose-500 hover:bg-rose-500/10">Remover / Corrigir</button></td></tr>;
+          return <tr key={signal.id} className="border-b border-border/60"><td className="px-3 py-3">#{signal.sourceIndex}</td><td className="px-3 py-3 font-bold">{signal.strategyLabel}</td><td className="px-3 py-3">{signal.target}</td><td className="px-3 py-3"><select aria-label={`Corrigir resultado da entrada ${signal.sourceIndex}`} className="max-w-52 rounded border border-border bg-background px-2 py-2" value={result} onChange={(e) => correct(signal.id, e.target.value as EditableSignalResult)}>{Object.entries(resultLabel).filter(([key]) => key !== "NO_SIGNAL" && (key !== "RED" || signal.result === "RED" || signal.result === "GREEN_GALE1" || result === "GREEN_GALE2" || signal.status === "GALE 1 EM ANDAMENTO" || result === "RED" || result === "GREEN_GALE1")).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></td><td className="px-3 py-3 font-bold">{(() => { const impact = impactoFinanceiro(signal, bankroll, ledger); return impact === null ? <span className="text-muted-foreground">Pendente</span> : <span className={impact > 0 ? "text-emerald-500" : impact < 0 ? "text-rose-500" : "text-muted-foreground"}>{dinheiro(impact)}</span>; })()}</td><td className="px-3 py-3"><button type="button" onClick={() => remove(signal.id)} className="rounded border border-rose-500/50 px-3 py-2 font-bold text-rose-500 hover:bg-rose-500/10">Remover</button></td></tr>;
         })}</tbody></table></div>
       </details>
     </section>
