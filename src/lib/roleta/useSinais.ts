@@ -110,7 +110,8 @@ export function useSinais() {
   const financeLedger = loadSessionFinance();
   const blockedTargets = useMemo(() => exhaustionBlocks(estado.spins, tracking.signals, financeLedger.corrections), [estado.spins, tracking.signals, financeLedger.corrections]);
   const blockedSignalIds = useMemo(() => new Set(blockedTargets.map((item) => item.target)), [blockedTargets]);
-  const sinaisPermitidos = useMemo(() => marketEntropy.isMarketSafe ? sinais.filter((signal) => !blockedSignalIds.has(signal.target)) : sinais.filter((signal) => signal.strategy !== "volt-duplo" && signal.strategy !== "delta"), [sinais, blockedSignalIds, marketEntropy.isMarketSafe]);
+  // Concentração de tendência não suspende VOLT/DELTA; mantêm-se os bloqueios de exaustão existentes.
+  const sinaisPermitidos = useMemo(() => sinais.filter((signal) => !blockedSignalIds.has(signal.target)), [sinais, blockedSignalIds]);
   const superGatilho = useMemo(() => isSuperGatilho(sinaisPermitidos), [sinaisPermitidos]);
   const smartGale = useMemo(
     () => avaliarSmartGale1(estado.spins, estado.bips),
@@ -152,5 +153,5 @@ export function useSinais() {
     if (changed) saveSessionFinance({ ...ledger, corrections });
   }, [tracking]);
 
-  return { sinais: zeroQuarantineActive ? [] : sinaisPermitidos, superGatilho: zeroQuarantineActive ? false : superGatilho, smartGale, tracking, blockedTargets, marketEntropy, zeroQuarantineActive };
+  return { sinais: sinaisPermitidos, superGatilho, smartGale, tracking, blockedTargets, marketEntropy, zeroQuarantineActive };
 }
