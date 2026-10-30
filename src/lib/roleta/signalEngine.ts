@@ -38,19 +38,32 @@ export function checkColumnDozenStagnation(history: { Column: string; Dozen: str
   return !(isColumnStagnant || isDozenStagnant);
 }
 
-function hasColumnDozenStagnation(spins: Spin[]): boolean {
-  const last3 = spins.slice(-3);
-  if (last3.length < 3) return true;
-  return !checkColumnDozenStagnation(last3.map((spin) => ({
-    Column: spin.classificacao.coluna,
-    Dozen: spin.classificacao.duzia,
-  })));
+/** Detecta estagnação linear estrita: a mesma coluna OU dúzia por 4+ giros consecutivos. */
+export function hasStrictColumnDozenStagnation(spins: Spin[], minimumRun = 4): boolean {
+  if (spins.length < minimumRun) return false;
+  const recent = spins.slice(-Math.max(minimumRun, 10));
+  for (const key of ["coluna", "duzia"] as const) {
+    let run = 0;
+    let previous = "";
+    for (const spin of recent) {
+      const value = spin.classificacao[key];
+      if (!value || value === "ZERO" || value === "VERDE") {
+        run = 0;
+        previous = "";
+        continue;
+      }
+      run = value === previous ? run + 1 : 1;
+      previous = value;
+      if (run >= minimumRun) return true;
+    }
+  }
+  return false;
 }
 
-/** Bloqueia Gale 1 somente quando estagnação e risco estocástico coexistem. */
+/** Gale 1 só é bloqueado com estagnação linear estrita e Zero recente simultaneamente. */
 export function shouldBlockGale1(spins: Spin[]): boolean {
-  const isStagnant = hasColumnDozenStagnation(spins);
-  const hasZeroRisk = isZeroInPatternWindow(spins, 3);
+  const isStagnant = hasStrictColumnDozenStagnation(spins, 4);
+  const hasZeroRisk = spins.slice(-3).some((spin) => spin.numero === 0);
   return isStagnant && hasZeroRisk;
 }
 
@@ -91,15 +104,13 @@ export function isZeroInPatternWindow(spins: Spin[], windowSize = 5): boolean {
  * have elapsed. The fourth post-zero spin can be evaluated using its valid
  * post-zero history; a pre-zero spin cannot contaminate the dominance count.
  */
-function getPostZeroEligibleHistory(spins: Spin[]): Spin[] | null {
+function getPostZeroEligibleHistory(spins: Spin[]): Spin[] {
   let lastZeroIndex = -1;
   for (let i = spins.length - 1; i >= 0; i -= 1) {
     if (spins[i]?.numero === 0) { lastZeroIndex = i; break; }
   }
-  if (lastZeroIndex < 0) return spins;
-  const spinsSinceZero = spins.length - 1 - lastZeroIndex;
-  if (spinsSinceZero <= ZERO_COOLOFF_SPINS) return null;
-  return spins.slice(lastZeroIndex + 1);
+  // O Zero reinicia o ciclo imediatamente; nenhum giro anterior participa da contagem.
+  return lastZeroIndex < 0 ? spins : spins.slice(lastZeroIndex + 1);
 }
 
 /**
@@ -413,7 +424,7 @@ function fuseSignals(candidates: EntrySignal[], spins: Spin[], index: number): E
     ...chosen,
     confluence,
     explanation: candidates.length > 1
-      ? `${chosen.explanation} Gatilhos concomitantes unificados em uma única entrada: ${confluence.map((id) => id.toUpperCase()).join(" + ")}. Prioridade máxima aplicada a COLUNAS quando VOLT detectou dúzias e colunas no mesmo giro.`
+      ? `${chosen.explanation} Gatilhos concomitantes unificados em uma única entrada: ${confluence.map((id) => id.toUpperCase()).join(" + ")}. Seleção pela menor estagnação recente e maior duração da dominância observada.`
       : chosen.explanation,
   }];
 }
@@ -447,15 +458,14 @@ function annotatePostZero(signals: EntrySignal[], spins: Spin[], index: number):
 export function detectarSinaisEntrada(spins: Spin[], bips: Record<string, TipoBip>): EntrySignal[] {
   const index = spins.length - 1;
   if (index < 0) return [];
-  // Zero quarantine lasts for exactly three complete spins. Thereafter, only
-  // post-zero spins are considered so pre-zero history cannot pollute VOLT/DELTA.
-  if (isPostZeroQuarantineActive(spins)) return [];
+  // Marco Zero: zera imediatamente o histórico elegível de VOLT/DELTA.
+  // A emissão depende do padrão completo (5+ giros, quebra e retorno), sem
+  // quarentena adicional e sem suspensão por concentração de tendência.
   const eligibleHistory = getPostZeroEligibleHistory(spins);
-  if (!eligibleHistory || eligibleHistory.length < 1) return [];
   const eligibleIndex = eligibleHistory.length - 1;
-  const blockColumnDozenStagnation = hasColumnDozenStagnation(eligibleHistory);
   const primary = [
-    ...(blockColumnDozenStagnation ? [] : [...detectVolt(eligibleHistory, eligibleIndex), ...detectDelta(eligibleHistory, eligibleIndex)]),
+    ...detectVolt(eligibleHistory, eligibleIndex),
+    ...detectDelta(eligibleHistory, eligibleIndex),
     ...detectBrAntecedente(spins, bips, index),
   ];
   const fused = fuseSignals(primary, eligibleHistory, eligibleIndex);
