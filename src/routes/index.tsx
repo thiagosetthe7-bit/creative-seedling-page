@@ -1,13 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/roleta/AppShell";
 import { EntradaNumeros } from "@/components/roleta/EntradaNumeros";
-import { SignalPopup } from "@/components/roleta/SignalPopup";
 import { SignalTrackingPanel } from "@/components/roleta/SignalTrackingPanel";
 import { TabelaCatalogacao } from "@/components/roleta/TabelaCatalogacao";
 import { useSinais } from "@/lib/roleta/useSinais";
 import { acoes, useEstado } from "@/lib/roleta/store";
 import { baixarCSVCatalogacao } from "@/lib/exportCatalogacao";
-import { carregarConfigBanca } from "@/lib/roleta/bankroll";
 import { loadSessionFinance } from "@/lib/roleta/sessionFinance";
 
 export const Route = createFileRoute("/")({
@@ -26,15 +24,11 @@ export const Route = createFileRoute("/")({
 
 function Catalogacao() {
   const estado = useEstado();
-  const { sinais, smartGale, tracking } = useSinais();
-  const configBanca = carregarConfigBanca();
+  const { tracking } = useSinais();
   const financeLedger = loadSessionFinance();
-  const stakeR1Popup = configBanca.stakeR1PorArea * 2;
-  const stakeR2Popup = stakeR1Popup * 2;
 
   return (
     <AppShell>
-      <SignalPopup signals={sinais} smartGale={smartGale} stakeR1Total={stakeR1Popup} stakeR2Total={stakeR2Popup} />
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-lg font-black tracking-widest">CATALOGAÇÃO</h1>
