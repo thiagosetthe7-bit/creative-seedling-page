@@ -1,7 +1,7 @@
 import type { TrackedSignal, SignalResult } from "./signalTracking";
 import type { BankrollConfig } from "./bankroll";
 
-export type EditableSignalResult = SignalResult | "PENDING" | "NOT_PICKED" | "BLOCKED" | "GALE_BLOCKED" | "PARTIAL_RED";
+export type EditableSignalResult = SignalResult | "GREEN_GALE2" | "PENDING" | "NOT_PICKED" | "BLOCKED" | "GALE_BLOCKED" | "PARTIAL_RED";
 export interface SessionFinanceLedger {
   removedSignalIds: string[];
   corrections: Record<string, EditableSignalResult>;
@@ -38,7 +38,7 @@ export function impactoFinanceiro(signal: TrackedSignal, config: BankrollConfig,
   if (result === "PARTIAL_RED") return -config.stakeR1PorArea;
   if (result === "PENDING" || result === "NO_SIGNAL") return null;
   if (result === "GREEN_R1") return config.stakeR1PorArea;
-  if (result === "GREEN_GALE1") return 0;
+  if (result === "GREEN_GALE1" || result === "GREEN_GALE2") return 0;
   if (result === "RED") return -(config.stakeR1PorArea * 2 + config.stakeR1PorArea * 4);
   return null;
 }
