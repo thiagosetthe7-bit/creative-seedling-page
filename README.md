@@ -10,7 +10,11 @@ Continue developing this project in the [Lovable editor](https://lovable.dev/pro
 
 - **Ship faster**: describe what you want to build and Lovable handles the code.
 - **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+- **Full ownership**: push to `main` on GitHub and verify the Git sync status in Lovable before assuming the editor has received the update.
+
+## Repository sync check
+
+The `main` branch is the reference branch for the connected Lovable project. After a GitHub commit, verify the Git status in Lovable and confirm the updated code is visible in the editor preview. If the project reports divergent histories, preserve a backup and resolve the divergence before choosing either version.
 
 ## Development
 
