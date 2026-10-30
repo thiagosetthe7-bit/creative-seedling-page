@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { criarSpin } from "./roleta/catalogo";
 import { montarCSVCatalogacao } from "./exportCatalogacao";
-import type { TrackedSignal } from "./roleta/signalTracking";
 
 describe("exportação da catalogação", () => {
   it("exporta cabeçalho com as 21 colunas, BOM UTF-8 e sem linhas quando não há giros", () => {
@@ -33,35 +32,6 @@ describe("exportação da catalogação", () => {
     expect(nova[14]).toBe("0");
     expect(antiga).toHaveLength(22);
     expect(antiga[21]).toBe("Não");
-  });
-
-  it("registra o resultado no giro que resolveu o sinal, sem duplicar a recomendação", () => {
-    const source = criarSpin(1, 1000);
-    const resolution = criarSpin(14, 2000);
-    const tracked: TrackedSignal = {
-      id: "signal-1",
-      sourceSpinId: source.id,
-      sourceIndex: 1,
-      strategy: "br-antecedente",
-      strategyLabel: "BR Antecedente",
-      target: "DÚZIA D2 + COLUNA C2",
-      action: "Alvo",
-      explanation: "Teste",
-      status: "CONCLUÍDO",
-      result: "GREEN_GALE1",
-      resolvedNumber: 14,
-      resultSpinId: resolution.id,
-    };
-    const csv = montarCSVCatalogacao([source, resolution], {}, [tracked]).replace(/^\uFEFF/, "").split("\r\n");
-    const sourceRow = csv[1]!.split(";");
-    const resolutionRow = csv[2]!.split(";");
-    expect(sourceRow[15]).toBe("BR");
-    expect(sourceRow[16]).toBe("DÚZIA D2 + COLUNA C2");
-    expect(sourceRow[17]).toBe("NO_SIGNAL");
-    expect(resolutionRow[17]).toBe("GREEN_GALE1");
-    const auditedCsv = montarCSVCatalogacao([source, resolution], {}, [tracked], { "signal-1": "GALE_BLOCKED" }).replace(/^\uFEFF/, "").split("\r\n");
-    expect(auditedCsv[1]!.split(";")[21]).toBe("TRUE");
-    expect(auditedCsv[1]!.split(";")[17]).toBe("NO_SIGNAL");
   });
 
   it("não altera a sequência de entrada nem exige os módulos antigos de sinais", () => {
