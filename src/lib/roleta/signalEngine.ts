@@ -33,7 +33,10 @@ export function isZeroInPatternWindow(spins: Spin[], windowSize = 5): boolean {
  * pattern window must also be free of zero.
  */
 export function isPostZeroQuarantineActive(spins: Spin[]): boolean {
-  const lastZeroIndex = spins.findLastIndex((spin) => spin.numero === 0);
+  let lastZeroIndex = -1;
+  for (let i = spins.length - 1; i >= 0; i -= 1) {
+    if (spins[i]?.numero === 0) { lastZeroIndex = i; break; }
+  }
   if (lastZeroIndex === -1) return false;
   const spinsSinceZero = spins.length - 1 - lastZeroIndex;
   return spinsSinceZero < ZERO_COOLOFF_SPINS;
