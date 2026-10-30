@@ -30,13 +30,11 @@ export const Route = createFileRoute("/")({
 
 function Catalogacao() {
   const [financeRevision, setFinanceRevision] = useState(0);
-  const [attentionMessage, setAttentionMessage] = useState("");
-  const [dismissedAttention, setDismissedAttention] = useState("");
 
   useEffect(() => { const sync = () => setFinanceRevision((n) => n + 1); window.addEventListener(SESSION_FINANCE_EVENT, sync); window.addEventListener("storage", sync); return () => { window.removeEventListener(SESSION_FINANCE_EVENT, sync); window.removeEventListener("storage", sync); }; }, []);
   void financeRevision;
   const estado = useEstado();
-  const { sinais, smartGale, tracking, blockedTargets, marketEntropy, zeroQuarantineActive, sessionAssessment } = useSinais();
+  const { sinais, smartGale, tracking } = useSinais();
   const configBanca = carregarConfigBanca();
   const financeLedger = loadSessionFinance();
   const sinaisFinanceiros = tracking.signals.filter((signal) => !financeLedger.removedSignalIds.includes(signal.id)).map((signal) => { const result = effectiveSignalResult(signal, financeLedger); return { ...signal, status: result === "PENDING" ? signal.status : "CONCLUÍDO" as const, result: result === "PENDING" ? "NO_SIGNAL" as const : result as typeof signal.result }; });
@@ -51,76 +49,10 @@ function Catalogacao() {
   const metaDoDia = configBanca.metaModo === "valor" ? configBanca.metaValor : bancaDiaAtivo * configBanca.metaDiariaPercentual / 100;
   const metaDiariaAtingida = Boolean(configBanca.bloquearSinaisMetaDiaria && metaDoDia > 0 && resultadoAtualDia >= metaDoDia);
   const bloqueioFinanceiro = resumoBanca.metaBatida || metaDiariaAtingida;
-  const lastTenForStagnation = estado.spins.slice(-10);
-  const strictColumnDozenStagnant = ["coluna", "duzia"].some((key) => {
-    let run = 0;
-    let previous = "";
-    for (const spin of lastTenForStagnation) {
-      const value = key === "coluna" ? spin.classificacao.coluna : spin.classificacao.duzia;
-      if (!value || value === "ZERO" || value === "VERDE") { run = 0; previous = ""; continue; }
-      run = value === previous ? run + 1 : 1;
-      previous = value;
-      if (run >= 4) return true;
-    }
-    return false;
-  });
-  // O modal de ATENÇÃO só é acionado pela estagnação linear estrita; é informativo.
-  const attentionMessages = strictColumnDozenStagnant
-    ? ["⚠️ ATENÇÃO: Mesa apresentando estagnação linear estrita na mesma Coluna/Dúzia por quatro ou mais giros consecutivos. Aviso informativo; sinais permanecem ativos."]
-    : [];
-  const attentionKey = attentionMessages.join("\\n");
-  useEffect(() => {
-    if (!attentionKey) {
-      setAttentionMessage("");
-      setDismissedAttention("");
-      return;
-    }
-    if (attentionKey !== dismissedAttention) setAttentionMessage(attentionKey);
-  }, [attentionKey, dismissedAttention]);
 
   return (
     <AppShell>
-      {attentionMessage && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm" role="presentation">
-          <section role="alertdialog" aria-modal="true" aria-labelledby="attention-modal-title" className="w-full max-w-2xl rounded-2xl border-4 border-amber-400 bg-slate-950 text-white shadow-[0_0_70px_rgba(251,146,60,0.35)]">
-            <header className="border-b border-amber-400/40 bg-gradient-to-r from-amber-500/25 to-orange-500/10 p-5 sm:p-7">
-              <h2 id="attention-modal-title" className="text-xl font-black text-amber-200 sm:text-3xl">⚠️ ALERTA DE ATENÇÃO DA MESA</h2>
-              <p className="mt-2 text-sm text-amber-100">Leia os avisos antes de continuar.</p>
-            </header>
-            <div className="space-y-3 p-5 sm:p-7">
-              {attentionMessage.split("\\n").filter(Boolean).map((message, index) => <p key={index} className="rounded-lg border border-amber-300/40 bg-amber-400/10 p-4 text-sm font-bold leading-relaxed text-amber-100">{message}</p>)}
-              <button type="button" onClick={() => { setDismissedAttention(attentionKey); setAttentionMessage(""); }} className="w-full rounded-xl bg-amber-400 px-5 py-3 font-black text-slate-950 hover:bg-amber-300">Entendido / Ciente</button>
-            </div>
-          </section>
-        </div>
-      )}
-      {bloqueioFinanceiro ? (
-        <div role="alert" className="mb-4 rounded-lg border-2 border-rose-500 bg-rose-500/10 p-3 text-sm font-black text-rose-500">
-          SINAIS BLOQUEADOS: {metaDiariaAtingida ? "META DIÁRIA ATINGIDA" : "META DA SESSÃO ATINGIDA"}. Encerre a sessão antes de considerar novas entradas.
-        </div>
-      ) : resumoBanca.stopLossCritico ? (
-        <>
-          <div role="alert" className="mb-4 rounded-lg border-2 border-rose-500 bg-rose-500/10 p-3 text-sm font-black text-rose-500">
-            🔴 STOP LOSS ATINGIDO APÓS RED CONFIRMADO NO R2. Novas entradas R1 ficam suspensas; a recomendação Smart Gale 1 continua sendo exibida para não ocultar um R2 em andamento.
-          </div>
-          <SignalPopup signals={[]} smartGale={smartGale} stakeR1Total={stakeR1Popup} stakeR2Total={stakeR2Popup} />
-        </>
-      ) : <SignalPopup signals={sinais} smartGale={smartGale} stakeR1Total={stakeR1Popup} stakeR2Total={stakeR2Popup} />}
-      {zeroQuarantineActive && (
-        <div role="alert" aria-live="assertive" className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/20 p-3 text-xs font-black text-amber-400">
-          🔄 MARCO ZERO: o ciclo de dominância foi reiniciado. Somente giros posteriores ao Zero entram na contagem; os sinais continuam sujeitos ao padrão completo.
-        </div>
-      )}
-      <div role="status" aria-live="polite" className={`mb-3 rounded-lg border p-3 text-sm font-black ${sessionAssessment.sessionStatus === "OPEN" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300" : sessionAssessment.sessionStatus === "CLOSED" ? "border-rose-500/40 bg-rose-500/10 text-rose-300" : "border-amber-500/40 bg-amber-500/10 text-amber-200"}`}>
-        {sessionAssessment.message}
-        <span className="mt-1 block text-xs font-semibold opacity-80">Amostra: {sessionAssessment.sampleSize} giros · Repetições estruturais: {sessionAssessment.repeatedAreaTransitions}</span>
-      </div>
-      <div role="status" aria-live="polite" className={`mb-3 flex items-center gap-2 rounded-lg border p-3 text-xs font-black ${marketEntropy.isMarketSafe ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-amber-500/30 bg-amber-500/20 text-amber-400"}`}>
-        {marketEntropy.isMarketSafe
-          ? "ℹ️ CONCENTRAÇÃO DE TENDÊNCIA — sinais permanecem ativos"
-          : `ℹ️ CONCENTRAÇÃO OBSERVADA EM ${marketEntropy.dominantSector ?? "SETOR"} (${Math.round(marketEntropy.concentration * 100)}%). Sinais VOLT/DELTA permanecem ativos.`}
-      </div>
-      {blockedTargets.map(({ target, reason }) => <div key={`${target}-${reason}`} role="alert" aria-live="assertive" className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/20 p-3 text-sm font-black text-amber-400">{reason === "WIN" ? `⚠️ ALERTA DE EXAUSTÃO: O alvo ${target} já teve um WIN recente nesta sessão sem reset de Zero. Entrada bloqueada para evitar repetição exausta.` : reason === "FAILED" ? `⚠️ ALERTA DE EXAUSTÃO: O alvo ${target} teve RED ou Gale Bloqueado nesta sessão. Nova formação bloqueada para evitar repetição negativa.` : `⚠️ LIMITE DE EXAUSTÃO: O alvo ${target} já atingiu duas formações nesta sessão. Nova entrada bloqueada.`}</div>)}
+      <SignalPopup signals={sinais} smartGale={smartGale} stakeR1Total={stakeR1Popup} stakeR2Total={stakeR2Popup} />
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-lg font-black tracking-widest">CATALOGAÇÃO</h1>
