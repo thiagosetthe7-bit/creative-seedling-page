@@ -55,7 +55,7 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 8 }: Signal
 
   if (!visible || !signals.length) return null;
   const signal = signals[signals.length - 1]!;
-  const triggerName = signal.strategy === "volt-delta" ? "VOLT + DELTA" : signal.strategy === "delta" ? "DELTA" : signal.name.toUpperCase().includes("DUPLO") ? "VOLT DUPLO" : "VOLT";
+  const triggerName = signal.name.toUpperCase().includes("DUPLO") ? "VOLT DUPLO" : "VOLT";
   const formatTarget = (raw: string) => {
     const value = raw.trim();
     if (/^COR\s+/i.test(value)) return value.replace(/^COR\s+/i, "COR: ");
@@ -63,8 +63,8 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 8 }: Signal
     if (/^ALTO\/BAIXO\s+/i.test(value)) return value.replace(/^ALTO\/BAIXO\s+/i, "A/B: ");
     return value;
   };
-  const displayTarget = [signal.target, signal.deltaTarget].filter(Boolean).map(formatTarget).join(" + ");
-  const targetAction = [signal.target, signal.deltaTarget].filter(Boolean).map((target) => formatTarget(target).replace(/: /g, " ")).join(" E ");
+  const displayTarget = [signal.target].filter(Boolean).map(formatTarget).join(" + ");
+  const targetAction = [signal.target].filter(Boolean).map((target) => formatTarget(target).replace(/: /g, " ")).join(" E ");
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[100] flex items-start justify-center bg-black/35 px-4 py-20 backdrop-blur-[2px]" aria-live="assertive">
