@@ -148,6 +148,14 @@ export function avaliarSmartGale1(spins: Spin[], bips: Record<string, TipoBip>):
     result = btDecision(signal, history, r1);
   }
 
+  // Uma falha isolada de R1 não bloqueia Gale 1: só a confluência dupla acima pode fazê-lo.
+  if (!shouldBlockGale1(history) && result.status === "BLOCKED") {
+    result = {
+      status: "APPROVED",
+      reason: "R1 falhou, mas não há confluência dupla de risco (estagnação de coluna/dúzia + Zero recente). Gale 1 mantido ativo conforme a regra de flexibilização.",
+    };
+  }
+
   return {
     id: `${signal.id}:smart-gale-1:${r1.id}:${result.status}`,
     signalId: signal.id,
