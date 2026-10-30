@@ -31,7 +31,7 @@ describe("Market entropy defensive filter", () => {
 
   it("blocks a dominant sector with six of ten spins and an isolated one-spin break", () => {
     // D1 is dominant with isolated non-D1 breaks between D1 results.
-    const result = evaluateMarketEntropy(spins(1, 4, 1, 7, 1, 10, 1, 13, 1, 16));
+    const result = evaluateMarketEntropy(spins(1, 14, 2, 17, 3, 20, 4, 23, 5, 6));
     expect(result.isMarketSafe).toBe(false);
     expect(result.dominantSector).toBe("DÚZIA D1");
     expect(result.hasIsolatedBreaks).toBe(true);
