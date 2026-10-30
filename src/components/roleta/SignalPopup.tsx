@@ -55,10 +55,8 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 8 }: Signal
 
   if (!visible || !signals.length) return null;
   const signal = signals[signals.length - 1]!;
-  const triggerName = signal.strategy === "volt-duplo" || signal.name.toUpperCase().includes("DUPLO")
-    ? "VOLT DUPLO"
-    : "VOLT";
-  const targetAction = signal.target.replace(" + ", " E ");
+  const triggerName = signal.strategy === "volt-delta" ? "VOLT + DELTA" : signal.strategy === "delta" ? "DELTA" : signal.name.toUpperCase().includes("DUPLO") ? "VOLT DUPLO" : "VOLT";
+  const targetAction = [signal.target, signal.deltaTarget].filter(Boolean).join(" + ").replace(/\s+\+\s+/g, " E ");
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[100] flex items-start justify-center bg-black/35 px-4 py-20 backdrop-blur-[2px]" aria-live="assertive">
