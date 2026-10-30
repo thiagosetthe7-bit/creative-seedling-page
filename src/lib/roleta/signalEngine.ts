@@ -19,6 +19,26 @@ export interface EntrySignal {
   postZeroContext?: { zeroSpinId: string; distance: number } | undefined;
 }
 
+export const ZERO_COOLOFF_SPINS = 3;
+
+/** True when a zero appears inside the recent window used to form a signal. */
+export function isZeroInPatternWindow(spins: Spin[], windowSize = 5): boolean {
+  if (spins.length < windowSize) return true;
+  return spins.slice(-windowSize).some((spin) => spin.numero === 0);
+}
+
+/**
+ * Zero quarantine: the zero itself plus the next three spins are signal-free.
+ * The first eligible spin is the fourth spin after zero, and its five-spin
+ * pattern window must also be free of zero.
+ */
+export function isPostZeroQuarantineActive(spins: Spin[]): boolean {
+  const lastZeroIndex = spins.findLastIndex((spin) => spin.numero === 0);
+  if (lastZeroIndex === -1) return false;
+  const spinsSinceZero = spins.length - 1 - lastZeroIndex;
+  return spinsSinceZero < ZERO_COOLOFF_SPINS;
+}
+
 export interface MarketEntropyAssessment {
   isMarketSafe: boolean;
   dominantSector: string | null;
@@ -329,6 +349,8 @@ function annotatePostZero(signals: EntrySignal[], spins: Spin[], index: number):
 export function detectarSinaisEntrada(spins: Spin[], bips: Record<string, TipoBip>): EntrySignal[] {
   const index = spins.length - 1;
   if (index < 0) return [];
+  // Never allow zero into a pattern window; after a zero, wait three full spins.
+  if (isPostZeroQuarantineActive(spins) || isZeroInPatternWindow(spins, 5)) return [];
   const primary = [
     ...detectVolt(spins, index),
     ...detectDelta(spins, index),
