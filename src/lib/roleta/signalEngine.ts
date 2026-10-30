@@ -25,6 +25,29 @@ export interface EntrySignal {
 export const ZERO_COOLOFF_SPINS = 3;
 
 /**
+ * Returns false when the last three valid spins repeat one column or one dozen.
+ * Missing history and ZERO values fail closed so a signal is not approved without
+ * enough valid classification data. This is a risk filter, not a prediction.
+ */
+export function checkColumnDozenStagnation(history: { Column: string; Dozen: string }[]): boolean {
+  if (history.length < 3) return false;
+  const last3 = history.slice(-3);
+  if (last3.some((spin) => !spin.Column || !spin.Dozen || spin.Column === "ZERO" || spin.Dozen === "ZERO")) return false;
+  const isColumnStagnant = last3[0]!.Column === last3[1]!.Column && last3[1]!.Column === last3[2]!.Column;
+  const isDozenStagnant = last3[0]!.Dozen === last3[1]!.Dozen && last3[1]!.Dozen === last3[2]!.Dozen;
+  return !(isColumnStagnant || isDozenStagnant);
+}
+
+function hasColumnDozenStagnation(spins: Spin[]): boolean {
+  const last3 = spins.slice(-3);
+  if (last3.length < 3) return true;
+  return !checkColumnDozenStagnation(last3.map((spin) => ({
+    Column: spin.classificacao.coluna,
+    Dozen: spin.classificacao.duzia,
+  })));
+}
+
+/**
  * Detecta alternância estrita PAR/ÍMPAR nos quatro resultados mais recentes.
  * O resultado descreve o histórico observado; não estima nem garante ganhos futuros.
  */
@@ -383,9 +406,10 @@ export function detectarSinaisEntrada(spins: Spin[], bips: Record<string, TipoBi
   if (index < 0) return [];
   // Never allow zero into a pattern window; after a zero, wait three full spins.
   if (isPostZeroQuarantineActive(spins) || isZeroInPatternWindow(spins, 4)) return [];
+  // A three-spin repeated column or dozen blocks VOLT/DELTA entry candidates.
+  const blockColumnDozenStagnation = hasColumnDozenStagnation(spins);
   const primary = [
-    ...detectVolt(spins, index),
-    ...detectDelta(spins, index),
+    ...(blockColumnDozenStagnation ? [] : [...detectVolt(spins, index), ...detectDelta(spins, index)]),
     ...detectBrAntecedente(spins, bips, index),
   ];
   const fused = fuseSignals(primary);
