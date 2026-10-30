@@ -49,7 +49,7 @@ export function montarCSVCatalogacao(
     const postZeroDistance = postZero?.postZeroContext?.distance ?? "";
     const postZeroId = postZero?.postZeroContext?.zeroSpinId ?? "";
     const resolved = byResultSpin.get(spin.id) ?? [];
-    const results = [...resolved, ...related].map((signal) => financeCorrections[signal.id] ?? signal.result);
+    const results = resolved.map((signal) => financeCorrections[signal.id] ?? signal.result);
     const result = results.includes("GREEN_R1") ? "GREEN_R1"
       : results.includes("GREEN_GALE1") ? "GREEN_GALE1"
       : results.includes("RED") ? "RED"
