@@ -10,6 +10,7 @@ import { acoes, useEstado } from "@/lib/roleta/store";
 import { baixarCSVCatalogacao } from "@/lib/exportCatalogacao";
 import { calcularBanca, carregarConfigBanca } from "@/lib/roleta/bankroll";
 import { effectiveSignalResult, impactoFinanceiro, loadSessionFinance, SESSION_FINANCE_EVENT } from "@/lib/roleta/sessionFinance";
+import { checkColumnDozenStagnation } from "@/lib/roleta/signalEngine";
 
 const dataLocalISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
@@ -50,7 +51,13 @@ function Catalogacao() {
   const metaDoDia = configBanca.metaModo === "valor" ? configBanca.metaValor : bancaDiaAtivo * configBanca.metaDiariaPercentual / 100;
   const metaDiariaAtingida = Boolean(configBanca.bloquearSinaisMetaDiaria && metaDoDia > 0 && resultadoAtualDia >= metaDoDia);
   const bloqueioFinanceiro = resumoBanca.metaBatida || metaDiariaAtingida;
+  const lastThreeForStagnation = estado.spins.slice(-3);
+  const columnDozenStagnant = estado.spins.length >= 3 && !checkColumnDozenStagnation(lastThreeForStagnation.map((spin) => ({
+    Column: spin.classificacao.coluna,
+    Dozen: spin.classificacao.duzia,
+  })));
   const attentionMessages = [
+    ...(columnDozenStagnant ? ["⚠️ ATENÇÃO: Mesa apresentando estagnação na mesma Coluna/Dúzia nos últimos três giros. Sinais VOLT/DELTA temporariamente pausados."] : []),
     ...(zeroQuarantineActive ? ["🛡️ QUARENTENA PÓS-ZERO: entradas suspensas até que a janela de segurança seja concluída."] : []),
     ...(!marketEntropy.isMarketSafe ? [`⚠️ DISPERSÃO DE RISCO: mesa de alta volatilidade/saturação em ${marketEntropy.dominantSector ?? "SETOR"}. Sinais VOLT/DELTA suspensos temporariamente.`] : []),
     ...blockedTargets.map(({ target, reason }) => reason === "WIN"
