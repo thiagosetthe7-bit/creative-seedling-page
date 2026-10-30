@@ -4,28 +4,88 @@ import type { EntrySignal } from "@/lib/roleta/signalEngine";
 interface SignalPopupProps {
   signals: EntrySignal[];
   onDismiss?: () => void;
-  stakeR1Total?: number;
-  stakeR2Total?: number;
+  autoCloseSeconds?: number;
 }
-export function SignalPopup({ signals, onDismiss, stakeR1Total, stakeR2Total }: SignalPopupProps) {
-  const [open, setOpen] = useState(false);
-  const [dismissedKey, setDismissedKey] = useState("");
-  const previousKey = useRef("");
+
+/**
+ * Alerta VOLT não bloqueante: aparece apenas quando surge um novo ID de sinal.
+ * A camada externa não captura cliques, permitindo continuar a catalogar giros.
+ */
+export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 8 }: SignalPopupProps) {
+  const [visible, setVisible] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(autoCloseSeconds);
+  const lastSignalKey = useRef("");
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const key = signals.map((signal) => signal.id).sort().join("|");
+
   useEffect(() => {
-    if (!signals.length) { setOpen(false); previousKey.current = ""; setDismissedKey(""); return; }
-    if (key !== previousKey.current) { previousKey.current = key; setDismissedKey(""); setOpen(true); }
-    else if (dismissedKey !== key) setOpen(true);
-  }, [key, signals.length, dismissedKey]);
-  if (!open || !signals.length) return null;
-  return <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4" role="presentation">
-    <section role="dialog" aria-modal="true" aria-labelledby="volt-popup-title" className="w-full max-w-2xl space-y-4 rounded-xl border border-amber-300 bg-slate-950 p-5 text-white">
-      <h2 id="volt-popup-title" className="text-2xl font-black text-amber-300">VOLT · PADRÃO OBSERVADO</h2>
-      {signals.map((signal) => <article key={signal.id} className="space-y-2 rounded-lg border border-white/20 p-4">
-        <h3 className="font-bold">{signal.name}</h3><p className="text-xl font-black">{signal.target}</p><p className="text-sm text-slate-300">{signal.explanation}</p><p className="text-sm">{signal.action}</p>
-      </article>)}
-      {(stakeR1Total !== undefined || stakeR2Total !== undefined) && <p className="text-xs text-slate-400">Valores configurados para exibição: R1 {stakeR1Total ?? "—"} · R2 {stakeR2Total ?? "—"}. Não representam garantia de resultado.</p>}
-      <button type="button" className="w-full rounded-lg bg-amber-300 px-4 py-3 font-black text-black" onClick={() => { setDismissedKey(key); setOpen(false); onDismiss?.(); }}>FECHAR</button>
-    </section>
-  </div>;
+    if (!key) {
+      lastSignalKey.current = "";
+      setVisible(false);
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = null;
+      return;
+    }
+    // Um mesmo sinal não volta a abrir depois de ser fechado; um novo ID abre.
+    if (key === lastSignalKey.current) return;
+    lastSignalKey.current = key;
+    setSecondsLeft(autoCloseSeconds);
+    setVisible(true);
+    if (timerRef.current) clearInterval(timerRef.current);
+    let remaining = autoCloseSeconds;
+    timerRef.current = setInterval(() => {
+      remaining -= 1;
+      setSecondsLeft(Math.max(remaining, 0));
+      if (remaining <= 0) {
+        if (timerRef.current) clearInterval(timerRef.current);
+        timerRef.current = null;
+        setVisible(false);
+        onDismiss?.();
+      }
+    }, 1000);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = null;
+    };
+  }, [key, autoCloseSeconds, onDismiss]);
+
+  useEffect(() => () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+  }, []);
+
+  if (!visible || !signals.length) return null;
+
+  const close = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = null;
+    setVisible(false);
+    onDismiss?.();
+  };
+
+  return (
+    <div className="pointer-events-none fixed right-3 top-20 z-[100] w-[min(26rem,calc(100vw-1.5rem))] sm:right-5 sm:top-24" aria-live="assertive">
+      <section role="status" aria-labelledby="volt-popup-title" className="pointer-events-auto overflow-hidden rounded-xl border border-amber-300/70 bg-slate-950 text-white shadow-2xl shadow-black/40 ring-1 ring-amber-300/20">
+        <div className="flex items-center gap-2 border-b border-amber-300/25 bg-amber-300/10 px-4 py-3">
+          <span aria-hidden="true" className="text-xl">🚨</span>
+          <h2 id="volt-popup-title" className="text-sm font-black tracking-wide text-amber-300">SINAL VOLT CONFIRMADO!</h2>
+          <span className="ml-auto rounded-full border border-white/15 px-2 py-1 text-[10px] text-slate-300">{secondsLeft}s</span>
+        </div>
+        <div className="space-y-3 p-4">
+          {signals.map((signal) => (
+            <article key={signal.id} className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Estratégia: VOLT</p>
+              <p className="text-xs font-semibold text-slate-300">ALVO PRINCIPAL</p>
+              <p className="text-xl font-black leading-tight text-amber-300">{signal.target}</p>
+              <p className="text-sm leading-relaxed text-slate-200">{signal.action || `Alvo identificado: ${signal.target}. Confira o histórico antes de qualquer decisão.`}</p>
+              <p className="text-xs leading-relaxed text-slate-400">{signal.explanation}</p>
+            </article>
+          ))}
+        </div>
+        <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-3">
+          <p className="text-[10px] text-slate-400">O aviso fecha sozinho; a catalogação continua disponível.</p>
+          <button type="button" onClick={close} className="shrink-0 rounded-lg bg-amber-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-amber-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300">ENTENDIDO / FECHAR</button>
+        </div>
+      </section>
+    </div>
+  );
 }
