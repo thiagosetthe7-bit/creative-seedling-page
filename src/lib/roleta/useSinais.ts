@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { detectarSinaisEntrada, isPostZeroQuarantineActive, isSuperGatilho } from "./signalEngine";
+import { detectarSinaisEntrada, evaluateMarketEntropy, isPostZeroQuarantineActive, isSuperGatilho } from "./signalEngine";
 import { avaliarSmartGale1 } from "./smartGale";
 import { useEstado } from "./store";
 import { rebuildSignalTracking, SIGNAL_TRACKING_KEY, type TrackedSignal } from "./signalTracking";
