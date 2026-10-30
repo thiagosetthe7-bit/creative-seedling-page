@@ -7,8 +7,8 @@ import { TabelaCatalogacao } from "@/components/roleta/TabelaCatalogacao";
 import { useSinais } from "@/lib/roleta/useSinais";
 import { acoes, useEstado } from "@/lib/roleta/store";
 import { baixarCSVCatalogacao } from "@/lib/exportCatalogacao";
-import { calcularBanca, carregarConfigBanca } from "@/lib/roleta/bankroll";
-
+import { carregarConfigBanca } from "@/lib/roleta/bankroll";
+import { loadSessionFinance } from "@/lib/roleta/sessionFinance";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -28,13 +28,9 @@ function Catalogacao() {
   const estado = useEstado();
   const { sinais, smartGale, tracking } = useSinais();
   const configBanca = carregarConfigBanca();
+  const financeLedger = loadSessionFinance();
   const stakeR1Popup = configBanca.stakeR1PorArea * 2;
   const stakeR2Popup = stakeR1Popup * 2;
-  const resultadoAutomaticoDia = tracking.signals.reduce((sum, signal) => { if (!signal.resultSpinId || financeLedger.removedSignalIds.includes(signal.id)) return sum; const spin = estado.spins.find((item) => item.id === signal.resultSpinId) ?? estado.spins.find((item) => item.id === signal.sourceSpinId); if (!spin) return sum; const d = new Date(spin.timestamp); const data = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; if (data !== dataLocalISO()) return sum; const result = effectiveSignalResult(signal, financeLedger); if (result === "PENDING" || result === "NO_SIGNAL" || result === "NOT_PICKED") return sum; return sum + (impactoFinanceiro(signal, configBanca, financeLedger) ?? 0); }, 0);
-  const resultadoAtualDia = resultadoAutomaticoDia;
-  const metaDoDia = configBanca.metaModo === "valor" ? configBanca.metaValor : bancaDiaAtivo * configBanca.metaDiariaPercentual / 100;
-  const metaDiariaAtingida = Boolean(configBanca.bloquearSinaisMetaDiaria && metaDoDia > 0 && resultadoAtualDia >= metaDoDia);
-  const bloqueioFinanceiro = resumoBanca.metaBatida || metaDiariaAtingida;
 
   return (
     <AppShell>
