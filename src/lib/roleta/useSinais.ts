@@ -17,6 +17,7 @@ export function useSinais() {
 
   const alertas = useMemo<EntrySignal[]>(() => tracking.signals
     .filter((signal) => signal.status !== "CONCLUÍDO")
+    .sort((a, b) => ({ R1: 0, GALE1: 1, GALE2: 2 }[a.phase] - { R1: 0, GALE1: 1, GALE2: 2 }[b.phase]) || a.sourceIndex - b.sourceIndex)
     .map((signal) => ({
       id: `${signal.id}:${signal.phase}`,
       strategy: signal.strategy,
