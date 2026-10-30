@@ -11,11 +11,9 @@ function HistoricoSinais() {
   return (
     <AppShell>
       <section className="rounded-lg border border-border bg-card p-4 sm:p-6">
-        <h1 className="text-lg font-black tracking-widest">ENGINE DE SINAIS ATIVA</h1>
+        <h1 className="text-lg font-black tracking-widest">ANÁLISE VOLT</h1>
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-          VOLT Duplo, DELTA e BR Antecedente são recalculados a partir do histórico catalogado.
-          Quando as regras forem atendidas, o alerta em tela cheia será exibido na página de catalogação.
-          O motor identifica padrões configurados; não garante resultados futuros.
+          O módulo observa apenas padrões VOLT em dúzias e colunas, usando até 20 giros desde o zero mais recente. O histórico financeiro permite corrigir manualmente os resultados. Frequências passadas não garantem resultados futuros.
         </p>
         <Link to="/" className="mt-4 inline-flex rounded-lg bg-brand px-4 py-2 text-sm font-bold text-brand-foreground">
           ABRIR CATALOGAÇÃO
