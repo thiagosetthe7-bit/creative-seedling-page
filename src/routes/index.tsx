@@ -4,6 +4,8 @@ import { EntradaNumeros } from "@/components/roleta/EntradaNumeros";
 import { TabelaCatalogacao } from "@/components/roleta/TabelaCatalogacao";
 import { acoes, useEstado } from "@/lib/roleta/store";
 import { baixarCSVCatalogacao } from "@/lib/exportCatalogacao";
+import { useSinais } from "@/lib/roleta/useSinais";
+import { SignalTrackingPanel } from "@/components/roleta/SignalTrackingPanel";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -21,6 +23,7 @@ export const Route = createFileRoute("/")({
 
 function Catalogacao() {
   const estado = useEstado();
+  const { tracking } = useSinais();
 
   return (
     <AppShell>
@@ -51,6 +54,7 @@ function Catalogacao() {
       <div className="space-y-4">
         <EntradaNumeros total={estado.spins.length} />
         <TabelaCatalogacao spins={estado.spins} />
+        <SignalTrackingPanel signals={tracking.signals} />
       </div>
     </AppShell>
   );
