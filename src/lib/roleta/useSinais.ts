@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { detectarSinaisEntrada, evaluateMarketEntropy, isPostZeroQuarantineActive, isSuperGatilho } from "./signalEngine";
+import { evaluateSession } from "./sessionEvaluator";
 import { avaliarSmartGale1 } from "./smartGale";
 import { useEstado } from "./store";
 import { rebuildSignalTracking, SIGNAL_TRACKING_KEY, type TrackedSignal } from "./signalTracking";
@@ -106,12 +107,18 @@ export function useSinais() {
     return [...detected.filter((signal) => !reentries.some((item) => item.id === signal.id)), ...reentries];
   }, [estado.spins, estado.bips, estado.config.zeroComoProtecao, tracking]);
   const marketEntropy = useMemo(() => evaluateMarketEntropy(estado.spins), [estado.spins]);
+  const sessionAssessment = useMemo(() => evaluateSession(estado.spins), [estado.spins]);
   const zeroQuarantineActive = useMemo(() => isPostZeroQuarantineActive(estado.spins), [estado.spins]);
   const financeLedger = loadSessionFinance();
   const blockedTargets = useMemo(() => exhaustionBlocks(estado.spins, tracking.signals, financeLedger.corrections), [estado.spins, tracking.signals, financeLedger.corrections]);
   const blockedSignalIds = useMemo(() => new Set(blockedTargets.map((item) => item.target)), [blockedTargets]);
-  // Concentração de tendência não suspende VOLT/DELTA; mantêm-se os bloqueios de exaustão existentes.
-  const sinaisPermitidos = useMemo(() => sinais.filter((signal) => !blockedSignalIds.has(signal.target)), [sinais, blockedSignalIds]);
+  // O filtro macro fecha VOLT/DELTA somente quando a amostra de 30–50 giros classifica a sessão como CLOSED.
+  const sinaisPermitidos = useMemo(() => sinais.filter((signal) => {
+    if (blockedSignalIds.has(signal.target)) return false;
+    const isTrendSignal = signal.strategy === "volt-duplo" || signal.strategy === "delta"
+      || (signal.strategy === "bt-concomitante" && (signal.baseStrategy === "volt-duplo" || signal.baseStrategy === "delta"));
+    return !(sessionAssessment.sessionStatus === "CLOSED" && isTrendSignal);
+  }), [sinais, blockedSignalIds, sessionAssessment.sessionStatus]);
   const superGatilho = useMemo(() => isSuperGatilho(sinaisPermitidos), [sinaisPermitidos]);
   const smartGale = useMemo(
     () => avaliarSmartGale1(estado.spins, estado.bips),
@@ -153,5 +160,5 @@ export function useSinais() {
     if (changed) saveSessionFinance({ ...ledger, corrections });
   }, [tracking]);
 
-  return { sinais: sinaisPermitidos, superGatilho, smartGale, tracking, blockedTargets, marketEntropy, zeroQuarantineActive };
+  return { sinais: sinaisPermitidos, superGatilho, smartGale, tracking, blockedTargets, marketEntropy, zeroQuarantineActive, sessionAssessment };
 }
