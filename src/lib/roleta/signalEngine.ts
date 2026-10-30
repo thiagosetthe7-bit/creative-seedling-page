@@ -11,6 +11,7 @@ export interface EntrySignal {
   explanation: string;
   action: string;
   sourceSpinId: string;
+  phase?: "R1" | "GALE1" | "GALE2";
 }
 export const ZERO_COOLOFF_SPINS = 0;
 export interface MarketEntropyAssessment {

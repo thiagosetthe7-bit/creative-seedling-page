@@ -2,8 +2,8 @@ import type { Spin } from "./catalogo";
 import type { TipoBip } from "./store";
 import { detectarSinaisEntrada, type EntrySignal, type StrategyId } from "./signalEngine";
 
-export type SignalStatus = "AGUARDANDO R1" | "GALE 1 EM ANDAMENTO" | "CONCLUÍDO";
-export type SignalResult = "GREEN_R1" | "GREEN_GALE1" | "RED" | "NO_SIGNAL";
+export type SignalStatus = "AGUARDANDO R1" | "GALE 1 EM ANDAMENTO" | "GALE 2 EM ANDAMENTO" | "CONCLUÍDO";
+export type SignalResult = "GREEN_R1" | "GREEN_GALE1" | "GREEN_GALE2" | "RED" | "NO_SIGNAL";
 export interface TrackedSignal {
   id: string;
   sourceSpinId: string;
@@ -15,6 +15,7 @@ export interface TrackedSignal {
   explanation: string;
   status: SignalStatus;
   result: SignalResult;
+  phase: "R1" | "GALE1" | "GALE2";
   r1Number?: number;
   resolvedNumber?: number;
   resultSpinId?: string;
@@ -30,7 +31,7 @@ function targetHit(signal: Pick<TrackedSignal, "target">, spin: Spin): boolean {
   return false;
 }
 function toTracked(signal: EntrySignal, index: number): TrackedSignal {
-  return { id: signal.id, sourceSpinId: signal.sourceSpinId, sourceIndex: index + 1, strategy: signal.strategy, strategyLabel: "VOLT", target: signal.target, action: signal.action, explanation: signal.explanation, status: "AGUARDANDO R1", result: "NO_SIGNAL" };
+  return { id: signal.id, sourceSpinId: signal.sourceSpinId, sourceIndex: index + 1, strategy: signal.strategy, strategyLabel: "VOLT", target: signal.target, action: signal.action, explanation: signal.explanation, status: "AGUARDANDO R1", result: "NO_SIGNAL", phase: "R1" };
 }
 
 /** Reproduz o histórico VOLT de forma determinística; resultados além de R1 são corrigidos manualmente no histórico. */
@@ -42,11 +43,17 @@ export function rebuildSignalTracking(spins: Spin[], _bips: Record<string, TipoB
     for (let s = 0; s < signals.length; s += 1) {
       const signal = signals[s]!;
       if (signal.status === "CONCLUÍDO" || signal.sourceSpinId === current.id) continue;
-      if (targetHit(signal, current)) {
-        signals[s] = { ...signal, status: "CONCLUÍDO", result: "GREEN_R1", resolvedNumber: current.numero, resultSpinId: current.id };
-      } else if (current.numero === 0) {
-        // O zero encerra a janela de observação sem atribuir resultado financeiro automático.
+      if (current.numero === 0) {
         signals[s] = { ...signal, status: "CONCLUÍDO", result: "NO_SIGNAL", resolvedNumber: 0, resultSpinId: current.id };
+      } else if (targetHit(signal, current)) {
+        const result: SignalResult = signal.phase === "R1" ? "GREEN_R1" : signal.phase === "GALE1" ? "GREEN_GALE1" : "GREEN_GALE2";
+        signals[s] = { ...signal, status: "CONCLUÍDO", result, resolvedNumber: current.numero, resultSpinId: current.id };
+      } else if (signal.phase === "R1") {
+        signals[s] = { ...signal, phase: "GALE1", status: "GALE 1 EM ANDAMENTO", r1Number: current.numero };
+      } else if (signal.phase === "GALE1") {
+        signals[s] = { ...signal, phase: "GALE2", status: "GALE 2 EM ANDAMENTO" };
+      } else {
+        signals[s] = { ...signal, status: "CONCLUÍDO", result: "RED", resolvedNumber: current.numero, resultSpinId: current.id };
       }
     }
     for (const signal of detectarSinaisEntrada(spins.slice(0, index + 1), {})) {

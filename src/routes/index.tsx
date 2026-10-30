@@ -24,11 +24,11 @@ export const Route = createFileRoute("/")({
 
 function Catalogacao() {
   const estado = useEstado();
-  const { tracking, sinais } = useSinais();
+  const { tracking, alertas } = useSinais();
 
   return (
     <AppShell>
-      <SignalPopup signals={sinais} autoCloseSeconds={8} />
+      <SignalPopup signals={alertas} autoCloseSeconds={8} />
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <h1 className="text-lg font-black tracking-widest">CATALOGAÇÃO</h1>
         <button

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { detectarSinaisEntrada, isSuperGatilho } from "./signalEngine";
+import { detectarSinaisEntrada, isSuperGatilho, type EntrySignal } from "./signalEngine";
 import { useEstado } from "./store";
 import { rebuildSignalTracking } from "./signalTracking";
 
@@ -15,8 +15,22 @@ export function useSinais() {
     [estado.spins, estado.bips],
   );
 
+  const alertas = useMemo<EntrySignal[]>(() => tracking.signals
+    .filter((signal) => signal.status !== "CONCLUÍDO")
+    .map((signal) => ({
+      id: `${signal.id}:${signal.phase}`,
+      strategy: signal.strategy,
+      name: signal.phase === "GALE1" ? "VOLT - GALE 1" : signal.phase === "GALE2" ? "VOLT - GALE 2" : signal.strategyLabel,
+      target: signal.target,
+      explanation: signal.explanation,
+      action: signal.phase === "R1" ? signal.action : `Recuperação ${signal.phase === "GALE1" ? "Gale 1" : "Gale 2"}: manter o alvo identificado no próximo giro.`,
+      sourceSpinId: signal.sourceSpinId,
+      phase: signal.phase,
+    })), [tracking]);
+
   return {
     sinais,
+    alertas,
     superGatilho: isSuperGatilho(sinais),
     smartGale: null,
     tracking,

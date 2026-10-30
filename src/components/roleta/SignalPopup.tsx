@@ -55,7 +55,8 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 8 }: Signal
 
   if (!visible || !signals.length) return null;
   const signal = signals[signals.length - 1]!;
-  const triggerName = signal.name.toUpperCase().includes("DUPLO") ? "VOLT DUPLO" : "VOLT";
+  const baseTrigger = signal.name.toUpperCase().includes("DUPLO") ? "VOLT DUPLO" : "VOLT";
+  const triggerName = signal.phase === "GALE1" ? `${baseTrigger} - GALE 1` : signal.phase === "GALE2" ? `${baseTrigger} - GALE 2` : baseTrigger;
   const formatTarget = (raw: string) => {
     const value = raw.trim();
     if (/^COR\s+/i.test(value)) return value.replace(/^COR\s+/i, "COR: ");
@@ -70,7 +71,7 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 8 }: Signal
     <div className="pointer-events-none fixed inset-0 z-[100] flex items-start justify-center bg-black/35 px-4 py-20 backdrop-blur-[2px]" aria-live="assertive">
       <section role="alertdialog" aria-modal="true" aria-labelledby="volt-popup-title" className="pointer-events-auto w-full max-w-md overflow-hidden rounded-2xl border border-amber-300/50 bg-slate-950 text-white shadow-2xl shadow-black/50 ring-1 ring-amber-200/20">
         <div className="px-6 pb-5 pt-6 text-center">
-          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">SINAL DE ENTRADA • PRÓXIMO GIRO</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">{signal.phase === "GALE1" ? "RECUPERAÇÃO • GALE 1 • PRÓXIMO GIRO" : signal.phase === "GALE2" ? "RECUPERAÇÃO • GALE 2 • PRÓXIMO GIRO" : "SINAL DE ENTRADA • PRÓXIMO GIRO"}</p>
           <h2 id="volt-popup-title" className="mt-3 text-2xl font-black tracking-tight text-amber-300">⚡ GATILHO ATIVO: {triggerName}</h2>
           <div className="mt-5 flex justify-center">
             <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-bold tracking-wider text-emerald-300">CONDIÇÕES DO PADRÃO: COMPLETAS</span>
