@@ -2,7 +2,7 @@ import type { Spin } from "./catalogo";
 import type { TipoBip } from "./store";
 
 /** Motor VOLT Puro: analisa somente dúzias e colunas na janela recente. */
-export type StrategyId = "volt-duplo";
+export type StrategyId = "volt-duplo" | "delta" | "volt-delta";
 export interface EntrySignal {
   id: string;
   strategy: StrategyId;
@@ -11,7 +11,8 @@ export interface EntrySignal {
   explanation: string;
   action: string;
   sourceSpinId: string;
-  phase?: "R1" | "GALE1" | "GALE2";
+  phase?: "R1" | "GALE1";
+  deltaTarget?: string;
 }
 export const ZERO_COOLOFF_SPINS = 0;
 export interface MarketEntropyAssessment {
@@ -24,6 +25,8 @@ const WINDOW_SIZE = 20;
 const MIN_DOMINANCE = 5;
 const MAX_INERTIAL_STREAK = 5;
 const ANTI_ENTROPY_WINDOW = 6;
+const DELTA_STREAK_MIN = 4;
+const DELTA_STREAK_MAX = 5;
 
 type Axis = "duzia" | "coluna";
 type Pair = [string, string];
@@ -62,6 +65,36 @@ function isPerfectThreeWayRotation(spins: Spin[], axis: Axis): boolean {
   if (cycle.length !== 3) return false;
   return values.every((value, index) => index < 3 || value === values[index - 3])
     && values.every((value, index) => index === 0 || value !== values[index - 1]);
+}
+
+type DeltaAxis = "cor" | "pi";
+
+/** DELTA: 4–5 repetições idênticas, uma quebra e retorno ao valor anterior. */
+function evaluateDeltaAxis(spins: Spin[], axis: DeltaAxis): EntrySignal | null {
+  if (spins.length < 6 || spins.at(-1)?.numero === 0) return null;
+  const zeroIndex = lastZeroIndex(spins);
+  const window = spins.slice(zeroIndex + 1).slice(-ANTI_ENTROPY_WINDOW);
+  if (window.length < 6 || window.some((spin) => spin.numero === 0)) return null;
+  const values = window.map((spin) => spin.classificacao[axis]);
+  const returned = values[values.length - 1]!;
+  const breakValue = values[values.length - 2]!;
+  const prior = values.slice(0, -2);
+  const streak = trailingStreak(prior);
+  if (prior.some((value) => value !== prior[0]) || prior[0] === "ZERO") return null;
+  if (streak < DELTA_STREAK_MIN || streak > DELTA_STREAK_MAX) return null;
+  if (breakValue === prior[0] || breakValue === "ZERO" || returned !== prior[0]) return null;
+  const label = axis === "cor" ? "COR" : "PAR/ÍMPAR";
+  const target = `${label} ${prior[0]}`;
+  const source = window[window.length - 1]!;
+  return {
+    id: `delta:${axis}:${source.id}:${prior[0]}`,
+    strategy: "delta",
+    name: "DELTA",
+    target,
+    explanation: `DELTA ${label}: ${streak} repetições, uma quebra e retorno observado.`,
+    action: `Avaliar ${target} no próximo giro. Padrões observados não garantem resultados.`,
+    sourceSpinId: source.id,
+  };
 }
 
 function evaluateAxis(spins: Spin[], axis: Axis): EntrySignal | null {
@@ -122,7 +155,21 @@ export function detectarSinaisEntrada(spins: Spin[], _bips: Record<string, TipoB
   if (!spins.length || spins.at(-1)?.numero === 0) return [];
   const dozen = evaluateAxis(spins, "duzia");
   const column = evaluateAxis(spins, "coluna");
-  // Prioriza coluna quando os dois eixos confirmam no mesmo giro, evitando duplicação.
-  return column ? [column] : dozen ? [dozen] : [];
+  const volt = column ?? dozen;
+  const delta = (["cor", "pi"] as const).map((axis) => evaluateDeltaAxis(spins, axis)).find((signal) => signal !== null) ?? null;
+  // Convergência no mesmo giro tem prioridade e gera um único sinal combinado.
+  if (volt && delta) {
+    return [{
+      ...volt,
+      id: `volt-delta:${volt.sourceSpinId}:${delta.id}`,
+      strategy: "volt-delta",
+      name: "VOLT + DELTA",
+      deltaTarget: delta.target,
+      explanation: `${volt.explanation} Convergência DELTA: ${delta.target}.`,
+      action: `Alvos simultâneos: ${volt.target} e ${delta.target} no próximo giro.`,
+    }];
+  }
+  if (delta) return [delta];
+  return volt ? [volt] : [];
 }
 export function isSuperGatilho(_signals: EntrySignal[]): boolean { return false; }
