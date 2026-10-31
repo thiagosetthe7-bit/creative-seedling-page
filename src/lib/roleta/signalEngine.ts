@@ -112,35 +112,36 @@ function evaluateDeltaAxis(spins: Spin[], axis: DeltaAxis): EntrySignal | null {
 }
 
 function evaluateAxis(spins: Spin[], axis: Axis): EntrySignal | null {
-  if (spins.length < 7) return null;
   const zeroIndex = lastZeroIndex(spins);
-  const afterZero = spins.slice(zeroIndex + 1);
-  const window = afterZero.slice(-WINDOW_SIZE);
-  if (window.length < 7 || window[window.length - 1]?.numero === 0) return null;
-  if (isPerfectThreeWayRotation(window, axis)) return null;
-  const pair = bestPair(window.slice(0, -1), axis);
-  if (!pair) return null;
-  const values = window.map((spin) => spin.classificacao[axis]);
-  const last = values.slice(-7);
-  // 5+ giros na dupla, exatamente uma quebra, seguida de retorno à dupla.
-  const beforeBreak = last.slice(0, -2);
-  const breakValue = last[last.length - 2];
-  const returned = last[last.length - 1];
-  const dominantCount = beforeBreak.filter((v) => pair.includes(v)).length;
-  const breakIsOutside = !pair.includes(breakValue!);
-  const streak = trailingStreak(beforeBreak);
-  // Só aceita exaustão clara de 4–5 repetições; bloqueia streaks de 6+.
-  if (dominantCount < MIN_DOMINANCE || streak < 4 || streak > MAX_INERTIAL_STREAK || !breakIsOutside || !pair.includes(returned!)) return null;
+  const history = spins.slice(zeroIndex + 1).slice(-WINDOW_SIZE);
+  // 3–5 repetições + uma quebra + retorno exigem pelo menos 5 giros.
+  if (history.length < 5 || history.at(-1)?.numero === 0) return null;
+  if (isPerfectThreeWayRotation(history, axis)) return null;
+
+  const values = history.map((spin) => spin.classificacao[axis]);
+  const targetValue = values[values.length - 1];
+  const breakValue = values[values.length - 2];
+  if (!targetValue || targetValue === "ZERO") return null;
+  if (!breakValue || breakValue === "ZERO" || breakValue === targetValue) return null;
+
+  // Conta a streak imediatamente anterior à quebra e ao retorno.
+  let streakCount = 0;
+  for (let i = values.length - 3; i >= 0; i -= 1) {
+    if (values[i] === targetValue) streakCount += 1;
+    else break;
+  }
+  if (streakCount < 3 || streakCount > 5) return null;
+
   const label = axis === "duzia" ? "DÚZIAS" : "COLUNAS";
-  const target = `${label} ${pair[0]} + ${pair[1]}`;
-  const source = window[window.length - 1]!;
+  const target = `${label} ${targetValue}`;
+  const source = history[history.length - 1]!;
   return {
-    id: `volt-puro:${axis}:${source.id}:${pair.join("-")}`,
+    id: `volt-inercia:${axis}:${source.id}:${targetValue}`,
     strategy: "volt-duplo",
-    name: "VOLT PURO",
+    name: "VOLT",
     target,
-    explanation: `Janela de até ${WINDOW_SIZE} giros após o zero mais recente: dominância da dupla, uma quebra isolada e retorno observado.`,
-    action: `Entrada sugerida para o próximo giro (R1): apostar em ${pair[0]} e ${pair[1]}. Padrão observado não garante o resultado.`,
+    explanation: `VOLT: ${streakCount} repetições consecutivas de ${targetValue}, uma quebra e retorno observados.`,
+    action: `Entrada sugerida para o próximo giro (R1): apostar em ${targetValue}. Padrão observado não garante o resultado.`,
     sourceSpinId: source.id,
   };
 }
