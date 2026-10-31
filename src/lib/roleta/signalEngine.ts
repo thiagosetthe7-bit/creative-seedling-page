@@ -155,10 +155,15 @@ export function detectarSinaisEntrada(spins: Spin[], _bips: Record<string, TipoB
   if (!spins.length || spins.at(-1)?.numero === 0) return [];
   const dozen = evaluateAxis(spins, "duzia");
   const column = evaluateAxis(spins, "coluna");
+  // VOLT é a estratégia estrutural prioritária: preservar candidatos de ambos os eixos.
+  const voltCandidates = [column, dozen].filter((signal): signal is EntrySignal => signal !== null);
   const volt = column ?? dozen;
   const delta = (["cor", "pi"] as const).map((axis) => evaluateDeltaAxis(spins, axis)).find((signal) => signal !== null) ?? null;
-  // Convergência no mesmo giro tem prioridade e gera um único sinal combinado.
-  if (volt && delta) {
+
+  // Se qualquer eixo VOLT validou o padrão, DELTA nunca sai isolada.
+  // Quando DELTA também valida no mesmo giro, consolidamos os alvos em um único sinal.
+  if (voltCandidates.length > 0 && volt) {
+    if (!delta) return [volt];
     return [{
       ...volt,
       id: `volt-delta:${volt.sourceSpinId}:${delta.id}`,
@@ -169,7 +174,9 @@ export function detectarSinaisEntrada(spins: Spin[], _bips: Record<string, TipoB
       action: `Alvos simultâneos: ${volt.target} e ${delta.target} no próximo giro.`,
     }];
   }
+
+  // Só permitir DELTA pura quando nenhum padrão VOLT foi validado neste giro.
   if (delta) return [delta];
-  return volt ? [volt] : [];
+  return [];
 }
 export function isSuperGatilho(_signals: EntrySignal[]): boolean { return false; }
