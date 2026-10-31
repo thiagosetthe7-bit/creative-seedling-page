@@ -25,8 +25,7 @@ const WINDOW_SIZE = 20;
 const MIN_DOMINANCE = 5;
 const MAX_INERTIAL_STREAK = 5;
 const ANTI_ENTROPY_WINDOW = 6;
-const DELTA_STREAK_MIN = 4;
-const DELTA_STREAK_MAX = 5;
+const DELTA_STREAK_MIN = 5;
 
 type Axis = "duzia" | "coluna";
 type Pair = [string, string];
@@ -69,19 +68,19 @@ function isPerfectThreeWayRotation(spins: Spin[], axis: Axis): boolean {
 
 type DeltaAxis = "cor" | "pi";
 
-/** DELTA: 4–5 repetições idênticas, uma quebra e retorno ao valor anterior. */
+/** DELTA: no mínimo 5 repetições idênticas, uma quebra e retorno ao valor anterior. */
 function evaluateDeltaAxis(spins: Spin[], axis: DeltaAxis): EntrySignal | null {
-  if (spins.length < 6 || spins.at(-1)?.numero === 0) return null;
+  if (spins.length < 7 || spins.at(-1)?.numero === 0) return null;
   const zeroIndex = lastZeroIndex(spins);
-  const window = spins.slice(zeroIndex + 1).slice(-ANTI_ENTROPY_WINDOW);
-  if (window.length < 6 || window.some((spin) => spin.numero === 0)) return null;
+  const window = spins.slice(zeroIndex + 1).slice(-WINDOW_SIZE);
+  if (window.length < 7 || window.some((spin) => spin.numero === 0)) return null;
   const values = window.map((spin) => spin.classificacao[axis]);
   const returned = values[values.length - 1]!;
   const breakValue = values[values.length - 2]!;
   const prior = values.slice(0, -2);
   const streak = trailingStreak(prior);
   if (prior.some((value) => value !== prior[0]) || prior[0] === "ZERO") return null;
-  if (streak < DELTA_STREAK_MIN || streak > DELTA_STREAK_MAX) return null;
+  if (streak < DELTA_STREAK_MIN) return null;
   if (breakValue === prior[0] || breakValue === "ZERO" || returned !== prior[0]) return null;
   const label = axis === "cor" ? "COR" : "PAR/ÍMPAR";
   const target = `${label} ${prior[0]}`;
