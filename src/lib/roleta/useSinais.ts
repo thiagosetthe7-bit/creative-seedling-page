@@ -16,15 +16,15 @@ export function useSinais() {
   );
 
   const alertas = useMemo<EntrySignal[]>(() => tracking.signals
-    .filter((signal) => signal.status !== "CONCLUÍDO")
-    .sort((a, b) => ({ R1: 0, GALE1: 1, GALE2: 2 }[a.phase] - { R1: 0, GALE1: 1, GALE2: 2 }[b.phase]) || a.sourceIndex - b.sourceIndex)
+    .filter((signal) => signal.status === "AGUARDANDO R1" || signal.status === "GALE 1 EM ANDAMENTO")
+    .sort((a, b) => ({ R1: 0, GALE1: 1 }[a.phase] - { R1: 0, GALE1: 1 }[b.phase]) || a.sourceIndex - b.sourceIndex)
     .map((signal) => ({
       id: `${signal.id}:${signal.phase}`,
       strategy: signal.strategy,
-      name: signal.phase === "GALE1" ? "VOLT - GALE 1" : signal.phase === "GALE2" ? "VOLT - GALE 2" : signal.strategyLabel,
+      name: signal.phase === "GALE1" ? "VOLT - GALE 1" : signal.strategyLabel,
       target: signal.target,
       explanation: signal.explanation,
-      action: signal.phase === "R1" ? signal.action : `Recuperação ${signal.phase === "GALE1" ? "Gale 1" : "Gale 2"}: manter o alvo identificado no próximo giro.`,
+      action: signal.phase === "R1" ? signal.action : "Smart Gale 1: manter o alvo identificado no próximo giro.",
       sourceSpinId: signal.sourceSpinId,
       phase: signal.phase,
     })), [tracking]);

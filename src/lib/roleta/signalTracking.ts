@@ -2,8 +2,8 @@ import type { Spin } from "./catalogo";
 import type { TipoBip } from "./store";
 import { detectarSinaisEntrada, type EntrySignal, type StrategyId } from "./signalEngine";
 
-export type SignalStatus = "AGUARDANDO R1" | "GALE 1 EM ANDAMENTO" | "GALE 2 EM ANDAMENTO" | "CONCLUÍDO";
-export type SignalResult = "GREEN_R1" | "GREEN_GALE1" | "GREEN_GALE2" | "RED" | "NO_SIGNAL";
+export type SignalStatus = "AGUARDANDO R1" | "GALE 1 EM ANDAMENTO" | "CONCLUÍDO";
+export type SignalResult = "GREEN_R1" | "GREEN_GALE1" | "RED" | "NO_SIGNAL";
 export interface TrackedSignal {
   id: string;
   sourceSpinId: string;
@@ -15,7 +15,7 @@ export interface TrackedSignal {
   explanation: string;
   status: SignalStatus;
   result: SignalResult;
-  phase: "R1" | "GALE1" | "GALE2";
+  phase: "R1" | "GALE1";
   r1Number?: number;
   resolvedNumber?: number;
   resultSpinId?: string;
@@ -46,13 +46,12 @@ export function rebuildSignalTracking(spins: Spin[], _bips: Record<string, TipoB
       if (current.numero === 0) {
         signals[s] = { ...signal, status: "CONCLUÍDO", result: "NO_SIGNAL", resolvedNumber: 0, resultSpinId: current.id };
       } else if (targetHit(signal, current)) {
-        const result: SignalResult = signal.phase === "R1" ? "GREEN_R1" : signal.phase === "GALE1" ? "GREEN_GALE1" : "GREEN_GALE2";
+        const result: SignalResult = signal.phase === "R1" ? "GREEN_R1" : "GREEN_GALE1";
         signals[s] = { ...signal, status: "CONCLUÍDO", result, resolvedNumber: current.numero, resultSpinId: current.id };
       } else if (signal.phase === "R1") {
         signals[s] = { ...signal, phase: "GALE1", status: "GALE 1 EM ANDAMENTO", r1Number: current.numero };
-      } else if (signal.phase === "GALE1") {
-        signals[s] = { ...signal, phase: "GALE2", status: "GALE 2 EM ANDAMENTO" };
       } else {
+        // Smart Gale 1 é a única recuperação permitida: se falhar, fecha em RED.
         signals[s] = { ...signal, status: "CONCLUÍDO", result: "RED", resolvedNumber: current.numero, resultSpinId: current.id };
       }
     }

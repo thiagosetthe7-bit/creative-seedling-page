@@ -22,6 +22,8 @@ export interface MarketEntropyAssessment {
 }
 const WINDOW_SIZE = 20;
 const MIN_DOMINANCE = 5;
+const MAX_INERTIAL_STREAK = 5;
+const ANTI_ENTROPY_WINDOW = 6;
 
 type Axis = "duzia" | "coluna";
 type Pair = [string, string];
@@ -41,12 +43,34 @@ function bestPair(spins: Spin[], axis: Axis): Pair | null {
   if (sorted.length < 2) return null;
   return [sorted[0]![0], sorted[1]![0]];
 }
+/** Conta a sequência consecutiva do mesmo valor no fim da amostra. */
+function trailingStreak(values: string[]): number {
+  if (!values.length) return 0;
+  const last = values[values.length - 1];
+  let count = 0;
+  for (let i = values.length - 1; i >= 0 && values[i] === last; i -= 1) count += 1;
+  return count;
+}
+
+/** Bloqueia rotação perfeita C1→C2→C3 (ou D1→D2→D3) nas últimas seis rodadas. */
+function isPerfectThreeWayRotation(spins: Spin[], axis: Axis): boolean {
+  const recent = spins.slice(-ANTI_ENTROPY_WINDOW);
+  if (recent.length < ANTI_ENTROPY_WINDOW || recent.some((spin) => spin.numero === 0)) return false;
+  const values = recent.map((spin) => spin.classificacao[axis]);
+  if (values.some((value) => value === "ZERO")) return false;
+  const cycle = [...new Set(values)];
+  if (cycle.length !== 3) return false;
+  return values.every((value, index) => index < 3 || value === values[index - 3])
+    && values.every((value, index) => index === 0 || value !== values[index - 1]);
+}
+
 function evaluateAxis(spins: Spin[], axis: Axis): EntrySignal | null {
   if (spins.length < 7) return null;
   const zeroIndex = lastZeroIndex(spins);
   const afterZero = spins.slice(zeroIndex + 1);
   const window = afterZero.slice(-WINDOW_SIZE);
   if (window.length < 7 || window[window.length - 1]?.numero === 0) return null;
+  if (isPerfectThreeWayRotation(window, axis)) return null;
   const pair = bestPair(window.slice(0, -1), axis);
   if (!pair) return null;
   const values = window.map((spin) => spin.classificacao[axis]);
@@ -57,7 +81,9 @@ function evaluateAxis(spins: Spin[], axis: Axis): EntrySignal | null {
   const returned = last[last.length - 1];
   const dominantCount = beforeBreak.filter((v) => pair.includes(v)).length;
   const breakIsOutside = !pair.includes(breakValue!);
-  if (dominantCount < MIN_DOMINANCE || !breakIsOutside || !pair.includes(returned!)) return null;
+  const streak = trailingStreak(beforeBreak);
+  // Só aceita exaustão clara de 4–5 repetições; bloqueia streaks de 6+.
+  if (dominantCount < MIN_DOMINANCE || streak < 4 || streak > MAX_INERTIAL_STREAK || !breakIsOutside || !pair.includes(returned!)) return null;
   const label = axis === "duzia" ? "DÚZIAS" : "COLUNAS";
   const target = `${label} ${pair[0]} + ${pair[1]}`;
   const source = window[window.length - 1]!;
