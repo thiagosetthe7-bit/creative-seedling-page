@@ -66,31 +66,46 @@ function isPerfectThreeWayRotation(spins: Spin[], axis: Axis): boolean {
     && values.every((value, index) => index === 0 || value !== values[index - 1]);
 }
 
-type DeltaAxis = "cor" | "pi";
+type DeltaAxis = "cor" | "pi" | "ab";
 
-/** DELTA: no mínimo 5 repetições idênticas, uma quebra e retorno ao valor anterior. */
+/**
+ * DELTA estrita: exige uma streak anterior de 5+ resultados iguais,
+ * seguida por uma quebra e pelo retorno ao valor original.
+ * A sequência é contada para trás a partir do giro imediatamente anterior à quebra.
+ */
 function evaluateDeltaAxis(spins: Spin[], axis: DeltaAxis): EntrySignal | null {
-  if (spins.length < 7 || spins.at(-1)?.numero === 0) return null;
   const zeroIndex = lastZeroIndex(spins);
-  const window = spins.slice(zeroIndex + 1).slice(-WINDOW_SIZE);
-  if (window.length < 7 || window.some((spin) => spin.numero === 0)) return null;
-  const values = window.map((spin) => spin.classificacao[axis]);
-  const returned = values[values.length - 1]!;
-  const breakValue = values[values.length - 2]!;
-  const prior = values.slice(0, -2);
-  const streak = trailingStreak(prior);
-  if (prior.some((value) => value !== prior[0]) || prior[0] === "ZERO") return null;
-  if (streak < DELTA_STREAK_MIN) return null;
-  if (breakValue === prior[0] || breakValue === "ZERO" || returned !== prior[0]) return null;
-  const label = axis === "cor" ? "COR" : "PAR/ÍMPAR";
-  const target = `${label} ${prior[0]}`;
-  const source = window[window.length - 1]!;
+  const history = spins.slice(zeroIndex + 1).slice(-WINDOW_SIZE);
+  if (history.length < DELTA_STREAK_MIN + 2) return null;
+  if (history.some((spin) => spin.numero === 0) || history.at(-1)?.numero === 0) return null;
+
+  const values = history.map((spin) => spin.classificacao[axis]);
+  const targetValue = values[values.length - 1];
+  const breakValue = values[values.length - 2];
+  if (!targetValue || targetValue === "ZERO" || targetValue === "VERDE") return null;
+  if (!breakValue || breakValue === "ZERO" || breakValue === "VERDE" || breakValue === targetValue) return null;
+
+  // Conta a streak real imediatamente ANTES da quebra e do retorno.
+  let streakCount = 0;
+  for (let i = values.length - 3; i >= 0; i -= 1) {
+    if (values[i] === targetValue) streakCount += 1;
+    else break;
+  }
+  if (streakCount < DELTA_STREAK_MIN) return null;
+
+  const labels: Record<DeltaAxis, string> = {
+    cor: "COR",
+    pi: "PAR/ÍMPAR",
+    ab: "ALTO/BAIXO",
+  };
+  const target = `${labels[axis]} ${targetValue}`;
+  const source = history[history.length - 1]!;
   return {
-    id: `delta:${axis}:${source.id}:${prior[0]}`,
+    id: `delta:${axis}:${source.id}:${targetValue}`,
     strategy: "delta",
     name: "DELTA",
     target,
-    explanation: `DELTA ${label}: ${streak} repetições, uma quebra e retorno observado.`,
+    explanation: `DELTA ${labels[axis]}: ${streakCount} repetições consecutivas, quebra e retorno observados.`,
     action: `Avaliar ${target} no próximo giro. Padrões observados não garantem resultados.`,
     sourceSpinId: source.id,
   };
@@ -157,7 +172,7 @@ export function detectarSinaisEntrada(spins: Spin[], _bips: Record<string, TipoB
   // VOLT é a estratégia estrutural prioritária: preservar candidatos de ambos os eixos.
   const voltCandidates = [column, dozen].filter((signal): signal is EntrySignal => signal !== null);
   const volt = column ?? dozen;
-  const delta = (["cor", "pi"] as const).map((axis) => evaluateDeltaAxis(spins, axis)).find((signal) => signal !== null) ?? null;
+  const delta = (["cor", "pi", "ab"] as const).map((axis) => evaluateDeltaAxis(spins, axis)).find((signal) => signal !== null) ?? null;
 
   // Se qualquer eixo VOLT validou o padrão, DELTA nunca sai isolada.
   // Quando DELTA também valida no mesmo giro, consolidamos os alvos em um único sinal.
