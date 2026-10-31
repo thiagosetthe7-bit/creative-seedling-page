@@ -111,6 +111,17 @@ function evaluateDeltaAxis(spins: Spin[], axis: DeltaAxis): EntrySignal | null {
   };
 }
 
+/** Retorna um vizinho adjacente determinístico para cobertura dupla de coluna/dúzia. */
+function adjacentSector(value: string): string | null {
+  const match = value.match(/^([CD])([1-3])$/);
+  if (!match) return null;
+  const family = match[1]!;
+  const index = Number(match[2]);
+  // Prioriza o vizinho seguinte; no limite superior, usa o vizinho anterior.
+  const adjacentIndex = index < 3 ? index + 1 : index - 1;
+  return `${family}${adjacentIndex}`;
+}
+
 function evaluateAxis(spins: Spin[], axis: Axis): EntrySignal | null {
   const zeroIndex = lastZeroIndex(spins);
   const history = spins.slice(zeroIndex + 1).slice(-WINDOW_SIZE);
@@ -133,15 +144,18 @@ function evaluateAxis(spins: Spin[], axis: Axis): EntrySignal | null {
   if (streakCount < 3 || streakCount > 5) return null;
 
   const label = axis === "duzia" ? "DÚZIAS" : "COLUNAS";
-  const target = `${label} ${targetValue}`;
+  const adjacentValue = adjacentSector(targetValue);
+  if (!adjacentValue) return null;
+  // O VOLT é estruturalmente duplo: alvo principal + um setor adjacente.
+  const target = `${label} ${targetValue} + ${adjacentValue}`;
   const source = history[history.length - 1]!;
   return {
-    id: `volt-inercia:${axis}:${source.id}:${targetValue}`,
+    id: `volt-inercia:${axis}:${source.id}:${targetValue}:${adjacentValue}`,
     strategy: "volt-duplo",
-    name: "VOLT",
+    name: "VOLT DUPLO",
     target,
-    explanation: `VOLT: ${streakCount} repetições consecutivas de ${targetValue}, uma quebra e retorno observados.`,
-    action: `Entrada sugerida para o próximo giro (R1): apostar em ${targetValue}. Padrão observado não garante o resultado.`,
+    explanation: `VOLT retorno inercial duplo: ${streakCount} repetições consecutivas de ${targetValue}, quebra e retorno observados; cobertura ${targetValue} + adjacente ${adjacentValue}.`,
+    action: `Entrada sugerida para o próximo giro (R1): cobrir ${target}. Padrão observado não garante o resultado.`,
     sourceSpinId: source.id,
   };
 }
