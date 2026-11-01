@@ -31,6 +31,7 @@ function singleTargetHit(target: string, spin: Spin): boolean {
   if (target.startsWith("COLUNAS")) return target.slice("COLUNAS".length).split("+").map(v => v.trim()).includes(spin.classificacao.coluna);
   if (target.startsWith("COR ")) return spin.classificacao.cor === target.slice("COR ".length);
   if (target.startsWith("PAR/ÍMPAR ")) return spin.classificacao.pi === target.slice("PAR/ÍMPAR ".length);
+  if (target.startsWith("ALTO/BAIXO ")) return spin.classificacao.ab === target.slice("ALTO/BAIXO ".length);
   return false;
 }
 function targetHit(signal: Pick<TrackedSignal, "target" | "deltaTarget">, spin: Spin): boolean {
