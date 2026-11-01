@@ -1,18 +1,22 @@
-import { useEffect } from "react";
+import { useMemo } from "react";
+import { detectarSinaisEntrada, isSuperGatilho } from "./signalEngine";
 import { useEstado } from "./store";
-import { EMPTY_SIGNAL_TRACKING, SIGNAL_TRACKING_KEY } from "./signalTracking";
 
-/** Engine desativada até que uma nova especificação seja aprovada. */
 export function useSinais() {
   const estado = useEstado();
-  useEffect(() => {
-    try { window.localStorage.removeItem(SIGNAL_TRACKING_KEY); } catch { /* storage indisponível */ }
-  }, []);
+  const sinais = useMemo(
+    () => detectarSinaisEntrada(estado.spins, estado.bips),
+    [estado.spins, estado.bips],
+  );
   return {
-    sinais: [], alertas: [], superGatilho: false, smartGale: null,
-    tracking: EMPTY_SIGNAL_TRACKING, blockedTargets: [],
+    sinais,
+    alertas: sinais,
+    superGatilho: isSuperGatilho(sinais),
+    smartGale: null,
+    tracking: { version: 1 as const, lastProcessedSpinId: estado.spins.at(-1)?.id ?? null, signals: [] },
+    blockedTargets: [],
     marketEntropy: { isMarketSafe: false, dominantSector: null, concentration: 0, hasIsolatedBreaks: false },
     zeroQuarantineActive: false,
-    sessionAssessment: { sessionStatus: "RESET", sampleSize: estado.spins.length },
+    sessionAssessment: { sessionStatus: sinais.length ? "SIGNAL" : "WAITING", sampleSize: estado.spins.length },
   };
 }

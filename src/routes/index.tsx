@@ -2,16 +2,18 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/roleta/AppShell";
 import { EntradaNumeros } from "@/components/roleta/EntradaNumeros";
 import { TabelaCatalogacao } from "@/components/roleta/TabelaCatalogacao";
+import { SignalPopup } from "@/components/roleta/SignalPopup";
 import { acoes, useEstado } from "@/lib/roleta/store";
+import { useSinais } from "@/lib/roleta/useSinais";
 import { baixarCSVCatalogacao } from "@/lib/exportCatalogacao";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Catalogação — Roleta" },
-      { name: "description", content: "Registro bruto dos giros da roleta." },
+      { name: "description", content: "Catalogação de giros com motores de análise VOLT A/B e DELTA A/B." },
       { property: "og:title", content: "Catalogação — Roleta" },
-      { property: "og:description", content: "Registro manual e importação de histórico de giros." },
+      { property: "og:description", content: "Registro manual de giros e análise de padrões configurados." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -21,12 +23,14 @@ export const Route = createFileRoute("/")({
 
 function Catalogacao() {
   const estado = useEstado();
+  const { sinais } = useSinais();
   return (
     <AppShell>
+      <SignalPopup signals={sinais} autoCloseSeconds={15} />
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-lg font-black tracking-widest">CATALOGAÇÃO</h1>
-          <p className="mt-1 text-xs text-muted-foreground">Engine de sinais resetada — aguardando nova configuração.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Motores VOLT A/B e DELTA A/B • Zero neutro • janela de 30 giros</p>
         </div>
         <button type="button" onClick={() => baixarCSVCatalogacao(estado.spins, estado.bips)}
           className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-black tracking-widest hover:bg-accent">
@@ -35,8 +39,8 @@ function Catalogacao() {
       </div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-3">
         <div>
-          <p className="text-sm font-bold">Tratamento do ZERO (0)</p>
-          <p className="text-xs text-muted-foreground">O zero permanece registrado e classificado como parte do histórico bruto.</p>
+          <p className="text-sm font-bold">Regra global do Zero</p>
+          <p className="text-xs text-muted-foreground">O zero é neutro para os motores: fica no histórico, não quebra a sequência e não conta para acumulação.</p>
         </div>
         <label className="flex cursor-pointer items-center gap-2 text-xs font-black">
           <input type="checkbox" checked={estado.config.zeroComoProtecao}
