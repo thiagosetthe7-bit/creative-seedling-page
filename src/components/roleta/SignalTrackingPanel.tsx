@@ -5,7 +5,7 @@ import { impactoFinanceiro } from "@/lib/roleta/sessionFinance";
 import { effectiveSignalResult, loadSessionFinance, saveSessionFinance, SESSION_FINANCE_EVENT, type EditableSignalResult, type SessionFinanceLedger } from "@/lib/roleta/sessionFinance";
 
 interface SignalTrackingPanelProps { signals: TrackedSignal[]; }
-const resultLabel: Record<EditableSignalResult, string> = { PENDING: "Pendente", GREEN_R1: "Green R1", GREEN_GALE1: "Green Gale 1", RED: "Red", NOT_PICKED: "Não Peguei", BLOCKED: "Bloqueado", GALE_BLOCKED: "Gale Bloqueado", PARTIAL_RED: "Red Parcial", NO_SIGNAL: "Pendente" };
+const resultLabel: Record<EditableSignalResult, string> = { PENDING: "Pendente", GREEN_R1: "Green em R1", GREEN_GALE1: "Green em Gale 1", RED: "Red", NOT_PICKED: "Não Peguei", BLOCKED: "Bloqueado", GALE_BLOCKED: "Gale Bloqueado", PARTIAL_RED: "Red Parcial", NO_SIGNAL: "Pendente" };
 
 export function SignalTrackingPanel({ signals }: SignalTrackingPanelProps) {
   const [ledger, setLedger] = useState<SessionFinanceLedger>(() => loadSessionFinance());
