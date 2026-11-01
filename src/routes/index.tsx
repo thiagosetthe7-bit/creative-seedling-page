@@ -4,9 +4,6 @@ import { EntradaNumeros } from "@/components/roleta/EntradaNumeros";
 import { TabelaCatalogacao } from "@/components/roleta/TabelaCatalogacao";
 import { acoes, useEstado } from "@/lib/roleta/store";
 import { baixarCSVCatalogacao } from "@/lib/exportCatalogacao";
-import { useSinais } from "@/lib/roleta/useSinais";
-import { SignalTrackingPanel } from "@/components/roleta/SignalTrackingPanel";
-import { SignalPopup } from "@/components/roleta/SignalPopup";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -24,18 +21,15 @@ export const Route = createFileRoute("/")({
 
 function Catalogacao() {
   const estado = useEstado();
-  const { tracking, alertas } = useSinais();
-
   return (
     <AppShell>
-      <SignalPopup signals={alertas} autoCloseSeconds={8} />
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <h1 className="text-lg font-black tracking-widest">CATALOGAÇÃO</h1>
-        <button
-          type="button"
-          onClick={() => baixarCSVCatalogacao(estado.spins, estado.bips)}
-          className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-black tracking-widest hover:bg-accent"
-        >
+        <div>
+          <h1 className="text-lg font-black tracking-widest">CATALOGAÇÃO</h1>
+          <p className="mt-1 text-xs text-muted-foreground">Engine de sinais resetada — aguardando nova configuração.</p>
+        </div>
+        <button type="button" onClick={() => baixarCSVCatalogacao(estado.spins, estado.bips)}
+          className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-black tracking-widest hover:bg-accent">
           EXPORTAR CSV
         </button>
       </div>
@@ -45,16 +39,12 @@ function Catalogacao() {
           <p className="text-xs text-muted-foreground">O zero permanece registrado e classificado como parte do histórico bruto.</p>
         </div>
         <label className="flex cursor-pointer items-center gap-2 text-xs font-black">
-          <input
-            type="checkbox"
-            checked={estado.config.zeroComoProtecao}
-            onChange={(event) => acoes.atualizarConfig({ zeroComoProtecao: event.target.checked })}
-          />
+          <input type="checkbox" checked={estado.config.zeroComoProtecao}
+            onChange={(event) => acoes.atualizarConfig({ zeroComoProtecao: event.target.checked })} />
           ZERO = PROTEÇÃO
         </label>
       </div>
       <div className="space-y-4">
-        <SignalTrackingPanel signals={tracking.signals} />
         <EntradaNumeros total={estado.spins.length} />
         <TabelaCatalogacao spins={estado.spins} />
       </div>

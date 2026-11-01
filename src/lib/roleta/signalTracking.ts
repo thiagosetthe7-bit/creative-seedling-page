@@ -1,80 +1,25 @@
 import type { Spin } from "./catalogo";
 import type { TipoBip } from "./store";
-import { detectarSinaisEntrada, type EntrySignal, type StrategyId } from "./signalEngine";
+import type { EntrySignal, StrategyId } from "./signalEngine";
 
+/** Tipos temporários de compatibilidade; nenhum sinal é reconstruído. */
 export type SignalStatus = "AGUARDANDO R1" | "GALE 1 EM ANDAMENTO" | "CONCLUÍDO";
 export type SignalResult = "GREEN_R1" | "GREEN_GALE1" | "RED" | "NO_SIGNAL";
 export interface TrackedSignal {
-  id: string;
-  sourceSpinId: string;
-  sourceIndex: number;
-  strategy: StrategyId;
-  strategyLabel: string;
-  target: string;
-  deltaTarget?: string;
-  action: string;
-  explanation: string;
-  status: SignalStatus;
-  result: SignalResult;
-  phase: "R1" | "GALE1";
-  r1Number?: number;
-  resolvedNumber?: number;
-  resultSpinId?: string;
+  id: string; sourceSpinId: string; sourceIndex: number; strategy: StrategyId;
+  strategyLabel: string; target: string; deltaTarget?: string; action: string;
+  explanation: string; status: SignalStatus; result: SignalResult; phase: "R1" | "GALE1";
+  r1Number?: number; resolvedNumber?: number; resultSpinId?: string;
 }
 export interface SignalTrackingState { version: 1; lastProcessedSpinId: string | null; signals: TrackedSignal[]; }
 export const SIGNAL_TRACKING_KEY = "roleta-signal-tracking-v1";
 export const EMPTY_SIGNAL_TRACKING: SignalTrackingState = { version: 1, lastProcessedSpinId: null, signals: [] };
-
-function singleTargetHit(target: string, spin: Spin): boolean {
-  if (spin.numero === 0) return false;
-  if (target.startsWith("DÚZIAS")) return target.slice("DÚZIAS".length).split("+").map(v => v.trim()).includes(spin.classificacao.duzia);
-  if (target.startsWith("COLUNAS")) return target.slice("COLUNAS".length).split("+").map(v => v.trim()).includes(spin.classificacao.coluna);
-  if (target.startsWith("COR ")) return spin.classificacao.cor === target.slice("COR ".length);
-  if (target.startsWith("PAR/ÍMPAR ")) return spin.classificacao.pi === target.slice("PAR/ÍMPAR ".length);
-  if (target.startsWith("ALTO/BAIXO ")) return spin.classificacao.ab === target.slice("ALTO/BAIXO ".length);
-  return false;
-}
-function targetHit(signal: Pick<TrackedSignal, "target" | "deltaTarget">, spin: Spin): boolean {
-  const primary = singleTargetHit(signal.target, spin);
-  return signal.deltaTarget ? primary && singleTargetHit(signal.deltaTarget, spin) : primary;
-}
-function toTracked(signal: EntrySignal, index: number): TrackedSignal {
-  return { id: signal.id, sourceSpinId: signal.sourceSpinId, sourceIndex: index + 1, strategy: signal.strategy, strategyLabel: signal.strategy === "delta" ? "DELTA" : signal.strategy === "volt-delta" ? "VOLT + DELTA" : "VOLT", target: signal.target, deltaTarget: signal.deltaTarget, action: signal.action, explanation: signal.explanation, status: "AGUARDANDO R1", result: "NO_SIGNAL", phase: "R1" };
-}
-
-/** Reproduz o histórico VOLT de forma determinística; resultados além de R1 são corrigidos manualmente no histórico. */
-export function rebuildSignalTracking(spins: Spin[], _bips: Record<string, TipoBip>, _zeroComoProtecao = true): SignalTrackingState {
-  if (!spins.length) return EMPTY_SIGNAL_TRACKING;
-  const signals: TrackedSignal[] = [];
-  for (let index = 0; index < spins.length; index += 1) {
-    const current = spins[index]!;
-    for (let s = 0; s < signals.length; s += 1) {
-      const signal = signals[s]!;
-      if (signal.status === "CONCLUÍDO" || signal.sourceSpinId === current.id) continue;
-      if (current.numero === 0) {
-        signals[s] = { ...signal, status: "CONCLUÍDO", result: "NO_SIGNAL", resolvedNumber: 0, resultSpinId: current.id };
-      } else if (targetHit(signal, current)) {
-        const result: SignalResult = signal.phase === "R1" ? "GREEN_R1" : "GREEN_GALE1";
-        signals[s] = { ...signal, status: "CONCLUÍDO", result, resolvedNumber: current.numero, resultSpinId: current.id };
-      } else if (signal.phase === "R1") {
-        signals[s] = { ...signal, phase: "GALE1", status: "GALE 1 EM ANDAMENTO", r1Number: current.numero };
-      } else {
-        // Smart Gale 1 é a única recuperação permitida: se falhar, fecha em RED.
-        signals[s] = { ...signal, status: "CONCLUÍDO", result: "RED", resolvedNumber: current.numero, resultSpinId: current.id };
-      }
-    }
-    for (const signal of detectarSinaisEntrada(spins.slice(0, index + 1), {})) {
-      if (!signals.some((item) => item.id === signal.id)) signals.push(toTracked(signal, index));
-    }
-  }
-  return { version: 1, lastProcessedSpinId: spins[spins.length - 1]!.id, signals };
+export function rebuildSignalTracking(_spins: Spin[], _bips: Record<string, TipoBip>, _zeroComoProtecao = true): SignalTrackingState {
+  return EMPTY_SIGNAL_TRACKING;
 }
 export function readSignalTracking(): SignalTrackingState {
-  if (typeof window === "undefined") return EMPTY_SIGNAL_TRACKING;
-  try {
-    const raw = window.localStorage.getItem(SIGNAL_TRACKING_KEY);
-    if (!raw) return EMPTY_SIGNAL_TRACKING;
-    const parsed = JSON.parse(raw) as SignalTrackingState;
-    return parsed.version === 1 && Array.isArray(parsed.signals) ? parsed : EMPTY_SIGNAL_TRACKING;
-  } catch { return EMPTY_SIGNAL_TRACKING; }
+  if (typeof window !== "undefined") {
+    try { window.localStorage.removeItem(SIGNAL_TRACKING_KEY); } catch { /* storage indisponível */ }
+  }
+  return EMPTY_SIGNAL_TRACKING;
 }
