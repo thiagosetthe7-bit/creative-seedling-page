@@ -10,27 +10,105 @@ export function useSinais() {
     [estado.spins, estado.bips],
   );
 
-  // Recria o catálogo de sinais detectados em cada ponto do histórico para alimentar
-  // o histórico de sessão. O resultado inicial fica pendente para correção manual.
+  // Reconstrói os sinais a partir do histórico e liquida R1/Gale 1 com os giros posteriores.
   const trackedSignals = useMemo<TrackedSignal[]>(() => {
     const byId = new Map<string, TrackedSignal>();
-    estado.spins.forEach((spin, index) => {
-      const prefix = estado.spins.slice(0, index + 1);
-      detectarSinaisEntrada(prefix, estado.bips).forEach((signal) => {
+    const spins = estado.spins;
+
+    const matchesTarget = (spin: typeof spins[number], rawTarget: string): boolean => {
+      if (spin.numero === 0) return false;
+      const target = rawTarget.trim().toUpperCase();
+      const classification = spin.classificacao;
+      const pairMatch = target.match(/^(?:DÚZIAS|DUZIAS|DÚZIA|DUZIA)\s+(.+)$/);
+      if (pairMatch) return pairMatch[1]!.split(/\s*\+\s*/).includes(classification.duzia);
+      const columnMatch = target.match(/^COLUNAS?\s+(.+)$/);
+      if (columnMatch) return columnMatch[1]!.split(/\s*\+\s*/).includes(classification.coluna);
+
+      const valueMatch = target.match(/^(COR|TERMINAL|CAVALO|ALTO\/BAIXO|PAR\/ÍMPAR|P\/I|A\/B|TIPO|SEÇÃO|SECAO):?\s*(.+)$/);
+      if (!valueMatch) return false;
+      const [, label, expectedRaw] = valueMatch;
+      const expected = expectedRaw!.trim().replace(/^•\s*/, "");
+      const actualByLabel: Record<string, string> = {
+        COR: classification.cor,
+        TERMINAL: classification.terminal,
+        CAVALO: classification.cavalo,
+        "ALTO/BAIXO": classification.ab,
+        "PAR/ÍMPAR": classification.pi,
+        "P/I": classification.pi,
+        "A/B": classification.ab,
+        TIPO: classification.tipo,
+        "SEÇÃO": classification.secao,
+        SECAO: classification.secao,
+      };
+      const actual = actualByLabel[label!] ?? "";
+      return actual.toUpperCase() === expected ||
+        (label === "PAR/ÍMPAR" || label === "P/I") && actual.toUpperCase() === expected.replace("Í", "I");
+    };
+
+    spins.forEach((spin, index) => {
+      const signalsAtSpin = detectarSinaisEntrada(spins.slice(0, index + 1), estado.bips);
+      signalsAtSpin.forEach((signal) => {
         if (byId.has(signal.id)) return;
+        const sourceIndex = spins.findIndex((candidate) => candidate.id === signal.sourceSpinId);
+        if (sourceIndex < 0) return;
+        const r1Spin = spins[sourceIndex + 1];
+        const gale1Spin = spins[sourceIndex + 2];
+        const hit = (resultSpin: typeof spins[number] | undefined) => Boolean(
+          resultSpin &&
+          matchesTarget(resultSpin, signal.target) &&
+          (!signal.deltaTarget || matchesTarget(resultSpin, signal.deltaTarget))
+        );
+
+        let result: TrackedSignal["result"] = "NO_SIGNAL";
+        let status: TrackedSignal["status"] = "CONCLUÍDO";
+        let phase: TrackedSignal["phase"] = "R1";
+        let r1Number: number | undefined;
+        let resolvedNumber: number | undefined;
+        let resultSpinId: string | undefined;
+
+        if (!r1Spin) {
+          result = "NO_SIGNAL";
+          status = "AGUARDANDO R1";
+        } else if (hit(r1Spin)) {
+          result = "GREEN_R1";
+          r1Number = r1Spin.numero;
+          resolvedNumber = r1Spin.numero;
+          resultSpinId = r1Spin.id;
+        } else if (!gale1Spin) {
+          result = "NO_SIGNAL";
+          status = "GALE 1 EM ANDAMENTO";
+          phase = "GALE1";
+          r1Number = r1Spin.numero;
+        } else if (hit(gale1Spin)) {
+          result = "GREEN_GALE1";
+          phase = "GALE1";
+          r1Number = r1Spin.numero;
+          resolvedNumber = gale1Spin.numero;
+          resultSpinId = gale1Spin.id;
+        } else {
+          result = "RED";
+          phase = "GALE1";
+          r1Number = r1Spin.numero;
+          resolvedNumber = gale1Spin.numero;
+          resultSpinId = gale1Spin.id;
+        }
+
         byId.set(signal.id, {
           id: signal.id,
           sourceSpinId: signal.sourceSpinId,
-          sourceIndex: index + 1,
+          sourceIndex: sourceIndex + 1,
           strategy: signal.strategy,
           strategyLabel: signal.name,
           target: signal.target,
           deltaTarget: signal.deltaTarget,
           action: signal.action,
           explanation: signal.explanation,
-          status: "CONCLUÍDO",
-          result: "NO_SIGNAL",
-          phase: "R1",
+          status,
+          result,
+          phase,
+          r1Number,
+          resolvedNumber,
+          resultSpinId,
         });
       });
     });
