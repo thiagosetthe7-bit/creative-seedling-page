@@ -76,28 +76,24 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 15 }: Signa
 
   return (
     <div className="pointer-events-none fixed inset-0 z-[100] flex items-center justify-center bg-black/50 px-4 py-8 backdrop-blur-md" aria-live="assertive">
-      <section role="alertdialog" aria-modal="true" aria-labelledby="signal-popup-title" className="pointer-events-auto w-full max-w-lg overflow-hidden rounded-3xl border border-cyan-300/30 bg-slate-950/95 text-white shadow-2xl shadow-cyan-950/40 ring-1 ring-white/10 backdrop-blur-xl">
-        <div className="h-1 w-full bg-gradient-to-r from-cyan-400 via-violet-400 to-fuchsia-400" />
+      <section role="alertdialog" aria-modal="true" aria-labelledby="signal-popup-title" className="pointer-events-auto w-full max-w-lg overflow-hidden rounded-3xl border border-fuchsia-400/60 bg-slate-950/95 text-white shadow-[0_0_70px_rgba(217,70,239,0.28)] ring-2 ring-cyan-300/30 backdrop-blur-xl">
+        <div className="h-2 w-full bg-gradient-to-r from-lime-300 via-cyan-300 via-40% to-fuchsia-500 shadow-[0_0_25px_rgba(34,211,238,0.8)]" />
         <div className="px-6 pb-6 pt-6 sm:px-8">
           <div className="flex items-center justify-between gap-3">
             <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">SINAL DE ENTRADA • PRÓXIMO GIRO</p>
-            <span className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-3 py-1 text-[10px] font-black tracking-wider text-cyan-200">{signal.strategy.toUpperCase()}</span>
+            <span className="rounded-full border border-fuchsia-300/70 bg-gradient-to-r from-fuchsia-500/30 to-violet-500/30 px-3 py-1.5 text-[10px] font-black tracking-wider text-fuchsia-100 shadow-[0_0_18px_rgba(217,70,239,0.35)]">{signal.strategy.toUpperCase()}</span>
           </div>
-          <h2 id="signal-popup-title" className="mt-4 text-2xl font-black tracking-tight text-white sm:text-3xl">{triggerName}</h2>
-          <div className="mt-5 rounded-2xl border border-cyan-300/30 bg-cyan-300/[0.06] px-4 py-5 shadow-[0_0_32px_rgba(34,211,238,0.07)] sm:px-5">
-            <p className="text-[10px] font-black tracking-[0.22em] text-cyan-200/80">ALVO IDENTIFICADO</p>
-            <p className="mt-2 break-words text-2xl font-black leading-tight text-cyan-100 sm:text-3xl">{formatTarget(signal.target)}{signal.deltaTarget ? ` + ${formatTarget(signal.deltaTarget)}` : ""}</p>
+          <h2 id="signal-popup-title" className="mt-4 bg-gradient-to-r from-lime-200 via-cyan-200 to-fuchsia-300 bg-clip-text text-3xl font-black tracking-tight text-transparent drop-shadow-[0_0_16px_rgba(34,211,238,0.3)] sm:text-4xl">{triggerName}</h2>
+          <div className="mt-5 rounded-2xl border border-cyan-300/60 bg-gradient-to-br from-cyan-400/15 via-blue-500/10 to-fuchsia-500/15 px-4 py-5 shadow-[0_0_38px_rgba(34,211,238,0.16)] ring-1 ring-white/10 sm:px-5">
+            <p className="text-xs font-black tracking-[0.24em] text-lime-200">ALVO IDENTIFICADO</p>
+            <p className="mt-2 break-words text-3xl font-black leading-tight text-white drop-shadow-[0_0_15px_rgba(34,211,238,0.65)] sm:text-4xl">{formatTarget(signal.target)}{signal.deltaTarget ? ` + ${formatTarget(signal.deltaTarget)}` : ""}</p>
             <p className="mt-4 text-sm font-bold leading-relaxed text-white">{signal.action}</p>
-          </div>
-          <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.04] p-4">
-            <p className="text-[10px] font-black tracking-[0.18em] text-slate-400">JUSTIFICATIVA / ANÁLISE</p>
-            <p className="mt-2 text-sm leading-relaxed text-slate-300">{signal.explanation}</p>
           </div>
           <div className="mt-5 flex items-center justify-between gap-4 text-xs text-slate-400">
             <span>Fechamento automático em <strong className="text-cyan-200">{secondsLeft}s</strong></span>
             <span className="rounded-full bg-white/5 px-3 py-1 font-bold">{signal.phase ?? "R1"}</span>
           </div>
-          <button type="button" onClick={close} className="mt-5 min-h-12 w-full rounded-xl bg-cyan-200 px-5 py-3 text-sm font-black tracking-wide text-slate-950 transition hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-200">ENTENDIDO / FECHAR</button>
+          <button type="button" onClick={close} className="mt-5 min-h-14 w-full rounded-xl border border-lime-100/80 bg-gradient-to-r from-lime-300 via-cyan-300 to-fuchsia-400 px-5 py-3 text-base font-black tracking-widest text-slate-950 shadow-[0_0_28px_rgba(34,211,238,0.32)] transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-lime-200">ENTENDIDO / FECHAR</button>
         </div>
       </section>
     </div>
