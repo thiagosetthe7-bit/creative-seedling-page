@@ -45,13 +45,20 @@ function evaluateVolt(spins: Spin[], axis: Axis, variant: "A" | "B"): EntrySigna
 
   const lastItem = validItems[validItems.length - 1]!;
   const breakItems = validItems.slice(-(breakCount + 1), -1);
-  const acmSlice = validItems.slice(0, -(breakCount + 1));
-  if (acmSlice.length < MIN_ACUMULACAO) return null;
+  const preBreakItems = validItems.slice(0, -(breakCount + 1));
+  // Captura apenas o bloco de acumulação contíguo imediatamente anterior às quebras.
+  const accumulation: ValidItem[] = [];
+  const unique = new Set<string>();
+  for (let i = preBreakItems.length - 1; i >= 0; i--) {
+    const item = preBreakItems[i]!;
+    if (!unique.has(item.val) && unique.size === 2) break;
+    unique.add(item.val);
+    accumulation.unshift(item);
+  }
+  const acmSlice = accumulation;
+  if (acmSlice.length < MIN_ACUMULACAO || unique.size !== 2) return null;
 
-  const uniqueAreas = Array.from(new Set(acmSlice.map((item) => item.val)));
-  if (uniqueAreas.length !== 2) return null;
-  const [area1, area2] = uniqueAreas;
-  if (acmSlice.some((item) => item.val !== area1 && item.val !== area2)) return null;
+  const [area1, area2] = Array.from(unique);
 
   const hasExpectedBreaks = breakItems.every((item) => item.val !== area1 && item.val !== area2);
   const returnedToAccumulation = lastItem.val === area1 || lastItem.val === area2;
@@ -111,11 +118,17 @@ function evaluateDelta(spins: Spin[], field: DeltaCategoryField, variant: "A" | 
 
   const lastItem = validItems[validItems.length - 1]!;
   const breakItems = validItems.slice(-(breakCount + 1), -1);
-  const acmSlice = validItems.slice(0, -(breakCount + 1));
+  const preBreakItems = validItems.slice(0, -(breakCount + 1));
+  const targetCategory = preBreakItems[preBreakItems.length - 1]?.val;
+  if (!targetCategory) return null;
+  // A acumulação DELTA precisa ser uma sequência consecutiva real, não todo o histórico.
+  const accumulation: ValidItem[] = [];
+  for (let i = preBreakItems.length - 1; i >= 0; i--) {
+    if (preBreakItems[i]!.val !== targetCategory) break;
+    accumulation.unshift(preBreakItems[i]!);
+  }
+  const acmSlice = accumulation;
   if (acmSlice.length < MIN_ACUMULACAO) return null;
-
-  const targetCategory = acmSlice[acmSlice.length - 1]!.val;
-  if (!acmSlice.every((item) => item.val === targetCategory)) return null;
 
   const hasExpectedBreaks = breakItems.every((item) => item.val !== targetCategory);
   const returnedToAccumulation = lastItem.val === targetCategory;
