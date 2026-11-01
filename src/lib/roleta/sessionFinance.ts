@@ -5,6 +5,7 @@ export type EditableSignalResult = SignalResult | "GREEN_GALE2" | "PENDING" | "N
 export interface SessionFinanceLedger {
   removedSignalIds: string[];
   corrections: Record<string, EditableSignalResult>;
+  financialOverrides?: Record<string, number>;
 }
 export const SESSION_FINANCE_KEY = "roleta-session-finance-v1";
 export const SESSION_FINANCE_EVENT = "roleta:session-finance-updated";
@@ -17,6 +18,7 @@ export function loadSessionFinance(): SessionFinanceLedger {
     return {
       removedSignalIds: Array.isArray(parsed?.removedSignalIds) ? parsed.removedSignalIds : [],
       corrections: parsed?.corrections && typeof parsed.corrections === "object" ? parsed.corrections : {},
+      financialOverrides: parsed?.financialOverrides && typeof parsed.financialOverrides === "object" ? parsed.financialOverrides : {},
     };
   } catch { return EMPTY_SESSION_FINANCE; }
 }
