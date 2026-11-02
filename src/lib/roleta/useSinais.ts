@@ -100,6 +100,7 @@ export function useSinais() {
           status = "GALE 1 EM ANDAMENTO";
           phase = "GALE1";
           r1Number = r1Spin.numero;
+          resultSpinId = r1Spin.id;
         } else if (hit(gale1Spin)) {
           result = "GREEN_GALE1";
           phase = "GALE1";
