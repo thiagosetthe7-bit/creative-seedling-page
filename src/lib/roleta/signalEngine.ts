@@ -14,6 +14,9 @@ export interface EntrySignal {
   deltaTarget?: string;
   blocked?: boolean;
   blockedReason?: string;
+  confidencePercent?: number;
+  confidenceSampleSize?: number;
+  confidenceLevel?: "HIGH" | "LOW" | "INSUFFICIENT";
 }
 
 export const WINDOW_SIZE = 30;

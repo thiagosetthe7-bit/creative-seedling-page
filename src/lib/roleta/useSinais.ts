@@ -1,10 +1,12 @@
-import { useMemo } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { detectarSinaisEntrada, isSuperGatilho } from "./signalEngine";
 import { useEstado } from "./store";
 import type { TrackedSignal } from "./signalTracking";
+import { getReliability, getReliabilityVersion, subscribeReliability } from "./signalReliability";
 
 export function useSinais() {
   const estado = useEstado();
+  useSyncExternalStore(subscribeReliability, getReliabilityVersion, () => 0);
   const sinaisDetectados = useMemo(
     () => detectarSinaisEntrada(estado.spins, estado.bips),
     [estado.spins, estado.bips],
@@ -150,7 +152,10 @@ export function useSinais() {
     blocked: signal.status === "GALE 1 BLOQUEADO",
     blockedReason: signal.blockReason,
   }));
-  const liveAlerts = estado.spins.length > 20 ? [...sinais, ...recoveryAlerts] : [];
+  const liveAlerts = estado.spins.length > 20 ? [...sinais, ...recoveryAlerts].map((signal) => {
+    const reliability = getReliability(signal.strategy, signal.target);
+    return { ...signal, confidencePercent: reliability.percent ?? undefined, confidenceSampleSize: reliability.sampleSize, confidenceLevel: reliability.level };
+  }) : [];
   return {
     sinais: liveAlerts,
     alertas: liveAlerts,

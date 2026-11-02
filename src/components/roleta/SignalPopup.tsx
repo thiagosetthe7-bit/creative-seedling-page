@@ -89,6 +89,11 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 15 }: Signa
             <p className="mt-2 break-words text-3xl font-black leading-tight text-white drop-shadow-[0_0_15px_rgba(34,211,238,0.65)] sm:text-4xl">{formatTarget(signal.target)}{signal.deltaTarget ? ` + ${formatTarget(signal.deltaTarget)}` : ""}</p>
             <p className={`mt-4 text-sm font-bold leading-relaxed ${signal.blocked ? "text-rose-200" : "text-white"}`}>{signal.blocked ? "🚫 GALE 1 BLOQUEADO — Inércia contrária forte detetada. Proteja a banca e aguarde o próximo ciclo." : signal.action}</p>
           </div>
+          {signal.confidenceLevel !== "INSUFFICIENT" && signal.confidencePercent !== undefined && <div className={`mt-4 rounded-xl border px-4 py-3 text-sm font-black tracking-wide ${signal.confidenceLevel === "HIGH" ? "border-emerald-400/60 bg-emerald-400/15 text-emerald-200 shadow-[0_0_28px_rgba(52,211,153,0.2)]" : "border-amber-400/60 bg-amber-400/15 text-amber-200 shadow-[0_0_24px_rgba(251,191,36,0.15)]"}`}>
+            {signal.confidenceLevel === "HIGH" ? "🟢 ALTA CONFIABILIDADE" : "🟡 BAIXA CONFIABILIDADE"} • {signal.confidencePercent.toFixed(1)}% ASSERTIVIDADE
+            <span className="mt-1 block text-[10px] font-semibold opacity-80">Base histórica: {signal.confidenceSampleSize} resultados resolvidos • referência de 75%</span>
+          </div>}
+          {signal.confidenceLevel === "INSUFFICIENT" && <div className="mt-4 rounded-xl border border-slate-400/40 bg-slate-400/10 px-4 py-3 text-xs font-bold text-slate-200">⚪ CONFIABILIDADE AINDA NÃO ESTABELECIDA • sem amostra histórica suficiente.</div>}
           <div className="mt-5 flex items-center justify-between gap-4 text-xs text-slate-400">
             <span>Fechamento automático em <strong className="text-cyan-200">{secondsLeft}s</strong></span>
             <span className="rounded-full bg-white/5 px-3 py-1 font-bold">{signal.phase ?? "R1"}</span>

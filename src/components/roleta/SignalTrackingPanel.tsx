@@ -3,6 +3,7 @@ import type { TrackedSignal } from "@/lib/roleta/signalTracking";
 import { carregarConfigBanca, dinheiro } from "@/lib/roleta/bankroll";
 import { impactoFinanceiro } from "@/lib/roleta/sessionFinance";
 import { effectiveSignalResult, loadSessionFinance, saveSessionFinance, SESSION_FINANCE_EVENT, type EditableSignalResult, type SessionFinanceLedger } from "@/lib/roleta/sessionFinance";
+import { syncReliabilityHistory } from "@/lib/roleta/signalReliability";
 
 interface SignalTrackingPanelProps { signals: TrackedSignal[]; }
 const resultLabel: Partial<Record<EditableSignalResult, string>> = { PENDING: "Pendente", GREEN_R1: "Green R1", GREEN_GALE1: "Green Gale 1", RED: "Red", GALE_BLOCKED: "Gale Bloqueado", NOT_PICKED: "Não Peguei", NO_SIGNAL: "Pendente" };
@@ -15,6 +16,7 @@ export function SignalTrackingPanel({ signals }: SignalTrackingPanelProps) {
     window.addEventListener("storage", sync);
     return () => { window.removeEventListener(SESSION_FINANCE_EVENT, sync); window.removeEventListener("storage", sync); };
   }, []);
+  useEffect(() => { syncReliabilityHistory(signals, ledger); }, [signals, ledger]);
   const visible = signals.filter((signal) => !ledger.removedSignalIds.includes(signal.id));
   const active = visible.filter((s) => s.status !== "CONCLUÍDO" && !s.preCatalog).slice().reverse();
   const updateLedger = (next: SessionFinanceLedger) => { setLedger(next); saveSessionFinance(next); };
