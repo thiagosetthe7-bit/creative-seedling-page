@@ -75,11 +75,9 @@ export function useSinais() {
         let resultSpinId: string | undefined;
         let blockReason: string | undefined;
 
-        if (preCatalog) {
-          // Os 20 primeiros giros são apenas aquecimento: manter memória, excluir da operação real.
-          result = "NO_SIGNAL";
-          status = "CONCLUÍDO";
-        } else if (!r1Spin) {
+        // Pré-catalogação também liquida o resultado técnico para auditoria visual.
+        // O isolamento financeiro é aplicado pelo status NOT_PICKED no ledger.
+        if (!r1Spin) {
           result = "NO_SIGNAL";
           status = "AGUARDANDO R1";
         } else if (hit(r1Spin)) {
@@ -139,7 +137,7 @@ export function useSinais() {
     return Array.from(byId.values()).sort((a, b) => a.sourceIndex - b.sourceIndex);
   }, [estado.spins, estado.bips]);
 
-  const recoveryAlerts = trackedSignals.filter((signal) => signal.status === "GALE 1 EM ANDAMENTO" || signal.status === "GALE 1 BLOQUEADO").filter((signal) => signal.r1Number !== undefined && signal.resultSpinId === estado.spins.at(-1)?.id).map((signal) => ({
+  const recoveryAlerts = trackedSignals.filter((signal) => !signal.preCatalog && (signal.status === "GALE 1 EM ANDAMENTO" || signal.status === "GALE 1 BLOQUEADO")).filter((signal) => signal.r1Number !== undefined && signal.resultSpinId === estado.spins.at(-1)?.id).map((signal) => ({
     id: `${signal.id}:recovery:${signal.status}`,
     strategy: signal.strategy,
     name: signal.strategyLabel,
