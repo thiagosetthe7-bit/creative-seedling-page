@@ -30,6 +30,7 @@ export function saveSessionFinance(ledger: SessionFinanceLedger): void {
   } catch { /* storage opcional */ }
 }
 export function effectiveSignalResult(signal: TrackedSignal, ledger: SessionFinanceLedger): EditableSignalResult {
+  if (signal.preCatalog && ledger.corrections[signal.id] === undefined) return "NOT_PICKED";
   return ledger.corrections[signal.id] ?? (signal.result === "NO_SIGNAL" ? "PENDING" : signal.result);
 }
 /** Modelo explícito solicitado: GREEN R1 = +stake base; GREEN R2 = break-even; RED = perde R1+R2. */

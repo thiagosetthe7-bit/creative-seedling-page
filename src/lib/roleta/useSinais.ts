@@ -5,10 +5,11 @@ import type { TrackedSignal } from "./signalTracking";
 
 export function useSinais() {
   const estado = useEstado();
-  const sinais = useMemo(
+  const sinaisDetectados = useMemo(
     () => detectarSinaisEntrada(estado.spins, estado.bips),
     [estado.spins, estado.bips],
   );
+  const sinais = estado.spins.length > 20 ? sinaisDetectados : [];
 
   // Reconstrói os sinais a partir do histórico e liquida R1/Gale 1 com os giros posteriores.
   const trackedSignals = useMemo<TrackedSignal[]>(() => {
@@ -51,6 +52,7 @@ export function useSinais() {
         if (byId.has(signal.id)) return;
         const sourceIndex = spins.findIndex((candidate) => candidate.id === signal.sourceSpinId);
         if (sourceIndex < 0) return;
+        const preCatalog = sourceIndex + 1 <= 20;
         const r1Spin = spins[sourceIndex + 1];
         const gale1Spin = spins[sourceIndex + 2];
         const hit = (resultSpin: typeof spins[number] | undefined) => Boolean(
@@ -58,6 +60,12 @@ export function useSinais() {
           matchesTarget(resultSpin, signal.target) &&
           (!signal.deltaTarget || matchesTarget(resultSpin, signal.deltaTarget))
         );
+        const contraryInertia = (r1Index: number): boolean => {
+          const recent = spins.slice(Math.max(0, r1Index - 4), r1Index + 1).filter((item) => item.numero !== 0);
+          const misses = recent.filter((item) => !hit(item)).length;
+          const lastThreeOppose = recent.length >= 3 && recent.slice(-3).every((item) => !hit(item));
+          return misses >= 4 || lastThreeOppose;
+        };
 
         let result: TrackedSignal["result"] = "NO_SIGNAL";
         let status: TrackedSignal["status"] = "CONCLUÍDO";
@@ -65,8 +73,13 @@ export function useSinais() {
         let r1Number: number | undefined;
         let resolvedNumber: number | undefined;
         let resultSpinId: string | undefined;
+        let blockReason: string | undefined;
 
-        if (!r1Spin) {
+        if (preCatalog) {
+          // Os 20 primeiros giros são apenas aquecimento: manter memória, excluir da operação real.
+          result = "NO_SIGNAL";
+          status = "CONCLUÍDO";
+        } else if (!r1Spin) {
           result = "NO_SIGNAL";
           status = "AGUARDANDO R1";
         } else if (hit(r1Spin)) {
@@ -74,6 +87,14 @@ export function useSinais() {
           r1Number = r1Spin.numero;
           resolvedNumber = r1Spin.numero;
           resultSpinId = r1Spin.id;
+        } else if (contraryInertia(sourceIndex + 1)) {
+          result = "GALE_BLOCKED";
+          status = "GALE 1 BLOQUEADO";
+          phase = "GALE1";
+          r1Number = r1Spin.numero;
+          resolvedNumber = r1Spin.numero;
+          resultSpinId = r1Spin.id;
+          blockReason = "Inércia contrária forte detetada. Proteja a banca e aguarde o próximo ciclo.";
         } else if (!gale1Spin) {
           result = "NO_SIGNAL";
           status = "GALE 1 EM ANDAMENTO";
@@ -109,15 +130,31 @@ export function useSinais() {
           r1Number,
           resolvedNumber,
           resultSpinId,
+          preCatalog,
+          blockReason,
         });
       });
     });
     return Array.from(byId.values()).sort((a, b) => a.sourceIndex - b.sourceIndex);
   }, [estado.spins, estado.bips]);
 
+  const recoveryAlerts = trackedSignals.filter((signal) => signal.status === "GALE 1 EM ANDAMENTO" || signal.status === "GALE 1 BLOQUEADO").filter((signal) => signal.r1Number !== undefined && signal.resultSpinId === estado.spins.at(-1)?.id).map((signal) => ({
+    id: `${signal.id}:recovery:${signal.status}`,
+    strategy: signal.strategy,
+    name: signal.strategyLabel,
+    target: signal.target,
+    deltaTarget: signal.deltaTarget,
+    explanation: signal.explanation,
+    action: signal.status === "GALE 1 BLOQUEADO" ? "Gale 1 bloqueado por inércia contrária." : "R1 não atingiu o alvo. Avalie a recuperação Smart Gale 1.",
+    sourceSpinId: signal.sourceSpinId,
+    phase: "GALE1" as const,
+    blocked: signal.status === "GALE 1 BLOQUEADO",
+    blockedReason: signal.blockReason,
+  }));
+  const liveAlerts = estado.spins.length > 20 ? [...sinais, ...recoveryAlerts] : [];
   return {
-    sinais,
-    alertas: sinais,
+    sinais: liveAlerts,
+    alertas: liveAlerts,
     superGatilho: isSuperGatilho(sinais),
     smartGale: null,
     tracking: { version: 1 as const, lastProcessedSpinId: estado.spins.at(-1)?.id ?? null, signals: trackedSignals },

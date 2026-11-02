@@ -68,7 +68,7 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 15 }: Signa
     : signal.strategy === "delta-a" ? "DELTA A"
     : signal.strategy === "delta-b" ? "DELTA B"
     : signal.strategy === "volt-a" ? "VOLT A" : "VOLT B";
-  const triggerName = signal.phase === "GALE1" ? `${baseTrigger} - GALE 1` : baseTrigger;
+  const triggerName = signal.blocked ? `${baseTrigger} - GALE 1 BLOQUEADO` : signal.phase === "GALE1" ? `${baseTrigger} - GALE 1` : baseTrigger;
   const formatTarget = (raw: string) => raw
     .replace(/^PAR\/ÍMPAR:\s*/i, "P/I: ")
     .replace(/^ALTO\/BAIXO:\s*/i, "A/B: ")
@@ -87,7 +87,7 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 15 }: Signa
           <div className="mt-5 rounded-2xl border border-cyan-300/60 bg-gradient-to-br from-cyan-400/15 via-blue-500/10 to-fuchsia-500/15 px-4 py-5 shadow-[0_0_38px_rgba(34,211,238,0.16)] ring-1 ring-white/10 sm:px-5">
             <p className="text-xs font-black tracking-[0.24em] text-lime-200">ALVO IDENTIFICADO</p>
             <p className="mt-2 break-words text-3xl font-black leading-tight text-white drop-shadow-[0_0_15px_rgba(34,211,238,0.65)] sm:text-4xl">{formatTarget(signal.target)}{signal.deltaTarget ? ` + ${formatTarget(signal.deltaTarget)}` : ""}</p>
-            <p className="mt-4 text-sm font-bold leading-relaxed text-white">{signal.action}</p>
+            <p className={`mt-4 text-sm font-bold leading-relaxed ${signal.blocked ? "text-rose-200" : "text-white"}`}>{signal.blocked ? "🚫 GALE 1 BLOQUEADO — Inércia contrária forte detetada. Proteja a banca e aguarde o próximo ciclo." : signal.action}</p>
           </div>
           <div className="mt-5 flex items-center justify-between gap-4 text-xs text-slate-400">
             <span>Fechamento automático em <strong className="text-cyan-200">{secondsLeft}s</strong></span>

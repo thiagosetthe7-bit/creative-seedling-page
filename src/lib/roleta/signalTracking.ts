@@ -3,13 +3,13 @@ import type { TipoBip } from "./store";
 import type { EntrySignal, StrategyId } from "./signalEngine";
 
 /** Tipos temporários de compatibilidade; nenhum sinal é reconstruído. */
-export type SignalStatus = "AGUARDANDO R1" | "GALE 1 EM ANDAMENTO" | "CONCLUÍDO";
-export type SignalResult = "GREEN_R1" | "GREEN_GALE1" | "RED" | "NO_SIGNAL";
+export type SignalStatus = "AGUARDANDO R1" | "GALE 1 EM ANDAMENTO" | "GALE 1 BLOQUEADO" | "CONCLUÍDO";
+export type SignalResult = "GREEN_R1" | "GREEN_GALE1" | "RED" | "GALE_BLOCKED" | "NO_SIGNAL";
 export interface TrackedSignal {
   id: string; sourceSpinId: string; sourceIndex: number; strategy: StrategyId;
   strategyLabel: string; target: string; deltaTarget?: string; action: string;
   explanation: string; status: SignalStatus; result: SignalResult; phase: "R1" | "GALE1";
-  r1Number?: number; resolvedNumber?: number; resultSpinId?: string;
+  r1Number?: number; resolvedNumber?: number; resultSpinId?: string; preCatalog?: boolean; blockReason?: string;
 }
 export interface SignalTrackingState { version: 1; lastProcessedSpinId: string | null; signals: TrackedSignal[]; }
 export const SIGNAL_TRACKING_KEY = "roleta-signal-tracking-v1";

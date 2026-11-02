@@ -12,6 +12,8 @@ export interface EntrySignal {
   sourceSpinId: string;
   phase?: "R1" | "GALE1";
   deltaTarget?: string;
+  blocked?: boolean;
+  blockedReason?: string;
 }
 
 export const WINDOW_SIZE = 30;
@@ -121,6 +123,14 @@ function evaluateDelta(spins: Spin[], field: DeltaCategoryField, variant: "A" | 
   const preBreakItems = validItems.slice(0, -(breakCount + 1));
   const targetCategory = preBreakItems[preBreakItems.length - 1]?.val;
   if (!targetCategory) return null;
+  // Categorias voláteis exigem confirmação em uma janela profunda de 10 giros anteriores ao padrão.
+  const volatileFields: DeltaCategoryField[] = ["color", "cavalo", "terminal", "section"];
+  if (volatileFields.includes(field)) {
+    const deepWindow = preBreakItems.slice(-10);
+    if (deepWindow.length < 10) return null;
+    const deepSupport = deepWindow.filter((item) => item.val === targetCategory).length;
+    if (deepSupport < 5) return null;
+  }
   // A acumulação DELTA precisa ser uma sequência consecutiva real, não todo o histórico.
   const accumulation: ValidItem[] = [];
   for (let i = preBreakItems.length - 1; i >= 0; i--) {

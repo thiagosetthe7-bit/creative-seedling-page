@@ -41,7 +41,7 @@ function Catalogacao() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-3">
         <div>
           <p className="text-sm font-bold">Regra global do Zero</p>
-          <p className="text-xs text-muted-foreground">O zero é neutro para os motores: fica no histórico, não quebra a sequência e não conta para acumulação.</p>
+          <p className="text-xs text-muted-foreground">Os 20 primeiros giros são pré-catalogação (não entram no Win Rate real). O zero é neutro: fica no histórico, não quebra a sequência e não conta para acumulação.</p>
         </div>
         <label className="flex cursor-pointer items-center gap-2 text-xs font-black">
           <input type="checkbox" checked={estado.config.zeroComoProtecao}
