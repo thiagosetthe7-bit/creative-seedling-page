@@ -11,10 +11,16 @@ function celulaCSV(valor: unknown): string {
   return /[";\r\n]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
 }
 
-function statusCSV(signal: TrackedSignal): string {
-  const ledger = loadSessionFinance();
+function statusCSV(signal: TrackedSignal, ledger: ReturnType<typeof loadSessionFinance>): string {
   const result = effectiveSignalResult(signal, ledger);
-  if (signal.preCatalog && result === "NOT_PICKED") return "Pré-Catalogação";
+  // Pré-catalogação mantém "Não Peguei" como estado financeiro, mas exporta
+  // também o desfecho técnico calculado pelo motor para auditoria da mesa.
+  if (signal.preCatalog && result === "NOT_PICKED") {
+    if (signal.result === "GREEN_R1" || signal.result === "GREEN_GALE1") return "Pré-Catalogação • Green";
+    if (signal.result === "RED") return "Pré-Catalogação • Red";
+    if (signal.result === "GALE_BLOCKED") return "Pré-Catalogação • Gale Bloqueado";
+    return "Não Peguei";
+  }
   const labels: Record<string, string> = {
     GREEN_R1: "Green R1",
     GREEN_GALE1: "Green Gale 1",
@@ -23,7 +29,7 @@ function statusCSV(signal: TrackedSignal): string {
     BLOCKED: "Gale Bloqueado",
     NOT_PICKED: "Não Peguei",
     PENDING: "Pendente",
-    NO_SIGNAL: "NO_SIGNAL",
+    NO_SIGNAL: "Pendente",
   };
   return labels[result] ?? "Pendente";
 }
@@ -39,13 +45,13 @@ export function montarCSVCatalogacao(
 ): string {
   const ledger = loadSessionFinance();
   const bankroll = carregarConfigBanca();
+  // Cada sinal pertence à linha do giro em que foi GERADO, não ao giro
+  // posterior que resolveu R1/Gale 1. Assim sinais pendentes e pré-catalogados
+  // nunca desaparecem do CSV.
   const rowsBySpin = new Map<number, TrackedSignal[]>();
-
   signals.forEach((signal) => {
-    const resolutionIndex = signal.resultSpinId
-      ? spins.findIndex((spin) => spin.id === signal.resultSpinId) + 1
-      : signal.sourceIndex;
-    const rowIndex = resolutionIndex > 0 ? resolutionIndex : signal.sourceIndex;
+    const rowIndex = signal.sourceIndex;
+    if (!Number.isInteger(rowIndex) || rowIndex < 1 || rowIndex > spins.length) return;
     const current = rowsBySpin.get(rowIndex) ?? [];
     current.push(signal);
     rowsBySpin.set(rowIndex, current);
@@ -58,7 +64,7 @@ export function montarCSVCatalogacao(
     const spinSignals = rowsBySpin.get(index + 1) ?? [];
     const strategies = spinSignals.map((signal) => signal.strategyLabel || signal.strategy).join(" | ");
     const targets = spinSignals.map((signal) => [signal.target, signal.deltaTarget].filter(Boolean).join(" + ")).join(" | ");
-    const statuses = spinSignals.map(statusCSV).join(" | ");
+    const statuses = spinSignals.map((signal) => statusCSV(signal, ledger)).join(" | ");
     const impacts = spinSignals.map((signal) => {
       const result = effectiveSignalResult(signal, ledger);
       if (result === "NOT_PICKED" || result === "BLOCKED" || result === "GALE_BLOCKED") return 0;
