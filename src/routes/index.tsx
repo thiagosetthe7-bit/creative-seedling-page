@@ -40,7 +40,7 @@ function Catalogacao() {
           <h1 className="text-lg font-black tracking-widest">CATALOGAÇÃO</h1>
           <p className="mt-1 text-xs text-muted-foreground">Motores VOLT A/B e DELTA A/B • Zero neutro • janela de 30 giros</p>
         </div>
-        <button type="button" onClick={() => baixarCSVCatalogacao(estado.spins, estado.bips)}
+        <button type="button" onClick={() => baixarCSVCatalogacao(estado.spins, estado.bips, tracking.signals)}
           className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-black tracking-widest hover:bg-accent">
           EXPORTAR CSV
         </button>
