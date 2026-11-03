@@ -14,18 +14,35 @@ function read(): ReliabilityRecord[] {
     return Array.isArray(value) ? value.filter((item) => item && typeof item.id === "string" && typeof item.key === "string" && (item.result === "GREEN" || item.result === "RED")) : [];
   } catch { return []; }
 }
-function targetKey(signal: Pick<TrackedSignal, "strategy" | "target">): string {
-  return `${signal.strategy}|${signal.target.trim().toLocaleUpperCase("pt-BR").replace(/\\s+/g, " ")}`;
+function normalizedTarget(target: string): string {
+  return target.trim().toLocaleUpperCase("pt-BR").replace(/\s+/g, " ");
+}
+function targetKey(strategy: string, target: string): string {
+  return `${strategy}|${normalizedTarget(target)}`;
 }
 export function syncReliabilityHistory(signals: TrackedSignal[], ledger: SessionFinanceLedger): void {
   if (typeof window === "undefined") return;
   const records = new Map(read().map((item) => [item.id, item]));
   for (const signal of signals) {
-    if (ledger.removedSignalIds.includes(signal.id)) { records.delete(signal.id); continue; }
+    const secondaryId = `${signal.id}:delta`;
+    if (ledger.removedSignalIds.includes(signal.id)) {
+      records.delete(signal.id);
+      records.delete(secondaryId);
+      continue;
+    }
     const result: EditableSignalResult = ledger.corrections[signal.id] ?? (signal.preCatalog ? "NOT_PICKED" : signal.result);
-    if (result === "GREEN_R1" || result === "GREEN_GALE1") records.set(signal.id, { id: signal.id, key: targetKey(signal), result: "GREEN" });
-    else if (result === "RED") records.set(signal.id, { id: signal.id, key: targetKey(signal), result: "RED" });
-    else records.delete(signal.id);
+    if (result === "GREEN_R1" || result === "GREEN_GALE1") {
+      records.set(signal.id, { id: signal.id, key: targetKey(signal.strategy, signal.target), result: "GREEN" });
+      if (signal.deltaTarget) records.set(secondaryId, { id: secondaryId, key: targetKey(signal.strategy, signal.deltaTarget), result: "GREEN" });
+      else records.delete(secondaryId);
+    } else if (result === "RED") {
+      records.set(signal.id, { id: signal.id, key: targetKey(signal.strategy, signal.target), result: "RED" });
+      if (signal.deltaTarget) records.set(secondaryId, { id: secondaryId, key: targetKey(signal.strategy, signal.deltaTarget), result: "RED" });
+      else records.delete(secondaryId);
+    } else {
+      records.delete(signal.id);
+      records.delete(secondaryId);
+    }
   }
   try {
     localStorage.setItem(KEY, JSON.stringify(Array.from(records.values())));
@@ -34,7 +51,7 @@ export function syncReliabilityHistory(signals: TrackedSignal[], ledger: Session
   } catch { /* armazenamento indisponível */ }
 }
 export function getReliability(strategy: string, target: string): ReliabilitySummary {
-  const key = `${strategy}|${target.trim().toLocaleUpperCase("pt-BR").replace(/\\s+/g, " ")}`;
+  const key = targetKey(strategy, target);
   const matching = read().filter((item) => item.key === key);
   const sampleSize = matching.length;
   const greens = matching.filter((item) => item.result === "GREEN").length;
