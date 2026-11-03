@@ -31,8 +31,11 @@ interface ValidItem {
 }
 
 function filtrarSpinsValidos(spins: Spin[]): Spin[] {
-  // A janela é medida em giros brutos; o zero continua no histórico, mas é neutro na análise.
-  return spins.slice(-WINDOW_SIZE);
+  // Zero é uma fronteira absoluta: nenhum padrão pode combinar giros anteriores e posteriores.
+  // O próprio zero não entra na amostra; a acumulação recomeça no primeiro giro após ele.
+  const lastZeroIndex = spins.map((spin) => spin.numero).lastIndexOf(0);
+  const postZeroSpins = lastZeroIndex >= 0 ? spins.slice(lastZeroIndex + 1) : spins;
+  return postZeroSpins.slice(-WINDOW_SIZE);
 }
 
 function validAxisItems(spins: Spin[], axis: Axis): ValidItem[] {
