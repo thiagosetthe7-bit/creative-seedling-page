@@ -8,6 +8,8 @@ import { acoes, useEstado } from "@/lib/roleta/store";
 import { useSinais } from "@/lib/roleta/useSinais";
 import { baixarCSVCatalogacao } from "@/lib/exportCatalogacao";
 import { assessSessionTrend } from "@/lib/roleta/sessionThermometer";
+import { carregarConfigBanca, diaAtivo } from "@/lib/roleta/bankroll";
+import { effectiveSignalResult, impactoFinanceiro, loadSessionFinance, saveSessionFinance } from "@/lib/roleta/sessionFinance";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -40,10 +42,37 @@ function Catalogacao() {
           <h1 className="text-lg font-black tracking-widest">CATALOGAÇÃO</h1>
           <p className="mt-1 text-xs text-muted-foreground">Motores VOLT A/B e DELTA A/B • Zero neutro • janela de 30 giros</p>
         </div>
-        <button type="button" onClick={() => baixarCSVCatalogacao(estado.spins, estado.bips, tracking.signals)}
-          className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-black tracking-widest hover:bg-accent">
-          EXPORTAR CSV
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => baixarCSVCatalogacao(estado.spins, estado.bips, tracking.signals)}
+            className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-black tracking-widest hover:bg-accent">
+            EXPORTAR CSV
+          </button>
+          <button type="button" onClick={() => {
+            if (!window.confirm("Iniciar uma nova sessão? Os giros e o catálogo atual serão limpos, mas a banca e os resultados financeiros do dia serão preservados.")) return;
+            const config = carregarConfigBanca();
+            const ledger = loadSessionFinance();
+            const daily = { ...(ledger.archivedDailyResults ?? {}) };
+            const spinById = new Map(estado.spins.map((spin) => [spin.id, spin] as const));
+            for (const signal of tracking.signals) {
+              if (ledger.removedSignalIds.includes(signal.id) || !signal.resultSpinId) continue;
+              const result = effectiveSignalResult(signal, ledger);
+              const impact = impactoFinanceiro(signal, config, ledger);
+              if (impact === null) continue;
+              const spin = spinById.get(signal.resultSpinId) ?? spinById.get(signal.sourceSpinId);
+              if (!spin) continue;
+              const date = new Date(spin.timestamp);
+              const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+              const day = diaAtivo(config, dateKey);
+              if (day < 1) continue;
+              daily[day] = (daily[day] ?? 0) + impact;
+            }
+            saveSessionFinance({ ...ledger, archivedDailyResults: daily });
+            acoes.limpar();
+          }}
+            className="rounded-lg border border-emerald-500/50 bg-emerald-500/10 px-3 py-2 text-xs font-black tracking-widest text-emerald-500 hover:bg-emerald-500/20">
+            + NOVA SESSÃO
+          </button>
+        </div>
       </div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-3">
         <div>

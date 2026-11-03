@@ -6,6 +6,8 @@ export interface SessionFinanceLedger {
   removedSignalIds: string[];
   corrections: Record<string, EditableSignalResult>;
   financialOverrides?: Record<string, number>;
+  /** Resultados já realizados em sessões encerradas, agrupados por dia de operação. */
+  archivedDailyResults?: Record<number, number>;
 }
 export const SESSION_FINANCE_KEY = "roleta-session-finance-v1";
 export const SESSION_FINANCE_EVENT = "roleta:session-finance-updated";
@@ -19,6 +21,7 @@ export function loadSessionFinance(): SessionFinanceLedger {
       removedSignalIds: Array.isArray(parsed?.removedSignalIds) ? parsed.removedSignalIds : [],
       corrections: parsed?.corrections && typeof parsed.corrections === "object" ? parsed.corrections : {},
       financialOverrides: parsed?.financialOverrides && typeof parsed.financialOverrides === "object" ? parsed.financialOverrides : {},
+      archivedDailyResults: parsed?.archivedDailyResults && typeof parsed.archivedDailyResults === "object" ? parsed.archivedDailyResults : {},
     };
   } catch { return EMPTY_SESSION_FINANCE; }
 }
