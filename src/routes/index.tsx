@@ -55,7 +55,6 @@ function Catalogacao() {
             const spinById = new Map(estado.spins.map((spin) => [spin.id, spin] as const));
             for (const signal of tracking.signals) {
               if (ledger.removedSignalIds.includes(signal.id) || !signal.resultSpinId) continue;
-              const result = effectiveSignalResult(signal, ledger);
               const impact = impactoFinanceiro(signal, config, ledger);
               if (impact === null) continue;
               const spin = spinById.get(signal.resultSpinId) ?? spinById.get(signal.sourceSpinId);
@@ -66,7 +65,7 @@ function Catalogacao() {
               if (day < 1) continue;
               daily[day] = (daily[day] ?? 0) + impact;
             }
-            saveSessionFinance({ ...ledger, archivedDailyResults: daily });
+            saveSessionFinance({ ...ledger, archivedDailyResults: daily, archivedSignals: [...(ledger.archivedSignals ?? []).filter((old) => !tracking.signals.some((current) => current.id === old.id)), ...tracking.signals] });
             acoes.limpar();
           }}
             className="rounded-lg border border-emerald-500/50 bg-emerald-500/10 px-3 py-2 text-xs font-black tracking-widest text-emerald-500 hover:bg-emerald-500/20">

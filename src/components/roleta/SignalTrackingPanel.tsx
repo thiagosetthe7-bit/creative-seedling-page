@@ -17,7 +17,8 @@ export function SignalTrackingPanel({ signals }: SignalTrackingPanelProps) {
     return () => { window.removeEventListener(SESSION_FINANCE_EVENT, sync); window.removeEventListener("storage", sync); };
   }, []);
   useEffect(() => { syncReliabilityHistory(signals, ledger); }, [signals, ledger]);
-  const visible = signals.filter((signal) => !ledger.removedSignalIds.includes(signal.id));
+  const allSignals = [...(ledger.archivedSignals ?? []), ...signals];
+  const visible = [...new Map(allSignals.map((signal) => [signal.id, signal])).values()].filter((signal) => !ledger.removedSignalIds.includes(signal.id));
   const active = visible.filter((s) => s.status !== "CONCLUÍDO" && !s.preCatalog).slice().reverse();
   const updateLedger = (next: SessionFinanceLedger) => { setLedger(next); saveSessionFinance(next); };
   const correct = (id: string, result: EditableSignalResult) => updateLedger({ ...ledger, corrections: { ...ledger.corrections, [id]: result } });
