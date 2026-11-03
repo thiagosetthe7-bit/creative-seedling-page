@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, ShieldAlert, Wallet } from "lucide-react";
+import { BankrollEquityDashboard } from "@/components/roleta/BankrollEquityDashboard";
 import { useSinais } from "@/lib/roleta/useSinais";
 import type { TrackedSignal } from "@/lib/roleta/signalTracking";
 import { useEstado } from "@/lib/roleta/store";
@@ -51,6 +52,8 @@ export function BankrollPanel() {
         {resumo.stopLossCritico ? <p className="mt-1 font-black text-rose-500">🔴 STOP LOSS ATINGIDO — confirmado após RED no R2.</p> : Math.max(0, -resultadoDia) >= stopLossAtivo * 0.5 ? <p className="mt-1 font-black text-amber-500">🟡 CRÍTICO — Situação Crítica: Alto risco de Stop Loss.</p> : <p className="mt-1 font-black text-emerald-500">🟢 ESTÁVEL — perda abaixo de 50% do limite de Stop Loss.</p>}
         <p className="mt-1 text-xs text-muted-foreground">Limite dinâmico do dia: {dinheiro(stopLossAtivo)} (20% de {dinheiro(activeBank)}). O Stop Loss não bloqueia a indicação Smart Gale 1; só é marcado como atingido após RED confirmado no R2.</p>
       </section>
+
+      <BankrollEquityDashboard signals={tracking.signals} config={config} ledger={financeLedger} />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Metric title="BANCA DO DIA ATIVO" value={dinheiro(activeBank)} icon={<Wallet className="h-4 w-4"/>}/>
