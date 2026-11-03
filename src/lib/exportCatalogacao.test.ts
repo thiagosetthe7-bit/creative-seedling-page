@@ -6,7 +6,7 @@ describe("exportação da catalogação", () => {
   it("exporta cabeçalho completo, BOM UTF-8 e sem linhas quando não há giros", () => {
     const csv = montarCSVCatalogacao([], {});
     expect(csv.charCodeAt(0)).toBe(0xfeff);
-    expect(csv).toContain("Spin_Index;Number;Triggered_Strategy;Target_Bet;Signal_Status;Financial_Impact;Signal_Source_Spin_Index");
+    expect(csv).toContain("Spin_Index;Timestamp;Number;Terminal;Cavalo;High_Low;Dozen;Column;Even_Odd;Type;Section;Axis_0_10;Axis_22_34;Color;Triggered_Strategy;Target_Bet;Signal_Source_Spin_Index;Signal_Status;Execution_Mode;Financial_Impact;Running_Bankroll");
     expect(csv.split("\r\n")).toHaveLength(1);
   });
 
@@ -30,8 +30,8 @@ describe("exportação da catalogação", () => {
     expect(nova[1]).toBe("0");
     expect(nova[13]).toBe("1");
     expect(nova[14]).toBe("0");
-    expect(antiga).toHaveLength(22);
-    expect(antiga[21]).toBe("Não");
+    expect(antiga).toHaveLength(21);
+    expect(antiga[17]).toBe("NO_SIGNAL");\n    expect(antiga[18]).toBe("Monitoramento");\n    expect(antiga[19]).toBe("0.00");\n    expect(antiga[20]).toBe("100.00");
   });
 
   it("não altera a sequência de entrada nem exige os módulos antigos de sinais", () => {
@@ -61,11 +61,11 @@ describe("exportação da catalogação", () => {
     const lines = montarCSVCatalogacao(spins, {}, signals).replace(/^\\uFEFF/, "").split("\\r\\n");
     const row8 = lines[8]!.split(";");
     const row11 = lines[11]!.split(";");
-    expect(row8[2]).toBe("VOLT A");
-    expect(row8[3]).toBe("COLUNAS C1 + C2");
-    expect(row8[4]).toBe("Pendente");
-    expect(row11[2]).toBe("DELTA A");
-    expect(row11[4]).toBe("Pré-Catalogação • Green");
+    expect(row8[14]).toBe("VOLT A");
+    expect(row8[15]).toBe("COLUNAS C1 + C2");
+    expect(row8[17]).toBe("Pendente");
+    expect(row11[14]).toBe("DELTA A");
+    expect(row11[17]).toBe("Pré-Catalogação • Green");\n    expect(row11[18]).toBe("Monitoramento");
   });
 
 });

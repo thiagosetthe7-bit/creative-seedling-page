@@ -4,7 +4,7 @@ import type { TrackedSignal } from "./roleta/signalTracking";
 import { carregarConfigBanca } from "./roleta/bankroll";
 import { effectiveSignalResult, impactoFinanceiro, loadSessionFinance } from "./roleta/sessionFinance";
 
-const CABECALHO = "Spin_Index;Number;Triggered_Strategy;Target_Bet;Signal_Status;Financial_Impact;Signal_Source_Spin_Index;Terminal;Cavalo;High_Low;Dozen;Column;Even_Odd;Type;Section;Axis_0_10;Axis_22_34;Color;BR_Flag;BT_Flag";
+const CABECALHO = "Spin_Index;Timestamp;Number;Terminal;Cavalo;High_Low;Dozen;Column;Even_Odd;Type;Section;Axis_0_10;Axis_22_34;Color;Triggered_Strategy;Target_Bet;Signal_Source_Spin_Index;Signal_Status;Execution_Mode;Financial_Impact;Running_Bankroll";
 
 function celulaCSV(valor: unknown): string {
   const texto = String(valor ?? "");
@@ -58,9 +58,9 @@ export function montarCSVCatalogacao(
   });
 
   const linhas = [CABECALHO];
+  let runningBankroll = bankroll.bancaInicial;
   spins.forEach((spin, index) => {
     const c = spin.classificacao;
-    const bip = bips[spin.id];
     const spinSignals = rowsBySpin.get(index + 1) ?? [];
     const strategies = spinSignals.map((signal) => signal.strategyLabel || signal.strategy).join(" | ");
     const targets = spinSignals.map((signal) => [signal.target, signal.deltaTarget].filter(Boolean).join(" + ")).join(" | ");
@@ -69,20 +69,20 @@ export function montarCSVCatalogacao(
       const result = effectiveSignalResult(signal, ledger);
       if (result === "NOT_PICKED" || result === "BLOCKED" || result === "GALE_BLOCKED") return 0;
       if (ledger.financialOverrides?.[signal.id] !== undefined) return ledger.financialOverrides[signal.id]!;
-      return impactoFinanceiro(signal, bankroll, ledger);
+      return impactoFinanceiro(signal, bankroll, ledger) ?? 0;
     });
-    const impactText = impacts.length
-      ? impacts.map((value) => value === null ? "" : value.toFixed(2).replace(".", ",")).join(" | ")
-      : "";
+    // Impacto e saldo são apresentados por giro de origem do sinal.
+    const financialImpact = impacts.reduce((sum, value) => sum + value, 0);
+    runningBankroll += financialImpact;
+    const executionMode = spinSignals.some((signal) => {
+      const result = effectiveSignalResult(signal, ledger);
+      return !signal.preCatalog && result !== "NOT_PICKED" && result !== "BLOCKED" && result !== "GALE_BLOCKED";
+    }) ? "Operada" : "Monitoramento";
     const sourceIndexes = spinSignals.map((signal) => String(signal.sourceIndex)).join(" | ");
     linhas.push([
       index + 1,
+      new Date(spin.timestamp).toISOString(),
       spin.numero,
-      strategies || "NO_SIGNAL",
-      targets,
-      statuses || "NO_SIGNAL",
-      impactText,
-      sourceIndexes,
       c.terminal,
       c.cavalo,
       c.ab,
@@ -94,8 +94,13 @@ export function montarCSVCatalogacao(
       c.g010,
       c.g2234,
       c.cor,
-      bip === "rolando" ? "1" : "0",
-      bip === "timer" ? "1" : "0",
+      strategies || "NO_SIGNAL",
+      targets,
+      sourceIndexes,
+      statuses || "NO_SIGNAL",
+      executionMode,
+      financialImpact.toFixed(2),
+      runningBankroll.toFixed(2),
     ].map(celulaCSV).join(";"));
   });
   return "\uFEFF" + linhas.join("\r\n");
