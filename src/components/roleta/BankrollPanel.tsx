@@ -5,7 +5,9 @@ import { useSinais } from "@/lib/roleta/useSinais";
 import type { TrackedSignal } from "@/lib/roleta/signalTracking";
 import { useEstado } from "@/lib/roleta/store";
 import { effectiveSignalResult, impactoFinanceiro, loadSessionFinance, SESSION_FINANCE_EVENT } from "@/lib/roleta/sessionFinance";
-import { BANKROLL_KEY, carregarConfigBanca, calcularBanca, diaAtivo, dinheiro, type BankrollConfig } from "@/lib/roleta/bankroll";
+import { BANKROLL_KEY, carregarConfigBanca, calcularBanca, diaAtivo, dinheiro, DEFAULT_BANKROLL_CONFIG, type BankrollConfig } from "@/lib/roleta/bankroll";
+import { acoes } from "@/lib/roleta/store";
+import { EMPTY_SESSION_FINANCE, saveSessionFinance } from "@/lib/roleta/sessionFinance";
 
 const inputClass = "mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-amber-400";
 const dataLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
@@ -20,11 +22,12 @@ export function BankrollPanel() {
   const [alertaDispensado, setAlertaDispensado] = useState(false);
   const financeLedger = loadSessionFinance();
   const spinById = useMemo(() => new Map(estado.spins.map((spin) => [spin.id, spin] as const)), [estado.spins]);
-  const autoDailyResults = useMemo(() => { const totals: Record<number, number> = { ...(financeLedger.archivedDailyResults ?? {}) }; for (const signal of tracking.signals) { if (!signal.resultSpinId) continue; const result = effectiveSignalResult(signal, financeLedger); if (result === "PENDING" || result === "NO_SIGNAL" || result === "NOT_PICKED") continue; if (financeLedger.removedSignalIds.includes(signal.id)) continue; const spin = spinById.get(signal.resultSpinId) ?? spinById.get(signal.sourceSpinId); if (!spin) continue; const d = new Date(spin.timestamp); const date = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; const day = diaAtivo(config, date); if (day < 1) continue; const impact = financeLedger.financialOverrides?.[signal.id] ?? impactoFinanceiro(signal, config, financeLedger); if (impact !== null) totals[day] = (totals[day] ?? 0) + impact; } return totals; }, [tracking.signals, financeLedger, spinById, config]);
+  const autoDailyResults = useMemo(() => { const totals: Record<number, number> = { ...(financeLedger.archivedDailyResults ?? {}) }; for (const signal of tracking.signals) { if (!signal.resultSpinId) continue; const result = effectiveSignalResult(signal, financeLedger); if (result === "PENDING" || result === "NO_SIGNAL" || result === "NOT_PICKED") continue; if (financeLedger.removedSignalIds.includes(signal.id)) continue; const spin = spinById.get(signal.resultSpinId) ?? spinById.get(signal.sourceSpinId); if (!spin) continue; if (config.dataResetDia === dataLocal() && config.resetTimestamp && spin.timestamp < config.resetTimestamp) continue; const d = new Date(spin.timestamp); const date = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; const day = diaAtivo(config, date); if (day < 1) continue; const impact = financeLedger.financialOverrides?.[signal.id] ?? impactoFinanceiro(signal, config, financeLedger); if (impact !== null) totals[day] = (totals[day] ?? 0) + impact; } return totals; }, [tracking.signals, financeLedger, spinById, config]);
   const financialSignals = tracking.signals.filter((signal) => !financeLedger.removedSignalIds.includes(signal.id)).map((signal) => { const result = effectiveSignalResult(signal, financeLedger); return { ...signal, status: result === "PENDING" ? signal.status : "CONCLUÍDO" as const, result: result === "PENDING" ? "NO_SIGNAL" as const : result as TrackedSignal["result"] }; });
   const activeDay = Math.max(1, diaAtivo(config, dataLocal()));
   const previousDaysResult = Object.entries(autoDailyResults).reduce((sum, [day, value]) => Number(day) < activeDay ? sum + value : sum, 0);
-  const activeBank = Math.max(0, config.bancaInicial + previousDaysResult);
+  const calculatedActiveBank = Math.max(0, config.bancaInicial + previousDaysResult);
+  const activeBank = config.dataResetDia === dataLocal() && typeof config.bancaResetDia === "number" ? config.bancaResetDia : calculatedActiveBank;
   const resultadoDia = autoDailyResults[activeDay] ?? 0;
   const bancaAtual = Math.max(0, activeBank + resultadoDia);
   const metaDia = config.metaModo === "valor" ? Math.max(0, config.metaValor) : Math.max(0, bancaAtual * config.metaDiariaPercentual / 100);
@@ -41,11 +44,24 @@ export function BankrollPanel() {
 
   const update = (patch: Partial<BankrollConfig>) => setConfig((current) => ({ ...current, ...patch }));
   const blockSignals = config.bloquearSinaisMetaDiaria && metaDiaBatida;
+  const resetNovoDia = () => update({ dataResetDia: dataLocal(), resetTimestamp: Date.now(), bancaResetDia: bancaAtual });
+  const resetTotal = () => {
+    if (!window.confirm("Resetar toda a banca para R$ 100,00? Isso apagará o histórico financeiro e a curva de evolução. Esta ação não pode ser desfeita.")) return;
+    acoes.limpar();
+    saveSessionFinance({ ...EMPTY_SESSION_FINANCE });
+    try { window.localStorage.removeItem("roleta-bankroll-equity-v1"); } catch { /* storage opcional */ }
+    setConfig({ ...DEFAULT_BANKROLL_CONFIG, bancaInicial: 100, dataInicio: dataLocal(), dataResetDia: undefined, resetTimestamp: undefined, bancaResetDia: undefined });
+    setAlertaDispensado(false);
+  };
 
   return (
     <div className="space-y-4">
-      <header>
+      <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-lg font-black tracking-widest">GERENCIAMENTO DE BANCA</h1>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={resetNovoDia} className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-xs font-black text-amber-500 hover:bg-amber-500/20">ZERAR / NOVO DIA</button>
+          <button type="button" onClick={resetTotal} className="rounded-lg border border-rose-500/50 bg-rose-500 px-4 py-2 text-xs font-black text-white hover:bg-rose-600">RESETAR BANCA PARA O DIA 1 (R$ 100,00)</button>
+        </div>
       </header>
 
       {blockSignals && <div role="alert" className="rounded-xl border-2 border-emerald-500 bg-emerald-500/10 p-4 font-black text-emerald-500">SINAIS BLOQUEADOS: META DIÁRIA ALCANÇADA. A opção de proteção de lucro está ativa.</div>}

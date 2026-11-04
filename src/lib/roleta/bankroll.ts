@@ -15,6 +15,9 @@ export interface BankrollConfig {
   stakePercentual: number;
   bloquearSinaisMetaDiaria: boolean;
   dataInicio: string;
+  dataResetDia?: string;
+  resetTimestamp?: number;
+  bancaResetDia?: number;
 }
 export const BANKROLL_KEY = "roleta-bankroll-config-v1";
 export const DEFAULT_BANKROLL_CONFIG: BankrollConfig = {
