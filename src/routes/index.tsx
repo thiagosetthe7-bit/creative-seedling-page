@@ -6,7 +6,8 @@ import { SignalPopup } from "@/components/roleta/SignalPopup";
 import { SignalTrackingPanel } from "@/components/roleta/SignalTrackingPanel";
 import { acoes, useEstado } from "@/lib/roleta/store";
 import { useSinais } from "@/lib/roleta/useSinais";
-import { baixarCSVCatalogacao } from "@/lib/exportCatalogacao";
+import { baixarCSVCatalogacao, montarCSVCatalogacao, salvarArquivoSessaoForense } from "@/lib/exportCatalogacao";
+import { BankrollEquityDashboard } from "@/components/roleta/BankrollEquityDashboard";
 import { assessSessionTrend } from "@/lib/roleta/sessionThermometer";
 import { carregarConfigBanca, diaAtivo } from "@/lib/roleta/bankroll";
 import { effectiveSignalResult, impactoFinanceiro, loadSessionFinance, saveSessionFinance } from "@/lib/roleta/sessionFinance";
@@ -31,6 +32,7 @@ function Catalogacao() {
   const thermometer = assessSessionTrend(estado.spins, tracking.signals);
   return (
     <AppShell>
+      <BankrollEquityDashboard signals={tracking.signals} config={carregarConfigBanca()} ledger={loadSessionFinance()} />
       <SignalPopup signals={sinais} autoCloseSeconds={15} />
       {thermometer.status !== "CALIBRATING" && <div role="status" aria-live="polite" className={`mb-4 rounded-xl border p-4 ${thermometer.status === "POSITIVE" ? "border-emerald-400/50 bg-emerald-500/10 text-emerald-200" : "border-rose-400/50 bg-rose-500/10 text-rose-200"}`}>
         <p className="text-sm font-black tracking-wide">{thermometer.status === "POSITIVE" ? "🟢 SESSÃO POSITIVA" : "🔴 SESSÃO NEGATIVA"} <span className="font-semibold">{thermometer.status === "POSITIVE" ? "(Estabilidade estrutural detectada)" : "(Alto ruído / Zigue-zague)"}</span></p>
@@ -49,6 +51,9 @@ function Catalogacao() {
           </button>
           <button type="button" onClick={() => {
             if (!window.confirm("Iniciar uma nova sessão? Os giros e o catálogo atual serão limpos, mas a banca e os resultados financeiros do dia serão preservados.")) return;
+            const forensicCsv = montarCSVCatalogacao(estado.spins, estado.bips, tracking.signals);
+            salvarArquivoSessaoForense(forensicCsv);
+            baixarCSVCatalogacao(estado.spins, estado.bips, tracking.signals);
             const config = carregarConfigBanca();
             const ledger = loadSessionFinance();
             const daily = { ...(ledger.archivedDailyResults ?? {}) };
@@ -63,7 +68,8 @@ function Catalogacao() {
               const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
               const day = diaAtivo(config, dateKey);
               if (day < 1) continue;
-              daily[day] = (daily[day] ?? 0) + impact;
+              const adjustedImpact = ledger.financialOverrides?.[signal.id] ?? impact;
+              daily[day] = (daily[day] ?? 0) + adjustedImpact;
             }
             saveSessionFinance({ ...ledger, archivedDailyResults: daily, archivedSignals: [...(ledger.archivedSignals ?? []).filter((old) => !tracking.signals.some((current) => current.id === old.id)), ...tracking.signals] });
             acoes.limpar();

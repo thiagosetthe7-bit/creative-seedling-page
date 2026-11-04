@@ -129,3 +129,29 @@ export function baixarCSVCatalogacao(
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+
+const FORENSIC_ARCHIVE_KEY = "roleta-forensic-session-archive-v1";
+interface ForensicSessionArchive { id: string; closedAt: string; spinCount: number; signalCount: number; csv: string; }
+
+/** Persiste uma cópia forense do CSV antes de limpar a sessão ativa. */
+export function salvarArquivoSessaoForense(csv: string): void {
+  if (typeof window === "undefined" || !csv) return;
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(FORENSIC_ARCHIVE_KEY) || "[]");
+    const archives: ForensicSessionArchive[] = Array.isArray(stored) ? stored : [];
+    const lines = csv.replace(/^\\uFEFF/, "").split(/\\r?\\n/);
+    const rows = lines.slice(1).filter((line) => line.trim().length > 0);
+    const archive: ForensicSessionArchive = {
+      id: `session-${Date.now()}`,
+      closedAt: new Date().toISOString(),
+      spinCount: rows.length,
+      signalCount: rows.filter((line) => !line.includes("NO_SIGNAL")).length,
+      csv,
+    };
+    archives.push(archive);
+    window.localStorage.setItem(FORENSIC_ARCHIVE_KEY, JSON.stringify(archives.slice(-30)));
+  } catch {
+    window.alert("Não foi possível guardar a cópia interna forense. O download CSV foi iniciado; verifique o espaço de armazenamento do navegador.");
+  }
+}

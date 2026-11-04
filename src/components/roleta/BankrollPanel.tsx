@@ -20,7 +20,7 @@ export function BankrollPanel() {
   const [alertaDispensado, setAlertaDispensado] = useState(false);
   const financeLedger = loadSessionFinance();
   const spinById = useMemo(() => new Map(estado.spins.map((spin) => [spin.id, spin] as const)), [estado.spins]);
-  const autoDailyResults = useMemo(() => { const totals: Record<number, number> = { ...(financeLedger.archivedDailyResults ?? {}) }; for (const signal of tracking.signals) { if (!signal.resultSpinId) continue; const result = effectiveSignalResult(signal, financeLedger); if (result === "PENDING" || result === "NO_SIGNAL" || result === "NOT_PICKED") continue; if (financeLedger.removedSignalIds.includes(signal.id)) continue; const spin = spinById.get(signal.resultSpinId) ?? spinById.get(signal.sourceSpinId); if (!spin) continue; const d = new Date(spin.timestamp); const date = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; const day = diaAtivo(config, date); if (day < 1) continue; const impact = impactoFinanceiro(signal, config, financeLedger); if (impact !== null) totals[day] = (totals[day] ?? 0) + impact; } return totals; }, [tracking.signals, financeLedger, spinById, config]);
+  const autoDailyResults = useMemo(() => { const totals: Record<number, number> = { ...(financeLedger.archivedDailyResults ?? {}) }; for (const signal of tracking.signals) { if (!signal.resultSpinId) continue; const result = effectiveSignalResult(signal, financeLedger); if (result === "PENDING" || result === "NO_SIGNAL" || result === "NOT_PICKED") continue; if (financeLedger.removedSignalIds.includes(signal.id)) continue; const spin = spinById.get(signal.resultSpinId) ?? spinById.get(signal.sourceSpinId); if (!spin) continue; const d = new Date(spin.timestamp); const date = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; const day = diaAtivo(config, date); if (day < 1) continue; const impact = financeLedger.financialOverrides?.[signal.id] ?? impactoFinanceiro(signal, config, financeLedger); if (impact !== null) totals[day] = (totals[day] ?? 0) + impact; } return totals; }, [tracking.signals, financeLedger, spinById, config]);
   const financialSignals = tracking.signals.filter((signal) => !financeLedger.removedSignalIds.includes(signal.id)).map((signal) => { const result = effectiveSignalResult(signal, financeLedger); return { ...signal, status: result === "PENDING" ? signal.status : "CONCLUÍDO" as const, result: result === "PENDING" ? "NO_SIGNAL" as const : result as TrackedSignal["result"] }; });
   const activeDay = Math.max(1, diaAtivo(config, dataLocal()));
   const previousDaysResult = Object.entries(autoDailyResults).reduce((sum, [day, value]) => Number(day) < activeDay ? sum + value : sum, 0);
@@ -29,6 +29,10 @@ export function BankrollPanel() {
   const metaDia = config.metaModo === "valor" ? Math.max(0, config.metaValor) : Math.max(0, activeBank * config.metaDiariaPercentual / 100);
   const metaDiaBatida = resultadoDia >= metaDia && metaDia > 0;
   const stopLossAtivo = Math.max(0, activeBank) * (config.stopLossPercentual ?? 20) / 100;
+  const bancaAtual = Math.max(0, activeBank + resultadoDia);
+  const progressoMeta = metaDia > 0 ? Math.max(0, Math.min(100, resultadoDia / metaDia * 100)) : 0;
+  const progressoStopLoss = stopLossAtivo > 0 ? Math.max(0, Math.min(100, Math.abs(Math.min(0, resultadoDia)) / stopLossAtivo * 100)) : 0;
+  const progressoOperacional = resultadoDia >= 0 ? progressoMeta : progressoStopLoss;
   const resumoBase = useMemo(() => calcularBanca(financialSignals, config), [financialSignals, config]);
   const resumo = { ...resumoBase, stopLossCritico: resultadoDia <= -stopLossAtivo && stopLossAtivo > 0 };
 
@@ -56,10 +60,17 @@ export function BankrollPanel() {
       <BankrollEquityDashboard signals={tracking.signals} config={config} ledger={financeLedger} />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric title="BANCA ATUAL" value={dinheiro(bancaAtual)} icon={<Wallet className="h-4 w-4"/>}/>
         <Metric title="BANCA DO DIA ATIVO" value={dinheiro(activeBank)} icon={<Wallet className="h-4 w-4"/>}/>
         <Metric title="DIA DA OPERAÇÃO" value={`DIA ${activeDay}`}/>
         <Metric title="RESULTADO REALIZADO DO DIA" value={dinheiro(resultadoDia)} tone={resultadoDia >= 0 ? "green" : "red"}/>
         <Metric title="META DIÁRIA" value={dinheiro(metaDia)}/>
+      </section>
+
+      <section className="rounded-xl border border-border bg-card p-4" aria-label="Progresso da meta e proteção diária">
+        <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-sm font-black tracking-widest">PROGRESSO DA META DIÁRIA</h2><strong className={resultadoDia < 0 ? "text-rose-400" : "text-emerald-400"}>{resultadoDia < 0 ? `STOP LOSS: ${progressoStopLoss.toFixed(1)}%` : `META: ${progressoMeta.toFixed(1)}%`}</strong></div>
+        <div className="mt-3 h-3 overflow-hidden rounded-full bg-muted"><div role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressoOperacional} className={`h-full rounded-full transition-all ${resultadoDia < 0 ? "bg-rose-500" : metaDiaBatida ? "bg-emerald-400" : "bg-cyan-400"}`} style={{ width: `${progressoOperacional}%` }}/></div>
+        <div className="mt-2 flex flex-wrap justify-between gap-2 text-xs text-muted-foreground"><span>Resultado do dia: {dinheiro(resultadoDia)}</span><span>{resultadoDia < 0 ? `Limite de perda: ${dinheiro(stopLossAtivo)}` : `Meta: ${dinheiro(metaDia)}`}</span></div>
       </section>
 
       <section className="rounded-xl border border-border bg-card p-4">
