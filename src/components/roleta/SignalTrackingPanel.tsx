@@ -56,7 +56,7 @@ export function SignalTrackingPanel({ signals }: SignalTrackingPanelProps) {
       {active.length === 0 ? <p className="rounded-lg border border-dashed border-border p-4 text-sm text-muted-foreground">Nenhum sinal aguardando resolução. Os sinais detectados permanecerão no histórico.</p> : active.map((signal) => (
         <article key={signal.id} className="rounded-lg border border-amber-400/40 bg-amber-400/5 p-3 sm:p-4">
           <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-black">{signal.strategyLabel}</h3><span className={signal.status === "GALE 1 EM ANDAMENTO" ? "rounded-full bg-orange-500/15 px-3 py-1 text-xs font-black text-orange-400" : signal.status === "GALE 1 BLOQUEADO" ? "rounded-full bg-rose-500/20 px-3 py-1 text-xs font-black text-rose-300" : "rounded-full bg-sky-500/15 px-3 py-1 text-xs font-black text-sky-400"}>{signal.status}</span></div>
-          <p className="mt-2 text-sm font-bold">{signal.target}</p>{signal.status === "GALE 1 BLOQUEADO" ? <p className="mt-2 rounded-lg border border-rose-400/40 bg-rose-500/10 p-3 text-sm font-bold text-rose-200">🚫 GALE 1 BLOQUEADO<br />{signal.blockReason ?? "Inércia contrária forte detetada. Proteja a banca e aguarde o próximo ciclo."}</p> : <p className="mt-1 text-sm text-muted-foreground">{signal.action}</p>}
+          <p className="mt-2 text-sm font-bold">{signal.target}</p>
         </article>
       ))}
       <details className="rounded-lg border border-border" open>
