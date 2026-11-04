@@ -7,7 +7,6 @@ import { SignalTrackingPanel } from "@/components/roleta/SignalTrackingPanel";
 import { acoes, useEstado } from "@/lib/roleta/store";
 import { useSinais } from "@/lib/roleta/useSinais";
 import { baixarCSVCatalogacao, montarCSVCatalogacao, salvarArquivoSessaoForense } from "@/lib/exportCatalogacao";
-import { BankrollEquityDashboard } from "@/components/roleta/BankrollEquityDashboard";
 import { assessSessionTrend } from "@/lib/roleta/sessionThermometer";
 import { carregarConfigBanca, diaAtivo } from "@/lib/roleta/bankroll";
 import { effectiveSignalResult, impactoFinanceiro, loadSessionFinance, saveSessionFinance } from "@/lib/roleta/sessionFinance";
@@ -32,7 +31,6 @@ function Catalogacao() {
   const thermometer = assessSessionTrend(estado.spins, tracking.signals);
   return (
     <AppShell>
-      <BankrollEquityDashboard signals={tracking.signals} config={carregarConfigBanca()} ledger={loadSessionFinance()} />
       <SignalPopup signals={sinais} autoCloseSeconds={15} />
       {thermometer.status !== "CALIBRATING" && <div role="status" aria-live="polite" className={`mb-4 rounded-xl border p-4 ${thermometer.status === "POSITIVE" ? "border-emerald-400/50 bg-emerald-500/10 text-emerald-200" : "border-rose-400/50 bg-rose-500/10 text-rose-200"}`}>
         <p className="text-sm font-black tracking-wide">{thermometer.status === "POSITIVE" ? "🟢 SESSÃO POSITIVA" : "🔴 SESSÃO NEGATIVA"} <span className="font-semibold">{thermometer.status === "POSITIVE" ? "(Estabilidade estrutural detectada)" : "(Alto ruído / Zigue-zague)"}</span></p>
