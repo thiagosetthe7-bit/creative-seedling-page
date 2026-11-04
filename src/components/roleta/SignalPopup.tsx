@@ -64,7 +64,18 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 15 }: Signa
   };
 
   if (!visible || !signals.length) return null;
-  const signal = signals[signals.length - 1]!;
+  // Prioridade do modal: confluência VOLT+DELTA > VOLT A/B > DELTA A/B > recuperação Gale.
+  // Assim, um alerta estrutural novo substitui imediatamente um modal secundário de recuperação.
+  const priority = (candidate: EntrySignal) => {
+    if (candidate.strategy === "volt-delta") return 4;
+    if (candidate.strategy === "volt-a" || candidate.strategy === "volt-b") return 3;
+    if (candidate.phase === "GALE1") return 1;
+    return 2;
+  };
+  const signal = [...signals].sort((a, b) =>
+    priority(b) - priority(a) || Number(Boolean(b.blocked)) - Number(Boolean(a.blocked))
+  )[0]!;
+  const isStructuralPriority = signal.strategy === "volt-delta" || signal.strategy === "volt-a" || signal.strategy === "volt-b";
   const isConfluence = signal.strategy === "volt-delta" && Boolean(signal.deltaTarget);
   const baseTrigger = signal.strategy === "volt-delta"
     ? "VOLT + DELTA"
@@ -109,6 +120,11 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 15 }: Signa
             <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">SINAL DE ENTRADA • PRÓXIMO GIRO</p>
             <span className="rounded-full border border-fuchsia-300/70 bg-gradient-to-r from-fuchsia-500/30 to-violet-500/30 px-3 py-1.5 text-[10px] font-black tracking-wider text-fuchsia-100 shadow-[0_0_18px_rgba(217,70,239,0.35)]">{signal.strategy.toUpperCase()}</span>
           </div>
+          {isStructuralPriority && (
+            <div role="status" className="mt-3 inline-flex items-center gap-2 rounded-full border border-amber-300/80 bg-gradient-to-r from-amber-300/25 via-yellow-300/20 to-emerald-300/20 px-4 py-2 text-xs font-black tracking-[0.16em] text-amber-100 shadow-[0_0_26px_rgba(251,191,36,0.3)]">
+              <span aria-hidden="true">✦</span> PRIORIDADE ESTRUTURAL
+            </div>
+          )}
           <h2 id="signal-popup-title" className="mt-4 bg-gradient-to-r from-lime-200 via-cyan-200 to-fuchsia-300 bg-clip-text text-3xl font-black tracking-tight text-transparent drop-shadow-[0_0_16px_rgba(34,211,238,0.3)] sm:text-4xl">{triggerName}</h2>
 
           {isConfluence ? (
