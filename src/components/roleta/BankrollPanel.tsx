@@ -26,10 +26,10 @@ export function BankrollPanel() {
   const previousDaysResult = Object.entries(autoDailyResults).reduce((sum, [day, value]) => Number(day) < activeDay ? sum + value : sum, 0);
   const activeBank = Math.max(0, config.bancaInicial + previousDaysResult);
   const resultadoDia = autoDailyResults[activeDay] ?? 0;
-  const metaDia = config.metaModo === "valor" ? Math.max(0, config.metaValor) : Math.max(0, activeBank * config.metaDiariaPercentual / 100);
+  const bancaAtual = Math.max(0, activeBank + resultadoDia);
+  const metaDia = config.metaModo === "valor" ? Math.max(0, config.metaValor) : Math.max(0, bancaAtual * config.metaDiariaPercentual / 100);
   const metaDiaBatida = resultadoDia >= metaDia && metaDia > 0;
   const stopLossAtivo = Math.max(0, activeBank) * (config.stopLossPercentual ?? 20) / 100;
-  const bancaAtual = Math.max(0, activeBank + resultadoDia);
   const progressoMeta = metaDia > 0 ? Math.max(0, Math.min(100, resultadoDia / metaDia * 100)) : 0;
   const progressoStopLoss = stopLossAtivo > 0 ? Math.max(0, Math.min(100, Math.abs(Math.min(0, resultadoDia)) / stopLossAtivo * 100)) : 0;
   const progressoOperacional = resultadoDia >= 0 ? progressoMeta : progressoStopLoss;

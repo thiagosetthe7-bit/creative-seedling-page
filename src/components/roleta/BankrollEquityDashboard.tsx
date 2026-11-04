@@ -62,7 +62,8 @@ export function BankrollEquityDashboard({ signals, config, ledger }: { signals: 
 
   return <section className="space-y-4 rounded-xl border border-border bg-card p-4">
     <div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="flex items-center gap-2 text-sm font-black tracking-widest"><TrendingUp className="h-4 w-4 text-emerald-500"/> EVOLUÇÃO GRADUAL DA BANCA</h2><p className="mt-1 text-xs text-muted-foreground">Cada entrada finalizada adiciona um ponto. O histórico permanece salvo entre sessões.</p></div><span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-[10px] font-black text-emerald-400">{Math.max(0, points.length - 1)} REGISTROS</span></div>
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {metric("BANCA INICIAL", dinheiro(initial), "text-foreground")}
       {metric("BANCA ATUAL", dinheiro(current), "text-foreground")}
       {metric("MAIOR SALDO ATINGIDO (PICO)", dinheiro(peak), "text-emerald-500")}
       {metric("RESULTADO ACUMULADO", (result > 0 ? "+" : result < 0 ? "−" : "") + dinheiro(Math.abs(result)) + " · " + (percent >= 0 ? "+" : "") + percent.toFixed(2) + "%", result >= 0 ? "text-emerald-500" : "text-rose-500")}
