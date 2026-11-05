@@ -66,14 +66,12 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 15 }: Signa
   if (!visible || !signals.length) return null;
   // Prioridade do modal: confluência VOLT+DELTA > VOLT A/B > DELTA A/B > recuperação Gale.
   // Assim, um alerta estrutural novo substitui imediatamente um modal secundário de recuperação.
-  const priority = (candidate: EntrySignal) => {
-    if (candidate.strategy === "volt-delta") return 4;
-    if (candidate.strategy === "volt-a" || candidate.strategy === "volt-b") return 3;
-    if (candidate.phase === "GALE1") return 1;
-    return 2;
+  const calibrationWeight: Record<EntrySignal["strategy"], number> = {
+    "volt-b": 0.875, "delta-b": 0.857, "volt-a": 0.855, "volt-delta": 0.75, "delta-a": 0.667,
   };
   const signal = [...signals].sort((a, b) =>
-    priority(b) - priority(a) || Number(Boolean(b.blocked)) - Number(Boolean(a.blocked))
+    (calibrationWeight[b.strategy] ?? 0.5) - (calibrationWeight[a.strategy] ?? 0.5) ||
+    Number(Boolean(b.blocked)) - Number(Boolean(a.blocked))
   )[0]!;
   const isStructuralPriority = signal.strategy === "volt-delta" || signal.strategy === "volt-a" || signal.strategy === "volt-b";
   const isConfluence = signal.strategy === "volt-delta" && Boolean(signal.deltaTarget);
@@ -120,6 +118,9 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 15 }: Signa
             <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-slate-400">SINAL DE ENTRADA • PRÓXIMO GIRO</p>
             <span className="rounded-full border border-fuchsia-300/70 bg-gradient-to-r from-fuchsia-500/30 to-violet-500/30 px-3 py-1.5 text-[10px] font-black tracking-wider text-fuchsia-100 shadow-[0_0_18px_rgba(217,70,239,0.35)]">{signal.strategy.toUpperCase()}</span>
           </div>
+          {signal.confidencePercent === undefined && (
+            <p className="mt-2 text-[10px] font-semibold text-slate-400">Referência histórica calibrada • {signal.strategy.toUpperCase()}</p>
+          )}
           {isStructuralPriority && (
             <div role="status" className="mt-3 inline-flex items-center gap-2 rounded-full border border-amber-300/80 bg-gradient-to-r from-amber-300/25 via-yellow-300/20 to-emerald-300/20 px-4 py-2 text-xs font-black tracking-[0.16em] text-amber-100 shadow-[0_0_26px_rgba(251,191,36,0.3)]">
               <span aria-hidden="true">✦</span> PRIORIDADE ESTRUTURAL

@@ -3,6 +3,7 @@ import { detectarSinaisEntrada, isSuperGatilho } from "./signalEngine";
 import { useEstado } from "./store";
 import type { TrackedSignal } from "./signalTracking";
 import { getReliability, getReliabilityVersion, subscribeReliability } from "./signalReliability";
+import { evaluateMasterSessionSafety, orderSignalsByMasterWeight } from "./signalCalibration";
 
 export function useSinais() {
   const estado = useEstado();
@@ -11,7 +12,6 @@ export function useSinais() {
     () => detectarSinaisEntrada(estado.spins, estado.bips),
     [estado.spins, estado.bips],
   );
-  const sinais = estado.spins.length > 20 ? sinaisDetectados : [];
 
   // Reconstrói os sinais a partir do histórico e liquida R1/Gale 1 com os giros posteriores.
   const trackedSignals = useMemo<TrackedSignal[]>(() => {
@@ -139,6 +139,12 @@ export function useSinais() {
     return Array.from(byId.values()).sort((a, b) => a.sourceIndex - b.sourceIndex);
   }, [estado.spins, estado.bips]);
 
+  const calibration = evaluateMasterSessionSafety(estado.spins.length, estado.spins, trackedSignals);
+  const eligibleSignals = calibration.suppressPopups ? [] : sinaisDetectados.filter((signal) =>
+    !(calibration.blockDeltaA && signal.strategy === "delta-a")
+  );
+  const sinais = orderSignalsByMasterWeight(estado.spins.length > 20 ? eligibleSignals : []);
+
   const recoveryAlerts = trackedSignals.filter((signal) => !signal.preCatalog && (signal.status === "GALE 1 EM ANDAMENTO" || signal.status === "GALE 1 BLOQUEADO")).filter((signal) => signal.r1Number !== undefined && signal.resultSpinId === estado.spins.at(-1)?.id).map((signal) => ({
     id: `${signal.id}:recovery:${signal.status}`,
     strategy: signal.strategy,
@@ -152,7 +158,8 @@ export function useSinais() {
     blocked: signal.status === "GALE 1 BLOQUEADO",
     blockedReason: signal.blockReason,
   }));
-  const liveAlerts = estado.spins.length > 20 ? [...sinais, ...recoveryAlerts].map((signal) => {
+  const eligibleRecoveryAlerts = calibration.suppressPopups ? [] : recoveryAlerts.filter((signal) => !(calibration.blockDeltaA && signal.strategy === "delta-a"));
+  const liveAlerts = estado.spins.length > 20 ? [...sinais, ...eligibleRecoveryAlerts].map((signal) => {
     const reliability = getReliability(signal.strategy, signal.target);
     return { ...signal, confidencePercent: reliability.percent ?? undefined, confidenceSampleSize: reliability.sampleSize, confidenceLevel: reliability.level };
   }) : [];
@@ -165,6 +172,7 @@ export function useSinais() {
     blockedTargets: [],
     marketEntropy: { isMarketSafe: false, dominantSector: null, concentration: 0, hasIsolatedBreaks: false },
     zeroQuarantineActive: false,
-    sessionAssessment: { sessionStatus: sinais.length ? "SIGNAL" : "WAITING", sampleSize: estado.spins.length },
+    sessionAssessment: { sessionStatus: calibration.status, sampleSize: estado.spins.length },
+    calibration,
   };
 }
