@@ -69,10 +69,12 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 15 }: Signa
   const calibrationWeight: Record<EntrySignal["strategy"], number> = {
     "volt-b": 0.875, "delta-b": 0.857, "volt-a": 0.855, "volt-delta": 0.75, "delta-a": 0.667,
   };
-  const signal = [...signals].sort((a, b) =>
+  const prioritizedSignals = [...signals].sort((a, b) =>
     (calibrationWeight[b.strategy] ?? 0.5) - (calibrationWeight[a.strategy] ?? 0.5) ||
     Number(Boolean(b.blocked)) - Number(Boolean(a.blocked))
-  )[0]!;
+  );
+  const signal = prioritizedSignals[0]!;
+  const secondarySignals = prioritizedSignals.slice(1);
   const isStructuralPriority = signal.strategy === "volt-delta" || signal.strategy === "volt-a" || signal.strategy === "volt-b";
   const isConfluence = signal.strategy === "volt-delta" && Boolean(signal.deltaTarget);
   const baseTrigger = signal.strategy === "volt-delta"
@@ -126,6 +128,7 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 15 }: Signa
               <span aria-hidden="true">✦</span> PRIORIDADE ESTRUTURAL
             </div>
           )}
+          <div className="mt-3 inline-flex rounded-full border border-amber-300/60 bg-amber-300/15 px-3 py-1.5 text-[10px] font-black tracking-wide text-amber-100">{signal.tagVisual ?? "⭐ RECOMENDADO (MAIOR WR)"} • WR {signal.winRate ?? `${(calibrationWeight[signal.strategy] * 100).toFixed(1)}%`}</div>
           <h2 id="signal-popup-title" className="mt-4 bg-gradient-to-r from-lime-200 via-cyan-200 to-fuchsia-300 bg-clip-text text-3xl font-black tracking-tight text-transparent drop-shadow-[0_0_16px_rgba(34,211,238,0.3)] sm:text-4xl">{triggerName}</h2>
 
           {isConfluence ? (
@@ -161,6 +164,16 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 15 }: Signa
             </>
           )}
 
+          {secondarySignals.length > 0 && (
+            <div className="mt-4 space-y-2">
+              {secondarySignals.map((secondary) => (
+                <div key={secondary.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-500/40 bg-slate-800/70 px-3 py-2 text-xs">
+                  <span className="font-black text-slate-100">{secondary.name} • {secondary.target}</span>
+                  <span className="rounded-full bg-slate-600/40 px-2 py-1 font-bold text-slate-200">{secondary.tagVisual ?? "🛡️ SINAL SECUNDÁRIO / COBERTURA"} • WR {secondary.winRate ?? `${(calibrationWeight[secondary.strategy] * 100).toFixed(1)}%`}</span>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="mt-5 flex items-center justify-between gap-4 text-xs text-slate-400">
             <span>Fechamento automático em <strong className="text-cyan-200">{secondsLeft}s</strong></span>
             <span className="rounded-full bg-white/5 px-3 py-1 font-bold">{signal.phase ?? "R1"}</span>

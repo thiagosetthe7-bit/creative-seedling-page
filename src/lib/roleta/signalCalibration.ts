@@ -114,9 +114,41 @@ export function evaluateMasterSessionSafety(
   };
 }
 
+export const OVERLAP_STRATEGY_WEIGHTS: Record<EntrySignal["strategy"], number> = {
+  "volt-b": 0.882,
+  "delta-b": 0.857,
+  "volt-a": 0.855,
+  "volt-delta": 0.750,
+  "delta-a": 0.652,
+};
+
+export interface PrioritizedEntrySignal extends EntrySignal {
+  tagVisual: "⭐ RECOMENDADO (MAIOR WR)" | "🛡️ SINAL SECUNDÁRIO / COBERTURA";
+  destaque: boolean;
+  winRate: string;
+}
+
+/** Ordena e anota todos os sinais simultâneos para apresentação no popup dual. */
+export function processarSinaisSimultaneos<T extends EntrySignal>(sinaisDetectados: T[]): (T & {
+  tagVisual: PrioritizedEntrySignal["tagVisual"];
+  destaque: boolean;
+  winRate: string;
+})[] {
+  const sinaisOrdenados = [...sinaisDetectados].sort((a, b) =>
+    (OVERLAP_STRATEGY_WEIGHTS[b.strategy] ?? 0.5) -
+    (OVERLAP_STRATEGY_WEIGHTS[a.strategy] ?? 0.5)
+  );
+  return sinaisOrdenados.map((sinal, index) => ({
+    ...sinal,
+    tagVisual: index === 0 ? "⭐ RECOMENDADO (MAIOR WR)" : "🛡️ SINAL SECUNDÁRIO / COBERTURA",
+    destaque: index === 0,
+    winRate: `${((OVERLAP_STRATEGY_WEIGHTS[sinal.strategy] ?? 0.5) * 100).toFixed(1)}%`,
+  }));
+}
+
 export function getMasterStrategyWeight(strategy: EntrySignal["strategy"]): number {
-  return MASTER_CALIBRATION.strategyWeights[strategy]?.weight ?? 0.5;
+  return OVERLAP_STRATEGY_WEIGHTS[strategy] ?? 0.5;
 }
 export function orderSignalsByMasterWeight<T extends EntrySignal>(signals: T[]): T[] {
-  return [...signals].sort((a, b) => getMasterStrategyWeight(b.strategy) - getMasterStrategyWeight(a.strategy));
+  return processarSinaisSimultaneos(signals);
 }

@@ -17,6 +17,9 @@ export interface EntrySignal {
   confidencePercent?: number;
   confidenceSampleSize?: number;
   confidenceLevel?: "HIGH" | "LOW" | "INSUFFICIENT";
+  tagVisual?: "⭐ RECOMENDADO (MAIOR WR)" | "🛡️ SINAL SECUNDÁRIO / COBERTURA";
+  destaque?: boolean;
+  winRate?: string;
 }
 
 export const WINDOW_SIZE = 30;

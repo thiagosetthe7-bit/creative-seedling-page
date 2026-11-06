@@ -3,7 +3,7 @@ import { detectarSinaisEntrada, isSuperGatilho } from "./signalEngine";
 import { useEstado } from "./store";
 import type { TrackedSignal } from "./signalTracking";
 import { getReliability, getReliabilityVersion, subscribeReliability } from "./signalReliability";
-import { evaluateMasterSessionSafety, orderSignalsByMasterWeight } from "./signalCalibration";
+import { evaluateMasterSessionSafety, processarSinaisSimultaneos } from "./signalCalibration";
 
 export function useSinais() {
   const estado = useEstado();
@@ -143,7 +143,7 @@ export function useSinais() {
   const eligibleSignals = calibration.suppressPopups ? [] : sinaisDetectados.filter((signal) =>
     !(calibration.blockDeltaA && signal.strategy === "delta-a")
   );
-  const sinais = orderSignalsByMasterWeight(estado.spins.length > 20 ? eligibleSignals : []);
+  const sinais = processarSinaisSimultaneos(estado.spins.length > 20 ? eligibleSignals : []);
 
   const recoveryAlerts = trackedSignals.filter((signal) => !signal.preCatalog && (signal.status === "GALE 1 EM ANDAMENTO" || signal.status === "GALE 1 BLOQUEADO")).filter((signal) => signal.r1Number !== undefined && signal.resultSpinId === estado.spins.at(-1)?.id).map((signal) => ({
     id: `${signal.id}:recovery:${signal.status}`,
