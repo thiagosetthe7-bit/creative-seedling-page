@@ -70,6 +70,7 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 15 }: Signa
     "volt-b": 0.875, "delta-b": 0.857, "volt-a": 0.855, "volt-delta": 0.75, "delta-a": 0.667,
   };
   const prioritizedSignals = [...signals].sort((a, b) =>
+    Number(Boolean(b.priorityOverride)) - Number(Boolean(a.priorityOverride)) ||
     (calibrationWeight[b.strategy] ?? 0.5) - (calibrationWeight[a.strategy] ?? 0.5) ||
     Number(Boolean(b.blocked)) - Number(Boolean(a.blocked))
   );

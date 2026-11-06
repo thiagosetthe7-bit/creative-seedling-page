@@ -3,12 +3,12 @@ import type { TrackedSignal } from "./signalTracking";
 import type { EntrySignal } from "./signalEngine";
 
 export const MASTER_CALIBRATION = {
-  version: "12.0-MASTER-PROD",
-  totalSignals: 114,
-  globalWinRate: 80.7,
-  sourceFiles: 54,
+  version: "14.0-MASTER-PROD",
+  totalSignals: 115,
+  globalWinRate: 80.9,
+  sourceSessions: 16,
   strategyWeights: {
-    "volt-b": { label: "VOLT B", winRate: 87.5, greens: 14, reds: 2, sample: 16, weight: 0.875 },
+    "volt-b": { label: "VOLT B", winRate: 88.2, greens: 15, reds: 2, sample: 17, weight: 0.882 },
     "delta-b": { label: "DELTA B", winRate: 85.7, greens: 6, reds: 1, sample: 7, weight: 0.857 },
     "volt-a": { label: "VOLT A", winRate: 85.5, greens: 47, reds: 8, sample: 55, weight: 0.855 },
     "volt-delta": { label: "CONFLUÊNCIA", winRate: 75, greens: 9, reds: 3, sample: 12, weight: 0.75 },
@@ -26,6 +26,10 @@ export interface MasterSafetyAssessment {
   redsConsecutivos: number;
   alternatingAxis: string | null;
   structuralScore: number | null;
+  structuralAlternationRate: number | null;
+  binaryAlternationRate: number | null;
+  prioritizeStructural: boolean;
+  postVoltGreenFlow: boolean;
   suppressPopups: boolean;
   blockDeltaA: boolean;
 }
@@ -35,12 +39,16 @@ function getAxisValue(spin: Spin, axis: "cor" | "pi" | "ab"): string {
   if (axis === "pi") return spin.classificacao.pi;
   return spin.classificacao.ab;
 }
-function isCleanAlternation(spins: Spin[], axis: "cor" | "pi" | "ab"): boolean {
-  const sample = spins.slice(-6);
-  if (sample.length !== 6 || sample.some((spin) => spin.numero === 0)) return false;
-  const values = sample.map((spin) => getAxisValue(spin, axis));
-  return Boolean(values[0]) && values.every((value, index) => index === 0 || value !== values[index - 1]) &&
-    new Set(values).size === 2;
+function alternationRate(spins: Spin[], selector: (spin: Spin) => string): number | null {
+  const sample = spins.slice(-10).filter((spin) => spin.numero !== 0);
+  if (sample.length < 10) return null;
+  const values = sample.map(selector);
+  const transitions = values.slice(1).filter((value, index) => value !== values[index]).length;
+  return transitions / (values.length - 1) * 100;
+}
+function meanAlternation(spins: Spin[], selectors: ((spin: Spin) => string)[]): number | null {
+  const rates = selectors.map((selector) => alternationRate(spins, selector)).filter((rate): rate is number => rate !== null);
+  return rates.length ? rates.reduce((sum, n) => sum + n, 0) / rates.length : null;
 }
 function structuralConcentration(spins: Spin[]): number | null {
   const sample = spins.slice(-10).filter((spin) => spin.numero !== 0);
@@ -59,57 +67,67 @@ export function evaluateMasterSessionSafety(
   history: Spin[],
   signals: TrackedSignal[],
 ): MasterSafetyAssessment {
-  if (spinIndex < 10) return {
-    status: "CALIBRANDO", action: "SUPRIMIR_SINAIS",
-    diagnostico: "SESSÃO EM CALIBRAÇÃO — filtro de abertura ativo",
-    mensagem: "⏳ Mesa em fase de calibração (aguardando 10 giros iniciais).",
-    spinIndex, redsConsecutivos: 0, alternatingAxis: null, structuralScore: null,
-    suppressPopups: true, blockDeltaA: true,
-  };
-
-  let redsConsecutivos = 0;
-  const resolved = signals.filter((signal) => signal.result === "RED" || signal.result === "GREEN_R1" || signal.result === "GREEN_GALE1")
+  const structuralAlternationRate = meanAlternation(history, [
+    (spin) => spin.classificacao.duzia, (spin) => spin.classificacao.coluna,
+  ]);
+  const binaryAlternationRate = meanAlternation(history, [
+    (spin) => spin.classificacao.cor, (spin) => spin.classificacao.pi, (spin) => spin.classificacao.ab,
+  ]);
+  const structuralScore = structuralConcentration(history);
+  const resolved = signals
+    .filter((signal) => signal.result === "RED" || signal.result === "GREEN_R1" || signal.result === "GREEN_GALE1")
     .sort((a, b) => a.sourceIndex - b.sourceIndex);
+  let redsConsecutivos = 0;
   for (let i = resolved.length - 1; i >= 0; i--) {
     if (resolved[i]!.result === "RED") redsConsecutivos++;
     else break;
   }
-
-  const alternatingAxis = (["cor", "pi", "ab"] as const).find((axis) => isCleanAlternation(history, axis)) ?? null;
-  const structuralScore = structuralConcentration(history);
-  if (alternatingAxis) return {
-    status: "SESSAO_NEGATIVA", action: "SUPRIMIR_SINAIS",
-    diagnostico: "SESSÃO NEGATIVA (Alto ruído / Zigue-zague)",
-    mensagem: "⚠️ FILTRO DE RUÍDO: alternância binária curta detetada. Pop-ups temporariamente suspensos.",
-    spinIndex, redsConsecutivos, alternatingAxis, structuralScore,
+  const lastResolved = resolved.at(-1);
+  const postVoltGreenFlow = Boolean(lastResolved && lastResolved.result !== "RED" &&
+    (lastResolved.strategy === "volt-a" || lastResolved.strategy === "volt-b" || lastResolved.strategy === "volt-delta") &&
+    structuralAlternationRate !== null && structuralAlternationRate < 45);
+  const base = {
+    spinIndex, redsConsecutivos, alternatingAxis: null as string | null, structuralScore,
+    structuralAlternationRate, binaryAlternationRate,
+    prioritizeStructural: structuralAlternationRate !== null && structuralAlternationRate < 45,
+    postVoltGreenFlow,
+  };
+  if (spinIndex < 10) return {
+    ...base, status: "CALIBRANDO", action: "SUPRIMIR_SINAIS",
+    diagnostico: "SESSÃO EM CALIBRAÇÃO — filtro de abertura ativo",
+    mensagem: "⏳ Mesa em fase de calibração (aguardando 10 giros iniciais).",
     suppressPopups: true, blockDeltaA: true,
   };
-  if (redsConsecutivos >= 2) return {
-    status: "DEFESA_ATIVA", action: "BLOQUEAR_DELTA_A",
-    diagnostico: "SESSÃO NEGATIVA (Drawdown Defense)",
-    mensagem: "🛡️ DEFESA DE BANCA: 2 Reds consecutivos. DELTA A isolado bloqueado; VOLT A/B e confluência permanecem elegíveis.",
-    spinIndex, redsConsecutivos, alternatingAxis: null, structuralScore,
+  if (binaryAlternationRate !== null && binaryAlternationRate > 65) return {
+    ...base, status: "SESSAO_NEGATIVA", action: "BLOQUEAR_DELTA_A",
+    diagnostico: "SESSÃO NEGATIVA (Entropia binária / zigue-zague)",
+    mensagem: "⚠️ RUÍDO ELEVADO: alternância binária acima de 65%. DELTA A isolado bloqueado; VOLT A/B continuam elegíveis.",
     suppressPopups: false, blockDeltaA: true,
   };
-  if (structuralScore !== null && structuralScore >= 0.75) return {
-    status: "OTIMO", action: "LIBERADO",
-    diagnostico: "SESSÃO POSITIVA (Estabilidade estrutural consolidada)",
-    mensagem: "✅ Fluxo estrutural consolidado. Sinais elegíveis conforme a calibração.",
-    spinIndex, redsConsecutivos, alternatingAxis: null, structuralScore,
+  if (redsConsecutivos >= 2) return {
+    ...base, status: "DEFESA_ATIVA", action: "BLOQUEAR_DELTA_A",
+    diagnostico: "SESSÃO NEGATIVA (Drawdown Defense)",
+    mensagem: "🛡️ DEFESA DE BANCA: 2 Reds consecutivos. DELTA A isolado bloqueado; VOLT A/B e confluência permanecem elegíveis.",
+    suppressPopups: false, blockDeltaA: true,
+  };
+  if (structuralAlternationRate !== null && structuralAlternationRate < 45) return {
+    ...base, status: "OTIMO", action: "LIBERADO",
+    diagnostico: "SESSÃO POSITIVA (Inércia setorial consolidada)",
+    mensagem: postVoltGreenFlow
+      ? "✅ Inércia estrutural após Green VOLT; VOLT A/B recebem prioridade. Indicador descritivo, não previsão do próximo giro."
+      : "✅ Baixa alternância estrutural detectada. VOLT A/B recebem prioridade de exibição.",
     suppressPopups: false, blockDeltaA: false,
   };
   if (structuralScore !== null && structuralScore < 0.5) return {
-    status: "SESSAO_NEGATIVA", action: "SUPRIMIR_SINAIS",
+    ...base, status: "SESSAO_NEGATIVA", action: "LIBERADO",
     diagnostico: "SESSÃO NEGATIVA (Dispersão estrutural elevada)",
-    mensagem: "⚠️ SESSÃO NEGATIVA: dispersão estrutural elevada. Entradas suspensas para proteção.",
-    spinIndex, redsConsecutivos, alternatingAxis: null, structuralScore,
-    suppressPopups: true, blockDeltaA: true,
+    mensagem: "⚠️ SESSÃO NEGATIVA: dispersão estrutural elevada. DELTA A permanece sob filtro de ruído.",
+    suppressPopups: false, blockDeltaA: true,
   };
   return {
-    status: "NEUTRO", action: "LIBERADO",
+    ...base, status: "NEUTRO", action: "LIBERADO",
     diagnostico: "SESSÃO EM OBSERVAÇÃO",
     mensagem: "Sessão em observação; sem bloqueio estrutural confirmado.",
-    spinIndex, redsConsecutivos, alternatingAxis: null, structuralScore,
     suppressPopups: false, blockDeltaA: false,
   };
 }
@@ -129,19 +147,21 @@ export interface PrioritizedEntrySignal extends EntrySignal {
 }
 
 /** Ordena e anota todos os sinais simultâneos para apresentação no popup dual. */
-export function processarSinaisSimultaneos<T extends EntrySignal>(sinaisDetectados: T[]): (T & {
+export function processarSinaisSimultaneos<T extends EntrySignal>(sinaisDetectados: T[], prioritizeStructural = false): (T & {
   tagVisual: PrioritizedEntrySignal["tagVisual"];
   destaque: boolean;
   winRate: string;
 })[] {
-  const sinaisOrdenados = [...sinaisDetectados].sort((a, b) =>
-    (OVERLAP_STRATEGY_WEIGHTS[b.strategy] ?? 0.5) -
-    (OVERLAP_STRATEGY_WEIGHTS[a.strategy] ?? 0.5)
-  );
+  const isStructural = (strategy: EntrySignal["strategy"]) => strategy === "volt-a" || strategy === "volt-b";
+  const sinaisOrdenados = [...sinaisDetectados].sort((a, b) => {
+    if (prioritizeStructural && isStructural(a.strategy) !== isStructural(b.strategy)) return isStructural(a.strategy) ? -1 : 1;
+    return (OVERLAP_STRATEGY_WEIGHTS[b.strategy] ?? 0.5) - (OVERLAP_STRATEGY_WEIGHTS[a.strategy] ?? 0.5);
+  });
   return sinaisOrdenados.map((sinal, index) => ({
     ...sinal,
     tagVisual: index === 0 ? "⭐ RECOMENDADO (MAIOR WR)" : "🛡️ SINAL SECUNDÁRIO / COBERTURA",
     destaque: index === 0,
+    priorityOverride: prioritizeStructural && isStructural(sinal.strategy),
     winRate: `${((OVERLAP_STRATEGY_WEIGHTS[sinal.strategy] ?? 0.5) * 100).toFixed(1)}%`,
   }));
 }

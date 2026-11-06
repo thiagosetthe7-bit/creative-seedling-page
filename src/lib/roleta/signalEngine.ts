@@ -19,6 +19,7 @@ export interface EntrySignal {
   confidenceLevel?: "HIGH" | "LOW" | "INSUFFICIENT";
   tagVisual?: "⭐ RECOMENDADO (MAIOR WR)" | "🛡️ SINAL SECUNDÁRIO / COBERTURA";
   destaque?: boolean;
+  priorityOverride?: boolean;
   winRate?: string;
 }
 
