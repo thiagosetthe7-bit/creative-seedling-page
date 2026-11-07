@@ -1,7 +1,7 @@
 import type { Spin } from "./catalogo";
 import type { TipoBip } from "./store";
 
-export type StrategyId = "volt-a" | "volt-b" | "delta-a" | "delta-b" | "volt-delta";
+export type StrategyId = "volt-a" | "volt-b" | "delta-a" | "delta-b" | "volt-delta" | "atlas-exhaustion";
 export interface EntrySignal {
   id: string;
   strategy: StrategyId;

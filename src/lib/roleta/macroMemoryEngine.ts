@@ -12,99 +12,147 @@ export interface MacroMemoryAssessment {
   signals: EntrySignal[];
 }
 
-const WINDOW_SIZE = 30;
-const OPENING_LOCK = 15;
-const ALT_THRESHOLD = 65;
-const MIN_STREAK = 5;
-type Sector = "color" | "high_low" | "dozen" | "column" | "section" | "terminal";
+const BUFFER_SIZE = 100;
+const MIN_SPINS_BEFORE_SIGNAL = 15;
+const SAMPLE_SIZE = 5;
+type Sector = "High_Low" | "Dozen" | "Column" | "Even_Odd" | "Color";
 
-function valueOf(spin: Spin, sector: Sector): string {
+function sectorValue(spin: Spin, sector: Sector): string {
   const c = spin.classificacao;
   switch (sector) {
-    case "color": return c.cor;
-    case "high_low": return c.ab;
-    case "dozen": return c.duzia;
-    case "column": return c.coluna;
-    case "section": return c.secao;
-    case "terminal": return c.terminal;
+    case "High_Low": return c.ab;
+    case "Dozen": return c.duzia;
+    case "Column": return c.coluna;
+    case "Even_Odd": return c.pi;
+    case "Color": return c.cor;
   }
 }
-function validHistory(spins: Spin[]): Spin[] {
-  const lastZero = spins.map((spin) => spin.numero).lastIndexOf(0);
-  return (lastZero >= 0 ? spins.slice(lastZero + 1) : spins).slice(-WINDOW_SIZE);
+
+/** Avalia somente a mesa ativa: o Zero encerra a amostra e nunca é atravessado. */
+function recentValidBuffer(spins: Spin[]): Spin[] {
+  const buffer = spins.slice(-BUFFER_SIZE);
+  const lastZero = buffer.map((spin) => spin.numero).lastIndexOf(0);
+  return (lastZero >= 0 ? buffer.slice(lastZero + 1) : buffer);
 }
-function alternation(values: string[]): number {
-  const usable = values.filter((value) => value && value !== "ZERO" && value !== "VERDE" && value !== "Zero");
-  if (usable.length < 6) return 0;
-  let changes = 0;
-  for (let i = 1; i < usable.length; i++) if (usable[i] !== usable[i - 1]) changes++;
-  return changes / (usable.length - 1) * 100;
+
+function isAlternating(values: string[]): boolean {
+  if (values.length < 4) return false;
+  for (let k = 2; k < values.length; k++) {
+    if (values[k] !== values[k - 2]) return false;
+  }
+  return true;
 }
-function trailingStreak(values: string[]): { value: string; count: number } {
-  const value = values.at(-1) ?? "";
-  if (!value || value === "ZERO" || value === "VERDE" || value === "Zero") return { value: "", count: 0 };
-  let count = 0;
-  for (let i = values.length - 1; i >= 0 && values[i] === value; i--) count++;
-  return { value, count };
-}
-function atlasSignal(history: Spin[], sector: "color" | "high_low"): EntrySignal | null {
-  const values = history.map((spin) => valueOf(spin, sector));
-  const usable = values.filter((value) => value && value !== "ZERO" && value !== "VERDE" && value !== "Zero");
-  if (usable.length < MIN_STREAK + 2) return null;
-  const sample = usable.slice(-(MIN_STREAK + 2));
-  const base = sample[0]!;
-  const accumulation = sample.slice(0, MIN_STREAK);
-  const breaks = sample.slice(MIN_STREAK, MIN_STREAK + 1);
-  const returned = sample.at(-1)!;
-  if (!accumulation.every((value) => value === base) || breaks[0] === base || returned !== base) return null;
-  const spin = history.at(-1)!;
-  const label = sector === "color" ? "COR" : "ALTO/BAIXO";
-  const target = `${label}: ${base}`;
+
+function createSignal(
+  source: Spin,
+  strategy: EntrySignal["strategy"],
+  name: string,
+  target: string,
+  explanation: string,
+  action: string,
+  deltaTarget?: string,
+): EntrySignal {
   return {
-    id: `atlas:${sector}:${spin.id}`, strategy: "delta-a", name: "ATLAS TRIGGER",
-    target, explanation: "Exaustão isolada em eixo binário após acumulação, quebra e retorno.",
-    action: `ATLAS TRIGGER identificado em ${target}. Estado informativo; valide o risco antes de qualquer decisão.`,
-    sourceSpinId: spin.id, phase: "R1",
+    id: `${strategy}:${source.id}:${target}:${deltaTarget ?? ""}`,
+    strategy,
+    name,
+    target,
+    ...(deltaTarget ? { deltaTarget } : {}),
+    explanation,
+    action,
+    sourceSpinId: source.id,
+    phase: "R1",
   };
 }
 
-/** Motor macro sem dependência de win-rate ou resultados de sessões anteriores. */
-export function evaluateMacroMemory(spins: Spin[]): MacroMemoryAssessment {
-  const history = validHistory(spins);
-  const empty = (status: MacroMemoryStatus, message: string, altCount = 0, streakCount = 0, signals: EntrySignal[] = []): MacroMemoryAssessment => ({
-    status, message, spinCount: spins.length, windowSize: history.length, altCount, streakCount, signals,
-  });
-  if (spins.length < OPENING_LOCK) return empty("MONITORING", `MONITORING • calibração inicial: ${spins.length}/${OPENING_LOCK} giros. Nenhum alerta ou sinal será disparado.`);
-  if (!history.length || spins.at(-1)?.numero === 0) return empty("MONITORING", "MONITORING • aguardando novos giros válidos após o Zero.");
+/**
+ * MacroMemoryEngine: buffer deslizante de 100 giros, amostra de decisão de 5.
+ * A regra é determinística e não utiliza win-rate ou resultados de sessões passadas.
+ */
+export class MacroMemoryEngine {
+  private historyBuffer: Spin[] = [];
+  readonly minSpinsBeforeSignal = MIN_SPINS_BEFORE_SIGNAL;
 
-  const sectors: Sector[] = ["color", "high_low", "dozen", "column", "section", "terminal"];
-  const altCount = sectors.filter((sector) => alternation(history.map((spin) => valueOf(spin, sector))) > ALT_THRESHOLD).length;
-  if (altCount >= 2) return empty("BLOCK", `BLOCK CAIXA • zigue-zague síncrono detectado em ${altCount} setores. Todos os sinais foram suprimidos.`, altCount);
-
-  const structuralSectors: Sector[] = ["dozen", "column", "section", "terminal"];
-  const streaks = structuralSectors.map((sector) => {
-    const streak = trailingStreak(history.map((spin) => valueOf(spin, sector)));
-    return { sector, ...streak };
-  }).filter((item) => item.count >= MIN_STREAK);
-  const uniqueSectors = new Map(streaks.map((item) => [item.sector, item]));
-  const streakCount = uniqueSectors.size;
-  if (streakCount >= 2) {
-    const chosen = Array.from(uniqueSectors.values()).sort((a, b) => b.count - a.count).slice(0, 2);
-    const label: Record<Sector, string> = { dozen: "DÚZIAS", column: "COLUNAS", section: "SEÇÃO", terminal: "TERMINAL", color: "COR", high_low: "ALTO/BAIXO" };
-    const targets = chosen.map((item) => `${label[item.sector]}: ${item.value}`);
-    const source = history.at(-1)!;
-    const signal: EntrySignal = {
-      id: `volt-confluence:${source.id}:${chosen.map((item) => item.sector).join("-")}`,
-      strategy: "volt-delta", name: "VOLT CONFLUENCE",
-      target: targets[0]!, deltaTarget: targets[1]!,
-      explanation: `Confluência multi-setor: ${streakCount} setores com sequência mínima de ${MIN_STREAK} giros.`,
-      action: `HIGH SIGNAL • confluência multi-setor: ${targets.join(" + ")}.`,
-      sourceSpinId: source.id, phase: "R1",
-    };
-    return empty("HIGH_SIGNAL", "HIGH SIGNAL • confluência multi-setor confirmada.", altCount, streakCount, [signal]);
+  ingestSpin(spinData: Spin): void {
+    this.historyBuffer.push(spinData);
+    if (this.historyBuffer.length > BUFFER_SIZE) this.historyBuffer.shift();
   }
 
-  const atlas = (["color", "high_low"] as const).map((sector) => atlasSignal(history, sector)).filter((signal): signal is EntrySignal => signal !== null);
-  if (atlas.length) return empty("ATLAS_TRIGGER", "ATLAS TRIGGER • exaustão isolada detectada em eixo binário.", altCount, streakCount, atlas);
-  return empty("MONITORING", "MONITORING • fluxo neutro; memória macro mapeando a mesa.", altCount, streakCount);
+  evaluateMacroState(totalSpinCount = this.historyBuffer.length): MacroMemoryAssessment {
+    const activeHistory = recentValidBuffer(this.historyBuffer);
+    const window5 = activeHistory.slice(-SAMPLE_SIZE);
+    const empty = (
+      status: MacroMemoryStatus,
+      message: string,
+      altCount = 0,
+      streakCount = 0,
+      signals: EntrySignal[] = [],
+    ): MacroMemoryAssessment => ({
+      status, message, spinCount: totalSpinCount, windowSize: activeHistory.length,
+      altCount, streakCount, signals,
+    });
+
+    if (totalSpinCount < this.minSpinsBeforeSignal) {
+      return empty("MONITORING", `MONITORING • fase de mapeamento inicial (${totalSpinCount}/${this.minSpinsBeforeSignal} giros). Sinais suprimidos.`);
+    }
+    if (window5.length < SAMPLE_SIZE) {
+      return empty("MONITORING", "MONITORING • aguardando cinco giros válidos após o último Zero.");
+    }
+
+    const sectors: Sector[] = ["High_Low", "Dozen", "Column", "Even_Odd", "Color"];
+    const activeStreaks: Array<{ sector: Sector; value: string }> = [];
+    let altCount = 0;
+
+    for (const sector of sectors) {
+      const vals = window5.map((spin) => sectorValue(spin, sector));
+      if (new Set(vals).size === 1 && vals[0] !== "ZERO" && vals[0] !== "VERDE" && vals[0] !== "Zero") {
+        activeStreaks.push({ sector, value: vals[0]! });
+      } else if (isAlternating(vals)) {
+        altCount++;
+      }
+    }
+
+    const streakCount = activeStreaks.length;
+    if (altCount >= 2) {
+      return empty("BLOCK", "BLOCK CAIXA • alta alternância síncrona detectada em dois ou mais setores. Caixa blindada.", altCount, streakCount);
+    }
+
+    const source = window5.at(-1)!;
+    if (streakCount >= 2) {
+      const labels: Record<Sector, string> = {
+        High_Low: "ALTO/BAIXO", Dozen: "DÚZIAS", Column: "COLUNAS",
+        Even_Odd: "PAR/ÍMPAR", Color: "COR",
+      };
+      const chosen = activeStreaks.slice(0, 2);
+      const targets = chosen.map(({ sector, value }) => `${labels[sector]}: ${value}`);
+      const signal = createSignal(
+        source, "volt-delta", "VOLT CONFLUENCE", targets[0]!,
+        `Confluência multi-setor detectada em ${streakCount} áreas, com repetição idêntica nos últimos cinco giros.`,
+        `HIGH SIGNAL • confluência multi-setor: ${targets.join(" + ")}.`,
+        targets[1],
+      );
+      return empty("HIGH_SIGNAL", `HIGH SIGNAL • confluência multi-setor detectada em ${streakCount} áreas.`, altCount, streakCount, [signal]);
+    }
+
+    if (streakCount === 1 && (activeStreaks[0]!.sector === "Color" || activeStreaks[0]!.sector === "High_Low")) {
+      const isolated = activeStreaks[0]!;
+      const label = isolated.sector === "Color" ? "COR" : "ALTO/BAIXO";
+      const target = `${label}: ${isolated.value}`;
+      const signal = createSignal(
+        source, "atlas-exhaustion", "ATLAS EXHAUSTION", target,
+        `Exaustão isolada detetada em ${isolated.sector} após cinco giros consecutivos na mesma categoria.`,
+        `ATLAS TRIGGER • eixo binário identificado: ${target}.`,
+      );
+      return empty("ATLAS_TRIGGER", `ATLAS TRIGGER • exaustão isolada em ${isolated.sector}.`, altCount, streakCount, [signal]);
+    }
+
+    return empty("MONITORING", "MONITORING • fluxo neutro; aguardando gatilho estrutural.", altCount, streakCount);
+  }
+}
+
+/** Adaptador puro para o hook React; mantém o motor sincronizado com a mesa atual. */
+export function evaluateMacroMemory(spins: Spin[]): MacroMemoryAssessment {
+  const engine = new MacroMemoryEngine();
+  for (const spin of spins.slice(-BUFFER_SIZE)) engine.ingestSpin(spin);
+  return engine.evaluateMacroState(spins.length);
 }

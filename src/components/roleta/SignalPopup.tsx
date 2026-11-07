@@ -24,7 +24,7 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 15 }: Signa
   if (!visible || !signals.length) return null;
   const signal = signals[0]!;
   const high = signal.macroState === "HIGH_SIGNAL";
-  const title = high ? "HIGH SIGNAL • VOLT CONFLUENCE" : "ATLAS TRIGGER";
+  const title = signal.strategy === "atlas-exhaustion" ? "ATLAS TRIGGER • EXAUSTÃO BINÁRIA" : high ? "HIGH SIGNAL • VOLT CONFLUENCE" : "ATLAS TRIGGER";
   return <div className="pointer-events-none fixed inset-0 z-[100] flex items-center justify-center bg-black/60 px-4 py-8 backdrop-blur-md" aria-live="assertive">
     <section role="alertdialog" aria-modal="true" aria-labelledby="macro-signal-title" className={`pointer-events-auto w-full max-w-lg overflow-hidden rounded-3xl border bg-slate-950/95 text-white shadow-2xl ${high ? "border-emerald-400/70 shadow-emerald-500/20" : "border-amber-400/70 shadow-amber-500/20"}`}>
       <div className={`h-2 ${high ? "bg-emerald-400" : "bg-amber-400"}`} />
