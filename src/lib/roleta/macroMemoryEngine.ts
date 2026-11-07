@@ -1,10 +1,15 @@
 import type { Spin } from "./catalogo";
 import type { EntrySignal } from "./signalEngine";
 
-export type MacroMemoryStatus = "MONITORING" | "ATLAS_TRIGGER" | "HIGH_SIGNAL" | "BLOCK";
+export type MacroMemoryStatus = "MONITORING" | "HIGH_SIGNAL" | "BLOCK";
 export interface MacroMemoryAssessment {
   status: MacroMemoryStatus;
   message: string;
+  descricao: string;
+  estrategia?: "CONFLUÊNCIA VOLT" | "ZIGUE-ZAGUE CAÓTICO";
+  confianca?: "MÁXIMA";
+  alvoPrincipal?: { setor: string; valor: string };
+  setorConfluencia?: { setor: string; valor: string };
   spinCount: number;
   windowSize: number;
   altCount: number;
@@ -13,7 +18,7 @@ export interface MacroMemoryAssessment {
 }
 
 const BUFFER_SIZE = 100;
-const MIN_SPINS_BEFORE_SIGNAL = 15;
+const MIN_SPINS_BEFORE_SIGNAL = 20;
 const SAMPLE_SIZE = 5;
 type Sector = "High_Low" | "Dozen" | "Column" | "Even_Odd" | "Color";
 
@@ -28,11 +33,11 @@ function sectorValue(spin: Spin, sector: Sector): string {
   }
 }
 
-/** Avalia somente a mesa ativa: o Zero encerra a amostra e nunca é atravessado. */
+/** O Zero é uma fronteira absoluta: padrões anteriores não atravessam o Zero. */
 function recentValidBuffer(spins: Spin[]): Spin[] {
   const buffer = spins.slice(-BUFFER_SIZE);
   const lastZero = buffer.map((spin) => spin.numero).lastIndexOf(0);
-  return (lastZero >= 0 ? buffer.slice(lastZero + 1) : buffer);
+  return lastZero >= 0 ? buffer.slice(lastZero + 1) : buffer;
 }
 
 function isAlternating(values: string[]): boolean {
@@ -43,31 +48,24 @@ function isAlternating(values: string[]): boolean {
   return true;
 }
 
-function createSignal(
-  source: Spin,
-  strategy: EntrySignal["strategy"],
-  name: string,
-  target: string,
-  explanation: string,
-  action: string,
-  deltaTarget?: string,
-): EntrySignal {
+function createSignal(source: Spin, targetA: string, targetB: string, streakCount: number): EntrySignal {
   return {
-    id: `${strategy}:${source.id}:${target}:${deltaTarget ?? ""}`,
-    strategy,
-    name,
-    target,
-    ...(deltaTarget ? { deltaTarget } : {}),
-    explanation,
-    action,
+    id: `volt-confluence:${source.id}:${targetA}:${targetB}`,
+    strategy: "volt-delta",
+    name: "CONFLUÊNCIA VOLT",
+    target: targetA,
+    deltaTarget: targetB,
+    explanation: `Confluência multi-setor detetada em ${streakCount} áreas, com repetição idêntica nos últimos cinco giros.`,
+    action: `Entrada firme: ${targetA} + ${targetB}.`,
     sourceSpinId: source.id,
     phase: "R1",
+    macroState: "HIGH_SIGNAL",
   };
 }
 
 /**
- * MacroMemoryEngine: buffer deslizante de 100 giros, amostra de decisão de 5.
- * A regra é determinística e não utiliza win-rate ou resultados de sessões passadas.
+ * Memória macro da mesa ativa. Não usa ATLAS, win-rate de sessão ou estatísticas micro.
+ * Mantém no máximo 100 giros e exige 20 giros catalogados antes de avaliar sinais.
  */
 export class MacroMemoryEngine {
   private historyBuffer: Spin[] = [];
@@ -78,81 +76,113 @@ export class MacroMemoryEngine {
     if (this.historyBuffer.length > BUFFER_SIZE) this.historyBuffer.shift();
   }
 
-  evaluateMacroState(totalSpinCount = this.historyBuffer.length): MacroMemoryAssessment {
-    const activeHistory = recentValidBuffer(this.historyBuffer);
-    const window5 = activeHistory.slice(-SAMPLE_SIZE);
+  avaliarEstadoMacro(totalGiros = this.historyBuffer.length): MacroMemoryAssessment {
+    const historicoAtivo = recentValidBuffer(this.historyBuffer);
+    const janela5 = historicoAtivo.slice(-SAMPLE_SIZE);
     const empty = (
       status: MacroMemoryStatus,
       message: string,
+      descricao: string,
       altCount = 0,
       streakCount = 0,
       signals: EntrySignal[] = [],
     ): MacroMemoryAssessment => ({
-      status, message, spinCount: totalSpinCount, windowSize: activeHistory.length,
-      altCount, streakCount, signals,
+      status, message, descricao, spinCount: totalGiros,
+      windowSize: historicoAtivo.length, altCount, streakCount, signals,
     });
 
-    if (totalSpinCount < this.minSpinsBeforeSignal) {
-      return empty("MONITORING", `MONITORING • fase de mapeamento inicial (${totalSpinCount}/${this.minSpinsBeforeSignal} giros). Sinais suprimidos.`);
-    }
-    if (window5.length < SAMPLE_SIZE) {
-      return empty("MONITORING", "MONITORING • aguardando cinco giros válidos após o último Zero.");
+    if (totalGiros <= this.minSpinsBeforeSignal) {
+      return empty(
+        "MONITORING",
+        "PRÉ-CATALOGAÇÃO • 20 giros concluídos antes de liberar a análise.",
+        `Pré-catalogação de 20 números em andamento (${Math.min(totalGiros, 20)}/20). Sinais suprimidos.`,
+      );
     }
 
-    const sectors: Sector[] = ["High_Low", "Dozen", "Column", "Even_Odd", "Color"];
-    const activeStreaks: Array<{ sector: Sector; value: string }> = [];
-    let altCount = 0;
+    if (janela5.length < SAMPLE_SIZE) {
+      return empty(
+        "MONITORING",
+        "MONITORAMENTO • aguardando cinco giros válidos após o último Zero.",
+        "Amostra estrutural insuficiente após o Zero. Nenhum sinal será emitido.",
+      );
+    }
 
-    for (const sector of sectors) {
-      const vals = window5.map((spin) => sectorValue(spin, sector));
-      if (new Set(vals).size === 1 && vals[0] !== "ZERO" && vals[0] !== "VERDE" && vals[0] !== "Zero") {
-        activeStreaks.push({ sector, value: vals[0]! });
-      } else if (isAlternating(vals)) {
-        altCount++;
+    const setores: Sector[] = ["High_Low", "Dozen", "Column", "Even_Odd", "Color"];
+    const setoresAtivos: Array<{ sector: Sector; value: string }> = [];
+    let contagemAlt = 0;
+
+    for (const setor of setores) {
+      const valores = janela5.map((spin) => sectorValue(spin, setor));
+      const validos = valores.every((value) => Boolean(value) && !["ZERO", "VERDE", "Zero"].includes(value));
+      if (!validos) continue;
+
+      if (new Set(valores).size === 1) {
+        setoresAtivos.push({ sector: setor, value: valores[0]! });
+      } else if (isAlternating(valores)) {
+        contagemAlt++;
       }
     }
 
-    const streakCount = activeStreaks.length;
-    if (altCount >= 2) {
-      return empty("BLOCK", "BLOCK CAIXA • alta alternância síncrona detectada em dois ou mais setores. Caixa blindada.", altCount, streakCount);
+    const contagemStreaks = setoresAtivos.length;
+    if (contagemAlt >= 2) {
+      return empty(
+        "BLOCK",
+        "BLOQUEIO DE CAIXA • zigue-zague caótico detectado.",
+        "Mesa em alta alternância síncrona em dois ou mais setores. Caixa blindada contra perdas.",
+        contagemAlt,
+        contagemStreaks,
+      );
     }
 
-    const source = window5.at(-1)!;
-    if (streakCount >= 2) {
+    if (contagemStreaks >= 2) {
+      const principal = setoresAtivos[0]!;
+      const confluencia = setoresAtivos[1]!;
       const labels: Record<Sector, string> = {
-        High_Low: "ALTO/BAIXO", Dozen: "DÚZIAS", Column: "COLUNAS",
-        Even_Odd: "PAR/ÍMPAR", Color: "COR",
+        High_Low: "ALTO/BAIXO",
+        Dozen: "DÚZIAS",
+        Column: "COLUNAS",
+        Even_Odd: "PAR/ÍMPAR",
+        Color: "COR",
       };
-      const chosen = activeStreaks.slice(0, 2);
-      const targets = chosen.map(({ sector, value }) => `${labels[sector]}: ${value}`);
-      const signal = createSignal(
-        source, "volt-delta", "VOLT CONFLUENCE", targets[0]!,
-        `Confluência multi-setor detectada em ${streakCount} áreas, com repetição idêntica nos últimos cinco giros.`,
-        `HIGH SIGNAL • confluência multi-setor: ${targets.join(" + ")}.`,
-        targets[1],
-      );
-      return empty("HIGH_SIGNAL", `HIGH SIGNAL • confluência multi-setor detectada em ${streakCount} áreas.`, altCount, streakCount, [signal]);
+      const alvoPrincipal = { setor: principal.sector, valor: principal.value };
+      const setorConfluencia = { setor: confluencia.sector, valor: confluencia.value };
+      const targetA = `${labels[principal.sector]}: ${principal.value}`;
+      const targetB = `${labels[confluencia.sector]}: ${confluencia.value}`;
+      const signal = createSignal(janela5[janela5.length - 1]!, targetA, targetB, contagemStreaks);
+      return {
+        status: "HIGH_SIGNAL",
+        message: `SINAL DE ALTA FIRMEZA • confluência detectada em ${contagemStreaks} setores.`,
+        descricao: `Confluência multi-setor detetada em ${contagemStreaks} áreas. Entrada firme autorizada.`,
+        estrategia: "CONFLUÊNCIA VOLT",
+        confianca: "MÁXIMA",
+        alvoPrincipal,
+        setorConfluencia,
+        spinCount: totalGiros,
+        windowSize: historicoAtivo.length,
+        altCount: contagemAlt,
+        streakCount: contagemStreaks,
+        signals: [signal],
+      };
     }
 
-    if (streakCount === 1 && (activeStreaks[0]!.sector === "Color" || activeStreaks[0]!.sector === "High_Low")) {
-      const isolated = activeStreaks[0]!;
-      const label = isolated.sector === "Color" ? "COR" : "ALTO/BAIXO";
-      const target = `${label}: ${isolated.value}`;
-      const signal = createSignal(
-        source, "atlas-exhaustion", "ATLAS EXHAUSTION", target,
-        `Exaustão isolada detetada em ${isolated.sector} após cinco giros consecutivos na mesma categoria.`,
-        `ATLAS TRIGGER • eixo binário identificado: ${target}.`,
-      );
-      return empty("ATLAS_TRIGGER", `ATLAS TRIGGER • exaustão isolada em ${isolated.sector}.`, altCount, streakCount, [signal]);
-    }
+    return empty(
+      "MONITORING",
+      "MONITORAMENTO • fluxo neutro.",
+      "Mesa em fluxo estável. Aguardando padrão estrutural de confluência.",
+      contagemAlt,
+      contagemStreaks,
+    );
+  }
 
-    return empty("MONITORING", "MONITORING • fluxo neutro; aguardando gatilho estrutural.", altCount, streakCount);
+  /** Alias de compatibilidade usado pelo hook atual. */
+  evaluateMacroState(totalSpinCount = this.historyBuffer.length): MacroMemoryAssessment {
+    return this.avaliarEstadoMacro(totalSpinCount);
   }
 }
 
-/** Adaptador puro para o hook React; mantém o motor sincronizado com a mesa atual. */
+/** Adaptador puro para o hook React; cada avaliação considera a mesa ativa. */
 export function evaluateMacroMemory(spins: Spin[]): MacroMemoryAssessment {
   const engine = new MacroMemoryEngine();
   for (const spin of spins.slice(-BUFFER_SIZE)) engine.ingestSpin(spin);
-  return engine.evaluateMacroState(spins.length);
+  return engine.avaliarEstadoMacro(spins.length);
 }

@@ -24,13 +24,13 @@ export function SignalPopup({ signals, onDismiss, autoCloseSeconds = 15 }: Signa
   if (!visible || !signals.length) return null;
   const signal = signals[0]!;
   const high = signal.macroState === "HIGH_SIGNAL";
-  const title = signal.strategy === "atlas-exhaustion" ? "ATLAS TRIGGER • EXAUSTÃO BINÁRIA" : high ? "HIGH SIGNAL • VOLT CONFLUENCE" : "ATLAS TRIGGER";
+  const title = "SINAL DE ALTA FIRMEZA • CONFLUÊNCIA VOLT";
   return <div className="pointer-events-none fixed inset-0 z-[100] flex items-center justify-center bg-black/60 px-4 py-8 backdrop-blur-md" aria-live="assertive">
-    <section role="alertdialog" aria-modal="true" aria-labelledby="macro-signal-title" className={`pointer-events-auto w-full max-w-lg overflow-hidden rounded-3xl border bg-slate-950/95 text-white shadow-2xl ${high ? "border-emerald-400/70 shadow-emerald-500/20" : "border-amber-400/70 shadow-amber-500/20"}`}>
-      <div className={`h-2 ${high ? "bg-emerald-400" : "bg-amber-400"}`} />
+    <section role="alertdialog" aria-modal="true" aria-labelledby="macro-signal-title" className={`pointer-events-auto w-full max-w-lg overflow-hidden rounded-3xl border bg-slate-950/95 text-white shadow-2xl ${high ? "border-emerald-400/70 shadow-emerald-500/20" : "border-cyan-400/70 shadow-cyan-500/20"}`}>
+      <div className={`h-2 ${high ? "bg-emerald-400" : "bg-cyan-400"}`} />
       <div className="p-6 sm:p-8">
         <p className="text-xs font-black tracking-[0.22em] text-slate-400">MEMÓRIA MACRO • ALERTA DE MESA</p>
-        <h2 id="macro-signal-title" className={`mt-3 text-3xl font-black sm:text-4xl ${high ? "text-emerald-300" : "text-amber-300"}`}>{title}</h2>
+        <h2 id="macro-signal-title" className={`mt-3 text-3xl font-black sm:text-4xl ${high ? "text-emerald-300" : "text-cyan-300"}`}>{title}</h2>
         <div className="mt-5 rounded-2xl border border-white/15 bg-white/5 p-5">
           <p className="text-xs font-black tracking-widest text-slate-400">ALVO PRINCIPAL</p>
           <p className="mt-2 text-2xl font-black">{signal.target}</p>
