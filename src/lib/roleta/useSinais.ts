@@ -62,7 +62,7 @@ export function useSinais() {
   return {
     sinais: signals, alertas: signals, superGatilho: macro.status === "HIGH_SIGNAL",
     smartGale: null, tracking: { version: 1 as const, lastProcessedSpinId: estado.spins.at(-1)?.id ?? null, signals: tracking },
-    blockedTargets: [], marketEntropy: { isMarketSafe: macro.status !== "BLOCK", dominantSector: null, concentration: 0, hasIsolatedBreaks: macro.status === "ATLAS_TRIGGER" },
+    blockedTargets: [], marketEntropy: { isMarketSafe: macro.status !== "BLOCK", dominantSector: null, concentration: 0, hasIsolatedBreaks: false },
     zeroQuarantineActive: false, sessionAssessment: { sessionStatus: macro.status, sampleSize: macro.windowSize },
     calibration, macro,
   };
