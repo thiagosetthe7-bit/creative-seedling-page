@@ -21,6 +21,7 @@ export interface EntrySignal {
   destaque?: boolean;
   priorityOverride?: boolean;
   winRate?: string;
+  macroState?: "MONITORING" | "ATLAS_TRIGGER" | "HIGH_SIGNAL" | "BLOCK";
 }
 
 export const WINDOW_SIZE = 30;

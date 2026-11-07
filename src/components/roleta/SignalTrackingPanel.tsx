@@ -3,7 +3,6 @@ import type { TrackedSignal } from "@/lib/roleta/signalTracking";
 import { carregarConfigBanca, dinheiro } from "@/lib/roleta/bankroll";
 import { impactoFinanceiro } from "@/lib/roleta/sessionFinance";
 import { effectiveSignalResult, loadSessionFinance, saveSessionFinance, SESSION_FINANCE_EVENT, type EditableSignalResult, type SessionFinanceLedger } from "@/lib/roleta/sessionFinance";
-import { syncReliabilityHistory } from "@/lib/roleta/signalReliability";
 
 interface SignalTrackingPanelProps { signals: TrackedSignal[]; }
 const resultLabel: Partial<Record<EditableSignalResult, string>> = { PENDING: "Pendente", GREEN_R1: "Green R1", GREEN_GALE1: "Green Gale 1", RED: "Red", GALE_BLOCKED: "Gale Bloqueado", NOT_PICKED: "Não Peguei", NO_SIGNAL: "Pendente" };
@@ -16,7 +15,6 @@ export function SignalTrackingPanel({ signals }: SignalTrackingPanelProps) {
     window.addEventListener("storage", sync);
     return () => { window.removeEventListener(SESSION_FINANCE_EVENT, sync); window.removeEventListener("storage", sync); };
   }, []);
-  useEffect(() => { syncReliabilityHistory(signals, ledger); }, [signals, ledger]);
   const allSignals = [...(ledger.archivedSignals ?? []), ...signals];
   const visible = [...new Map(allSignals.map((signal) => [signal.id, signal])).values()].filter((signal) => !ledger.removedSignalIds.includes(signal.id));
   const active = visible.filter((s) => s.status !== "CONCLUÍDO" && !s.preCatalog).slice().reverse();
@@ -36,10 +34,6 @@ export function SignalTrackingPanel({ signals }: SignalTrackingPanelProps) {
       : calculated;
     return { result, impact };
   });
-  const greens = metrics.filter(({ result }) => ["GREEN_R1", "GREEN_GALE1", "GREEN_GALE2"].includes(result)).length;
-  const reds = metrics.filter(({ result }) => result === "RED").length;
-  const resolved = greens + reds;
-  const winRate = resolved ? (greens / resolved) * 100 : 0;
   const totalImpact = metrics.reduce((sum, item) => sum + (item.impact ?? 0), 0);
   const money = (value: number) => `${value > 0 ? "+" : value < 0 ? "−" : ""}${dinheiro(Math.abs(value))}`;
   return (
@@ -47,9 +41,6 @@ export function SignalTrackingPanel({ signals }: SignalTrackingPanelProps) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-sm font-black tracking-widest">HISTÓRICO DE ENTRADAS DA SESSÃO</h2>
         <div className="flex flex-wrap gap-2" aria-label="Métricas da sessão">
-          <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-xs font-black text-emerald-300">GREENS {greens}</span>
-          <span className="rounded-full border border-rose-400/30 bg-rose-400/10 px-3 py-1.5 text-xs font-black text-rose-300">REDS {reds}</span>
-          <span className="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1.5 text-xs font-black text-sky-200">WIN RATE {winRate.toFixed(1)}%</span>
           <span className={`rounded-full border px-3 py-1.5 text-xs font-black ${totalImpact > 0 ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" : totalImpact < 0 ? "border-rose-400/30 bg-rose-400/10 text-rose-300" : "border-slate-400/30 bg-slate-400/10 text-slate-200"}`}>IMPACTO {money(totalImpact)}</span>
         </div>
       </div>

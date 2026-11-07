@@ -7,7 +7,6 @@ import { SignalTrackingPanel } from "@/components/roleta/SignalTrackingPanel";
 import { acoes, useEstado } from "@/lib/roleta/store";
 import { useSinais } from "@/lib/roleta/useSinais";
 import { baixarCSVCatalogacao, montarCSVCatalogacao, salvarArquivoSessaoForense } from "@/lib/exportCatalogacao";
-import { assessSessionTrend } from "@/lib/roleta/sessionThermometer";
 import { carregarConfigBanca, diaAtivo } from "@/lib/roleta/bankroll";
 import { effectiveSignalResult, impactoFinanceiro, loadSessionFinance, saveSessionFinance } from "@/lib/roleta/sessionFinance";
 
@@ -27,20 +26,19 @@ export const Route = createFileRoute("/")({
 
 function Catalogacao() {
   const estado = useEstado();
-  const { sinais, tracking } = useSinais();
-  const thermometer = assessSessionTrend(estado.spins, tracking.signals);
+  const { sinais, tracking, macro } = useSinais();
   return (
     <AppShell>
       <SignalPopup signals={sinais} autoCloseSeconds={15} />
-      {thermometer.status !== "CALIBRATING" && <div role="status" aria-live="polite" className={`mb-4 rounded-xl border p-4 ${thermometer.status === "POSITIVE" ? "border-emerald-400/50 bg-emerald-500/10 text-emerald-200" : "border-rose-400/50 bg-rose-500/10 text-rose-200"}`}>
-        <p className="text-sm font-black tracking-wide">{thermometer.status === "POSITIVE" ? "🟢 SESSÃO POSITIVA" : "🔴 SESSÃO NEGATIVA"} <span className="font-semibold">{thermometer.status === "POSITIVE" ? "(Estabilidade estrutural detectada)" : "(Alto ruído / Zigue-zague)"}</span></p>
-        <p className="mt-1 text-[11px] opacity-80">Termômetro atualizado no checkpoint de {thermometer.checkpoint} giros • estabilidade estrutural {(thermometer.structuralScore * 100).toFixed(0)}%{thermometer.hitRate !== null ? ` • acerto recente ${(thermometer.hitRate * 100).toFixed(1)}% em ${thermometer.resolvedSignals} sinais resolvidos` : " • aguardando amostra de sinais resolvidos"}</p>
-        {thermometer.changedToNegative && <p className="mt-2 rounded-lg border border-amber-300/40 bg-amber-400/15 px-3 py-2 text-xs font-black text-amber-100">⚠️ ATENÇÃO: A tendência da sessão mudou! O termômetro agora indica SESSÃO NEGATIVA.</p>}
-      </div>}
+      <div role="status" aria-live="polite" className={`mb-4 rounded-xl border p-4 ${macro.status === "BLOCK" ? "border-rose-400/60 bg-rose-500/15 text-rose-200" : macro.status === "HIGH_SIGNAL" ? "border-emerald-400/60 bg-emerald-500/15 text-emerald-200" : macro.status === "ATLAS_TRIGGER" ? "border-amber-400/60 bg-amber-500/15 text-amber-100" : "border-sky-400/40 bg-sky-500/10 text-sky-100"}`}>
+        <p className="text-sm font-black tracking-wide">{macro.status === "BLOCK" ? "🛑 BLOCK CAIXA" : macro.status === "HIGH_SIGNAL" ? "🟢 HIGH SIGNAL" : macro.status === "ATLAS_TRIGGER" ? "🟡 ATLAS TRIGGER" : "🔵 MONITORING"}</p>
+        <p className="mt-1 text-xs opacity-90">{macro.message}</p>
+        <p className="mt-2 text-[10px] opacity-70">Janela ativa: {macro.windowSize} giros • alternância crítica: {macro.altCount} setores • confluência: {macro.streakCount} setores</p>
+      </div>
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-lg font-black tracking-widest">CATALOGAÇÃO</h1>
-          <p className="mt-1 text-xs text-muted-foreground">Motores VOLT A/B e DELTA A/B • Zero neutro • janela de 30 giros</p>
+          <p className="mt-1 text-xs text-muted-foreground">MEMÓRIA MACRO • buffer deslizante de 30 giros • blindagem de caixa</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => baixarCSVCatalogacao(estado.spins, estado.bips, tracking.signals)}
@@ -80,7 +78,7 @@ function Catalogacao() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-card p-3">
         <div>
           <p className="text-sm font-bold">Regra global do Zero</p>
-          <p className="text-xs text-muted-foreground">Os 20 primeiros giros são pré-catalogação (não entram no Win Rate real). O zero é neutro: fica no histórico, não quebra a sequência e não conta para acumulação.</p>
+          <p className="text-xs text-muted-foreground">Os primeiros 15 giros ficam em MONITORING. A janela macro é limitada aos giros recentes da mesa ativa; o Zero encerra a sequência corrente.</p>
         </div>
         <label className="flex cursor-pointer items-center gap-2 text-xs font-black">
           <input type="checkbox" checked={estado.config.zeroComoProtecao}

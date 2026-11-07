@@ -47,7 +47,8 @@ export interface EstadoApp {
   auditoriaLog: Record<string, RegistroAuditoria>;
 }
 
-const CHAVE = "roleta-catalogacao-v1";
+const CHAVE = "roleta-macro-memory-v2";
+const MAX_TABLE_SPINS = 120;
 
 const inicial: EstadoApp = {
   spins: [],
@@ -78,7 +79,7 @@ function migrar(bruto: EstadoApp): EstadoApp {
   const chaves = Object.keys(antigo as Record<string, unknown>);
   const pareceNovo = chaves.every((k) => Number.isNaN(Number(k)));
   const semModeloFinanceiro: EstadoApp = {
-    spins: bruto.spins ?? [], config: { ...inicial.config, ...(bruto.config ?? {}), alertasAtivos: false, zeroComoProtecao: bruto.config?.zeroComoProtecao ?? true }, confirmados: bruto.confirmados ?? [],
+    spins: (bruto.spins ?? []).slice(-MAX_TABLE_SPINS), config: { ...inicial.config, ...(bruto.config ?? {}), alertasAtivos: false, zeroComoProtecao: bruto.config?.zeroComoProtecao ?? true }, confirmados: bruto.confirmados ?? [],
     cancelados: bruto.cancelados ?? [], vistos: bruto.vistos ?? [], bips: bruto.bips ?? {},
     pendentes: bruto.pendentes ?? {}, auditoriaLog: bruto.auditoriaLog ?? {},
   };
@@ -101,6 +102,8 @@ function carregar(): EstadoApp {
   if (carregado || typeof window === "undefined") return estado;
   carregado = true;
   try {
+    window.localStorage.removeItem("roleta-signal-reliability-v1");
+    window.localStorage.removeItem("roleta-signal-tracking-v1");
     const bruto = window.localStorage.getItem(CHAVE);
     if (bruto) {
       const carregado = migrar({ ...inicial, ...(JSON.parse(bruto) as EstadoApp) });
@@ -162,7 +165,7 @@ export const acoes = {
       if (tipo) bips[spin.id] = tipo;
       const pendentes = { ...e.pendentes };
       if (tipo) delete pendentes[numero];
-      const novoEstado = { ...e, spins: [...e.spins, spin], bips, pendentes };
+      const novoEstado = { ...e, spins: [...e.spins, spin].slice(-MAX_TABLE_SPINS), bips, pendentes };
       if (typeof window !== "undefined") queueMicrotask(() => window.dispatchEvent(new CustomEvent("roleta:catalogo-atualizado")));
       return novoEstado;
     });
@@ -179,7 +182,7 @@ export const acoes = {
         }
         return spin;
       });
-      const novoEstado = { ...e, spins: [...e.spins, ...novos], bips, pendentes };
+      const novoEstado = { ...e, spins: [...e.spins, ...novos].slice(-MAX_TABLE_SPINS), bips, pendentes };
       if (typeof window !== "undefined") queueMicrotask(() => window.dispatchEvent(new CustomEvent("roleta:catalogo-atualizado")));
       return novoEstado;
     });
