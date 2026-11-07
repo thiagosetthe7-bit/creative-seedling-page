@@ -4,281 +4,105 @@ import { CATEGORIAS } from "./classificacao";
 import { criarSpin, type Spin } from "./catalogo";
 
 export type TipoBip = "timer" | "rolando";
-export type StatusAuditoriaPersistente = "AGUARDANDO_RESULTADO" | "GREEN" | "RED" | "PARTIAL" | "NO_BET";
+export interface Configuracoes { minimo: number; categoriasAtivas: CategoriaId[]; alertasAtivos: boolean; zeroComoProtecao: boolean; }
+export interface EstadoApp { spins: Spin[]; config: Configuracoes; bips: Record<string, TipoBip>; pendentes: Record<number, TipoBip>; }
 
-export interface Configuracoes {
-  minimo: number;
-  categoriasAtivas: CategoriaId[];
-  alertasAtivos: boolean;
-  zeroComoProtecao: boolean;
-}
-
-export interface RegistroAuditoria {
-  signalId: string;
-  strategy: string;
-  entry: string;
-  result: number;
-  outcome: "GREEN" | "RED" | "PARTIAL" | "NO_BET" | "AGUARDANDO_RESULTADO";
-  status: StatusAuditoriaPersistente;
-  resultTimestamp?: number | undefined;
-  recordedAt: number;
-}
-
-export interface EstadoApp {
-  spins: Spin[];
-  config: Configuracoes;
-  /** sinais confirmados manualmente pelo usuário (ids) */
-  confirmados: string[];
-  /** sinais cancelados manualmente (ids) */
-  cancelados: string[];
-  /** sinais já exibidos em pop-up (evita reabrir) */
-  vistos: string[];
-  /**
-   * Marcações de bip por RODADA (chave = spin.id).
-   * Cada registro catalogado tem seu próprio BT/BR, mesmo que o número se repita.
-   */
-  bips: Record<string, TipoBip>;
-  /**
-   * Marcações pendentes por NÚMERO na grade de entrada:
-   * aplicam-se à PRÓXIMA rodada catalogada com aquele número e então são consumidas.
-   */
-  pendentes: Record<number, TipoBip>;
-  /** Resultado já registrado; uma vez gravado, o veredito não volta a PENDENTE. */
-  auditoriaLog: Record<string, RegistroAuditoria>;
-}
-
-const CHAVE = "roleta-macro-memory-v2";
+const CHAVE = "roleta-catalogacao-v1";
+const CHAVE_ANTIGA = "roleta-macro-memory-v2";
 const MAX_TABLE_SPINS = 120;
-
 const inicial: EstadoApp = {
   spins: [],
-  config: {
-    minimo: 4,
-    categoriasAtivas: CATEGORIAS.map((c) => c.id),
-    alertasAtivos: false,
-    zeroComoProtecao: true,
-  },
-  confirmados: [],
-  cancelados: [],
-  vistos: [],
+  config: { minimo: 4, categoriasAtivas: CATEGORIAS.map((c) => c.id), alertasAtivos: false, zeroComoProtecao: true },
   bips: {},
   pendentes: {},
-  auditoriaLog: {},
 };
-
 let estado: EstadoApp = inicial;
 let carregado = false;
 const ouvintes = new Set<() => void>();
 
-function migrar(bruto: EstadoApp): EstadoApp {
-  // Formato antigo: bips indexado por NÚMERO (marcas compartilhadas entre rodadas).
-  // Converte para o formato novo aplicando cada marca à rodada mais recente
-  // daquele número; marcas sem rodada correspondente viram pendências.
-  const antigo = bruto.bips as unknown;
-  if (!antigo || typeof antigo !== "object") return bruto;
-  const chaves = Object.keys(antigo as Record<string, unknown>);
-  const pareceNovo = chaves.every((k) => Number.isNaN(Number(k)));
-  const semModeloFinanceiro: EstadoApp = {
-    spins: (bruto.spins ?? []).slice(-MAX_TABLE_SPINS), config: { ...inicial.config, ...(bruto.config ?? {}), alertasAtivos: false, zeroComoProtecao: bruto.config?.zeroComoProtecao ?? true }, confirmados: bruto.confirmados ?? [],
-    cancelados: bruto.cancelados ?? [], vistos: bruto.vistos ?? [], bips: bruto.bips ?? {},
-    pendentes: bruto.pendentes ?? {}, auditoriaLog: bruto.auditoriaLog ?? {},
-  };
-  if (pareceNovo) return semModeloFinanceiro;
-
-  const bips: Record<string, TipoBip> = {};
-  const pendentes: Record<number, TipoBip> = {};
-  for (const k of chaves) {
-    const tipo = (antigo as Record<string, TipoBip>)[k];
-    if (tipo !== "timer" && tipo !== "rolando") continue;
-    const numero = Number(k);
-    const alvo = [...bruto.spins].reverse().find((s) => s.numero === numero);
-    if (alvo) bips[alvo.id] = tipo;
-    else pendentes[numero] = tipo;
-  }
-  return { ...semModeloFinanceiro, bips, pendentes };
+function limparDadosDeEstrategias() {
+  if (typeof window === "undefined") return;
+  [
+    "roleta-signal-reliability-v1", "roleta-signal-tracking-v1", "roleta-session-finance-v1",
+    "roleta-bankroll-equity-v1", "roleta-forensic-session-archive-v1",
+  ].forEach((key) => window.localStorage.removeItem(key));
 }
-
 function carregar(): EstadoApp {
   if (carregado || typeof window === "undefined") return estado;
   carregado = true;
   try {
-    window.localStorage.removeItem("roleta-signal-reliability-v1");
-    window.localStorage.removeItem("roleta-signal-tracking-v1");
-    const bruto = window.localStorage.getItem(CHAVE);
-    if (bruto) {
-      const carregado = migrar({ ...inicial, ...(JSON.parse(bruto) as EstadoApp) });
-      const auditoriaLog = Object.fromEntries(
-        Object.entries(carregado.auditoriaLog ?? {}).map(([id, registro]) => {
-          const legado = registro as unknown as { status: string; outcome: string };
-          if (legado.status === "DADO_PERDIDO" || legado.outcome === "DADO_PERDIDO") {
-            return [id, { ...registro, status: "AGUARDANDO_RESULTADO", outcome: "AGUARDANDO_RESULTADO" as const }];
-          }
-          return [id, registro];
-        }),
-      );
-      estado = { ...carregado, auditoriaLog };
+    limparDadosDeEstrategias();
+    const novo = window.localStorage.getItem(CHAVE);
+    if (novo) {
+      const raw = JSON.parse(novo) as Partial<EstadoApp>;
+      estado = {
+        spins: Array.isArray(raw.spins) ? raw.spins.slice(-MAX_TABLE_SPINS) : [],
+        config: { ...inicial.config, ...(raw.config ?? {}) },
+        bips: raw.bips && typeof raw.bips === "object" ? raw.bips : {},
+        pendentes: raw.pendentes && typeof raw.pendentes === "object" ? raw.pendentes : {},
+      };
+    } else {
+      // Migra apenas catalogação e preferências; estados, correções e sinais antigos são descartados.
+      const old = window.localStorage.getItem(CHAVE_ANTIGA);
+      if (old) {
+        const raw = JSON.parse(old) as Partial<EstadoApp>;
+        estado = {
+          spins: Array.isArray(raw.spins) ? raw.spins.slice(-MAX_TABLE_SPINS) : [],
+          config: { ...inicial.config, ...(raw.config ?? {}) },
+          bips: raw.bips && typeof raw.bips === "object" ? raw.bips : {},
+          pendentes: raw.pendentes && typeof raw.pendentes === "object" ? raw.pendentes : {},
+        };
+      }
+      window.localStorage.setItem(CHAVE, JSON.stringify(estado));
+      window.localStorage.removeItem(CHAVE_ANTIGA);
     }
-  } catch {
-    /* ignora dados corrompidos */
-  }
+  } catch { estado = inicial; }
   return estado;
 }
-
 function salvar() {
   if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(CHAVE, JSON.stringify(estado));
-  } catch {
-    /* storage indisponível */
-  }
+  try { window.localStorage.setItem(CHAVE, JSON.stringify(estado)); } catch { /* armazenamento indisponível */ }
 }
-
 function definir(mut: (e: EstadoApp) => EstadoApp) {
-  estado = mut(carregar());
-  salvar();
-  ouvintes.forEach((o) => o());
+  estado = mut(carregar()); salvar(); ouvintes.forEach((listener) => listener());
 }
-
 export function useEstado(): EstadoApp {
-  return useSyncExternalStore(
-    (cb) => {
-      ouvintes.add(cb);
-      return () => ouvintes.delete(cb);
-    },
-    () => carregar(),
-    () => inicial,
-  );
+  return useSyncExternalStore((cb) => { ouvintes.add(cb); return () => ouvintes.delete(cb); }, () => carregar(), () => inicial);
 }
-
-/** Cria um spin aplicando (e consumindo) a marcação pendente do número, se houver. */
 function criarSpinComBip(numero: number, pendentes: Record<number, TipoBip>) {
-  const spin = criarSpin(numero);
-  const tipo = pendentes[numero];
-  return { spin, tipo };
+  const spin = criarSpin(numero); return { spin, tipo: pendentes[numero] };
 }
-
 export const acoes = {
   adicionarNumero(numero: number) {
     definir((e) => {
       const { spin, tipo } = criarSpinComBip(numero, e.pendentes);
-      const bips = { ...e.bips };
-      if (tipo) bips[spin.id] = tipo;
-      const pendentes = { ...e.pendentes };
-      if (tipo) delete pendentes[numero];
-      const novoEstado = { ...e, spins: [...e.spins, spin].slice(-MAX_TABLE_SPINS), bips, pendentes };
+      const bips = { ...e.bips }; if (tipo) bips[spin.id] = tipo;
+      const pendentes = { ...e.pendentes }; if (tipo) delete pendentes[numero];
+      const next = { ...e, spins: [...e.spins, spin].slice(-MAX_TABLE_SPINS), bips, pendentes };
       if (typeof window !== "undefined") queueMicrotask(() => window.dispatchEvent(new CustomEvent("roleta:catalogo-atualizado")));
-      return novoEstado;
+      return next;
     });
   },
   adicionarVarios(numeros: number[]) {
     definir((e) => {
-      const bips = { ...e.bips };
-      const pendentes = { ...e.pendentes };
-      const novos = numeros.map((n) => {
-        const { spin, tipo } = criarSpinComBip(n, pendentes);
-        if (tipo) {
-          bips[spin.id] = tipo;
-          delete pendentes[n];
-        }
+      const bips = { ...e.bips }; const pendentes = { ...e.pendentes };
+      const novos = numeros.map((numero) => {
+        const { spin, tipo } = criarSpinComBip(numero, pendentes);
+        if (tipo) { bips[spin.id] = tipo; delete pendentes[numero]; }
         return spin;
       });
-      const novoEstado = { ...e, spins: [...e.spins, ...novos].slice(-MAX_TABLE_SPINS), bips, pendentes };
       if (typeof window !== "undefined") queueMicrotask(() => window.dispatchEvent(new CustomEvent("roleta:catalogo-atualizado")));
-      return novoEstado;
+      return { ...e, spins: [...e.spins, ...novos].slice(-MAX_TABLE_SPINS), bips, pendentes };
     });
   },
-  desfazer() {
-    definir((e) => ({ ...e, spins: e.spins.slice(0, -1) }));
-  },
-  limpar() {
-    definir((e) => ({
-      ...e,
-      spins: [],
-      confirmados: [],
-      cancelados: [],
-      vistos: [],
-      bips: {},
-      pendentes: {},
-      auditoriaLog: {},
-    }));
-  },
-  marcarVisto(id: string) {
-    definir((e) => (e.vistos.includes(id) ? e : { ...e, vistos: [...e.vistos, id] }));
-  },
-  confirmar(id: string) {
-    definir((e) => ({
-      ...e,
-      confirmados: e.confirmados.includes(id) ? e.confirmados : [...e.confirmados, id],
-      vistos: e.vistos.includes(id) ? e.vistos : [...e.vistos, id],
-    }));
-  },
-  cancelar(id: string) {
-    definir((e) => ({
-      ...e,
-      cancelados: e.cancelados.includes(id) ? e.cancelados : [...e.cancelados, id],
-    }));
-  },
-  atualizarConfig(patch: Partial<Configuracoes>) {
-    definir((e) => ({ ...e, config: { ...e.config, ...patch } }));
-  },
-  /** Marca/desmarca o bip de uma rodada específica (individual por registro). */
+  desfazer() { definir((e) => ({ ...e, spins: e.spins.slice(0, -1) })); },
+  limpar() { definir((e) => ({ ...e, spins: [], bips: {}, pendentes: {} })); },
+  atualizarConfig(patch: Partial<Configuracoes>) { definir((e) => ({ ...e, config: { ...e.config, ...patch } })); },
   marcarBip(spinId: string, tipo: TipoBip | null) {
-    definir((e) => {
-      const bips = { ...e.bips };
-      if (tipo === null) delete bips[spinId];
-      else bips[spinId] = tipo;
-      return { ...e, bips };
-    });
+    definir((e) => { const bips = { ...e.bips }; if (tipo === null) delete bips[spinId]; else bips[spinId] = tipo; return { ...e, bips }; });
   },
-  limparBips() {
-    definir((e) => ({ ...e, bips: {}, pendentes: {} }));
-  },
-  /** Marca/desmarca a pendência de um número na grade (vale para a próxima catalogação). */
-  registrarAuditorias(registros: RegistroAuditoria[]) {
-    definir((e) => {
-      const auditoriaLog = { ...e.auditoriaLog };
-      let alterou = false;
-      for (const registro of registros) {
-        if (!auditoriaLog[registro.signalId]) {
-          auditoriaLog[registro.signalId] = { ...registro, status: registro.status ?? registro.outcome };
-          alterou = true;
-        }
-      }
-      return alterou ? { ...e, auditoriaLog } : e;
-    });
-  },
-  registrarResultadoAutomatico(registro: RegistroAuditoria) {
-    definir((e) => {
-      const atual = e.auditoriaLog[registro.signalId];
-      if (atual && atual.status !== "AGUARDANDO_RESULTADO") return e;
-      return { ...e, auditoriaLog: { ...e.auditoriaLog, [registro.signalId]: { ...registro, status: registro.outcome } } };
-    });
-  },
-  reprocessarAuditoria(registro: RegistroAuditoria) {
-    definir((e) => ({
-      ...e,
-      auditoriaLog: {
-        ...e.auditoriaLog,
-        [registro.signalId]: { ...registro, status: registro.outcome },
-      },
-    }));
-  },
-  registrarResultadoManual(signalId: string, outcome: "GREEN" | "RED" | "PARTIAL", result: number) {
-    definir((e) => {
-      const atual = e.auditoriaLog[signalId];
-      if (atual && atual.status !== "AGUARDANDO_RESULTADO") return e;
-      return { ...e, auditoriaLog: { ...e.auditoriaLog, [signalId]: { signalId, strategy: atual?.strategy ?? "Resultado manual", entry: atual?.entry ?? "", result, outcome, status: outcome, recordedAt: atual?.recordedAt ?? Date.now(), resultTimestamp: Date.now() } } };
-    });
-  },
-  limparAuditoria() {
-    definir((e) => ({ ...e, auditoriaLog: {} }));
-  },
+  limparBips() { definir((e) => ({ ...e, bips: {}, pendentes: {} })); },
   marcarPendente(numero: number, tipo: TipoBip | null) {
-    definir((e) => {
-      const pendentes = { ...e.pendentes };
-      if (tipo === null) delete pendentes[numero];
-      else pendentes[numero] = tipo;
-      return { ...e, pendentes };
-    });
+    definir((e) => { const pendentes = { ...e.pendentes }; if (tipo === null) delete pendentes[numero]; else pendentes[numero] = tipo; return { ...e, pendentes }; });
   },
 };
